@@ -20,6 +20,7 @@ import Space from './pages/Space';
 import SpacesGrid from './components/SpacesGrid';
 import AuthCallback from './pages/AuthCallback';
 import CanvasVault from './pages/CanvasVault';
+import Research from './pages/Research';
 import QuillosofiCentre from './pages/QuillosofiCentre';
 
 const AuthenticatedApp = () => {
@@ -55,6 +56,8 @@ const AuthenticatedApp = () => {
         <Route path="/space/:spaceId" element={<Space />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
         <Route path="/canvas-vault" element={<CanvasVault />} />
+        <Route path="/research" element={<Research />} />
+        <Route path="/research/:researchId" element={<Research />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
       <Route path="/quillosofi-centre" element={<QuillosofiCentre />} />

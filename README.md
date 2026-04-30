@@ -38,6 +38,9 @@ Build and manage live spreadsheets inside your conversations with conditional fo
 ### Web Search
 Ask Quillosofi anything with live internet context — news, research, facts, and real-time information.
 
+### Research & Cite
+A dedicated Research mode with Perplexity-style numbered citations, a Sources Vault to save anything worth keeping, Quick and Deep depth modes, and a one-click bibliography export. Every claim is cited; every source is one tap away.
+
 ### Full Customization
 Choose your theme, font, bot personality, tone, response style, and even create custom AI personas.
 

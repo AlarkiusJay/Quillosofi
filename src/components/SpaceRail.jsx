@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Settings, Home, Grid3x3, Pencil, Download, BookOpen } from 'lucide-react';
+import { Plus, Settings, Home, Grid3x3, Pencil, Download, BookOpen, Microscope } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -103,6 +103,19 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
               )}
             >
               <BookOpen className="h-4 w-4 text-white" />
+            </button>
+          </Tooltip>
+
+          <Tooltip text="Research & Cite">
+            <button
+              onClick={() => navigate('/research')}
+              style={{ touchAction: 'manipulation' }}
+              className={cn(
+                "w-11 h-11 md:w-9 md:h-9 rounded-[18px] flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 active:brightness-75",
+                location.pathname.startsWith('/research') ? "bg-primary rounded-[10px]" : "bg-[hsl(228,7%,42%)] hover:bg-primary hover:rounded-[10px]"
+              )}
+            >
+              <Microscope className="h-4 w-4 text-white" />
             </button>
           </Tooltip>
 
