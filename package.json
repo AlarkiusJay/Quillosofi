@@ -2,7 +2,7 @@
   "name": "quillosofi",
   "productName": "Quillosofi",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Quillosofi — All-in-one AI writing & thinking studio. By Alarkius Elvya Jay.",
   "author": {
     "name": "Alarkius Elvya Jay",
@@ -133,6 +133,12 @@
     "files": [
       "electron/**/*",
       "dist/**/*",
+      "build/icon.ico",
+      "build/icon.icns",
+      "build/icon.png",
+      "build/tray-icon.ico",
+      "build/tray-icon.png",
+      "build/tray-icon@2x.png",
       "package.json",
       "!**/*.map",
       "!**/.DS_Store"

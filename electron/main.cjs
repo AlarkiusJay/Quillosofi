@@ -216,13 +216,32 @@ function createWindow() {
 // Tray
 // =============================================================
 function createTray() {
-  const iconPath = path.join(__dirname, '..', 'build', 'tray-icon.png');
-  let image;
-  try {
-    image = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
-  } catch (_) {
-    image = nativeImage.createEmpty();
+  // Windows tray expects .ico for crispness across DPI scales; macOS/Linux
+  // do best with PNG. Fall back through a list of candidates so the tray
+  // never silently fails to render.
+  const buildDir = path.join(__dirname, '..', 'build');
+  const candidates = process.platform === 'win32'
+    ? ['tray-icon.ico', 'icon.ico', 'tray-icon.png', 'icon.png']
+    : ['tray-icon.png', 'icon.png', 'tray-icon.ico'];
+
+  let image = null;
+  for (const name of candidates) {
+    const p = path.join(buildDir, name);
+    try {
+      if (fs.existsSync(p)) {
+        const img = nativeImage.createFromPath(p);
+        if (!img.isEmpty()) {
+          image = img;
+          // On macOS, smaller tray icons feel more native.
+          if (process.platform === 'darwin') {
+            image = img.resize({ width: 18, height: 18 });
+          }
+          break;
+        }
+      }
+    } catch (_) { /* try next */ }
   }
+  if (!image) image = nativeImage.createEmpty();
 
   tray = new Tray(image);
   tray.setToolTip('Quillosofi');
