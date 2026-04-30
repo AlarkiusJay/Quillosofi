@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#5865f2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Quillosofi" />
+    <title>Quillosofi</title>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RY9TDC47VL"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-RY9TDC47VL');
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+    document.addEventListener('contextmenu', function(e) {
+      // Allow only elements that have set a custom context menu handler
+      // (those call e.preventDefault() themselves before this bubbles)
+      // We block everything at the document level as a catch-all
+      e.preventDefault();
+    }, true);
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
+
+  </body>
+</html>

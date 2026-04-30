@@ -1,0 +1,55 @@
+{
+  "name": "ProjectSpace",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the project space"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this space is about"
+    },
+    "emoji": {
+      "type": "string",
+      "description": "Emoji icon for the space",
+      "default": "\ud83d\udcc1"
+    },
+    "color": {
+      "type": "string",
+      "description": "Accent color for the space",
+      "default": "blue"
+    },
+    "system_prompt": {
+      "type": "string",
+      "description": "Custom instructions applied to all chats in this space"
+    },
+    "links": {
+      "type": "array",
+      "description": "Reference links and sources for this space",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "space_memory": {
+      "type": "string",
+      "description": "Custom memory / context notes for this space"
+    },
+    "memory_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether space memory is injected into chats"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

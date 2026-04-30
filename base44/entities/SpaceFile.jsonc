@@ -1,0 +1,31 @@
+{
+  "name": "SpaceFile",
+  "type": "object",
+  "properties": {
+    "space_id": {
+      "type": "string",
+      "description": "ID of the space this file belongs to"
+    },
+    "name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "MIME type of the file"
+    },
+    "size": {
+      "type": "number",
+      "description": "File size in bytes"
+    }
+  },
+  "required": [
+    "space_id",
+    "name",
+    "file_url"
+  ]
+}

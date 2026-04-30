@@ -1,0 +1,35 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "description": "ID of the parent conversation"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant"
+      ],
+      "description": "Who sent the message"
+    },
+    "content": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "canvas_content": {
+      "type": "string",
+      "description": "Rich text canvas content attached to this message (HTML from Quill)"
+    },
+    "canvas_title": {
+      "type": "string",
+      "description": "Title of the canvas for this message"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "role",
+    "content"
+  ]
+}

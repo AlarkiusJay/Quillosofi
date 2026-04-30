@@ -1,0 +1,26 @@
+{
+  "name": "CustomWord",
+  "type": "object",
+  "properties": {
+    "word": {
+      "type": "string",
+      "description": "The custom word"
+    },
+    "definition": {
+      "type": "string",
+      "description": "Optional definition or description of the word"
+    },
+    "category": {
+      "type": "string",
+      "description": "Optional category (e.g. character, place, term)"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Pinned words are injected into AI context passively"
+    }
+  },
+  "required": [
+    "word"
+  ]
+}

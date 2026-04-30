@@ -1,0 +1,31 @@
+{
+  "name": "Conversation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the conversation"
+    },
+    "last_message_preview": {
+      "type": "string",
+      "description": "Preview of the last message"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the conversation is archived"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the conversation is pinned"
+    },
+    "space_id": {
+      "type": "string",
+      "description": "ID of the project space this conversation belongs to"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

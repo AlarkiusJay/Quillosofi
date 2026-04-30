@@ -1,0 +1,60 @@
+{
+  "name": "BotConfig",
+  "type": "object",
+  "properties": {
+    "bot_name": {
+      "type": "string",
+      "description": "Name of the AI assistant",
+      "default": "ZetrylGPT"
+    },
+    "user_address": {
+      "type": "string",
+      "description": "How the bot should address the user"
+    },
+    "personality": {
+      "type": "string",
+      "enum": [
+        "balanced",
+        "friendly",
+        "professional",
+        "witty",
+        "empathetic",
+        "concise"
+      ],
+      "default": "balanced"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "casual",
+        "neutral",
+        "formal"
+      ],
+      "default": "neutral"
+    },
+    "response_length": {
+      "type": "string",
+      "enum": [
+        "short",
+        "medium",
+        "detailed"
+      ],
+      "default": "medium"
+    },
+    "custom_instructions": {
+      "type": "string",
+      "description": "Custom instructions or context the bot should always follow"
+    },
+    "language": {
+      "type": "string",
+      "description": "Preferred response language",
+      "default": "English"
+    },
+    "persona": {
+      "type": "string",
+      "description": "Active persona ID",
+      "default": "none"
+    }
+  },
+  "required": []
+}

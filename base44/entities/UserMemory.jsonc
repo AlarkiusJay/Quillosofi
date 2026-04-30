@@ -1,0 +1,34 @@
+{
+  "name": "UserMemory",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Memory key (e.g. 'name', 'preferences', 'interests')"
+    },
+    "value": {
+      "type": "string",
+      "description": "Memory value"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "personal",
+        "preference",
+        "context",
+        "interest"
+      ],
+      "description": "Category of memory"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this memory is pinned as important"
+    }
+  },
+  "required": [
+    "key",
+    "value",
+    "category"
+  ]
+}

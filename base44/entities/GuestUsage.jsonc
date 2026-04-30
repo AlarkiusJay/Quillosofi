@@ -1,0 +1,23 @@
+{
+  "name": "GuestUsage",
+  "type": "object",
+  "properties": {
+    "guest_id": {
+      "type": "string",
+      "description": "Unique identifier for the guest user"
+    },
+    "space_count": {
+      "type": "number",
+      "description": "Number of spaces created by this guest",
+      "default": 0
+    },
+    "first_visit_date": {
+      "type": "string",
+      "description": "ISO timestamp of when the guest first visited"
+    }
+  },
+  "required": [
+    "guest_id",
+    "first_visit_date"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Quillosofi",
+  "short_name": "Quillosofi",
+  "description": "Your AI-Text Based Assistant with Memory",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2c2f35",
+  "theme_color": "#5865f2",
+  "icons": [
+    {
+      "src": "https://media.base44.com/images/public/69cec1d94563b236c10d8de7/cf53c7132_QuillosofiICO.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

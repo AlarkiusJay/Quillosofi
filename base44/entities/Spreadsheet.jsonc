@@ -1,0 +1,58 @@
+{
+  "name": "Spreadsheet",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the spreadsheet"
+    },
+    "message_id": {
+      "type": "string",
+      "description": "ID of the message this spreadsheet belongs to"
+    },
+    "data": {
+      "type": "string",
+      "description": "JSON stringified 2D array of cell data"
+    },
+    "col_widths": {
+      "type": "string",
+      "description": "JSON stringified array of column widths"
+    },
+    "row_heights": {
+      "type": "string",
+      "description": "JSON stringified array of row heights"
+    },
+    "cell_formats": {
+      "type": "string",
+      "description": "JSON stringified map of cell formatting"
+    },
+    "cell_types": {
+      "type": "string",
+      "description": "JSON stringified map of cell types (checkbox, date, dropdown)"
+    },
+    "cf_rules": {
+      "type": "string",
+      "description": "JSON stringified array of conditional formatting rules"
+    },
+    "num_rows": {
+      "type": "number",
+      "default": 20
+    },
+    "num_cols": {
+      "type": "number",
+      "default": 10
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "message_id"
+  ]
+}

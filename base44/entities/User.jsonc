@@ -1,0 +1,23 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "nexal_pin": {
+      "type": "string",
+      "description": "Randomized PIN token generated after puzzle completion"
+    },
+    "pin_setup_complete": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has completed the puzzle and received their PIN"
+    }
+  }
+}

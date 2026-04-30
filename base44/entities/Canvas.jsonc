@@ -1,0 +1,42 @@
+{
+  "name": "Canvas",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the canvas",
+      "default": "Untitled Canvas"
+    },
+    "content": {
+      "type": "string",
+      "description": "HTML content from Quill editor"
+    },
+    "space_id": {
+      "type": "string",
+      "description": "ID of the space this canvas belongs to (optional)"
+    },
+    "space_name": {
+      "type": "string",
+      "description": "Cached name of the space"
+    },
+    "conversation_id": {
+      "type": "string",
+      "description": "Linked chat conversation ID (optional)"
+    },
+    "message_id": {
+      "type": "string",
+      "description": "Linked message ID (optional)"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
