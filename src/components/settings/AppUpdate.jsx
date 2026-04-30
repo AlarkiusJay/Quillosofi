@@ -14,10 +14,8 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 
 // Bumped each release. Used by the web fallback view.
-const FALLBACK_VERSION = '0.1.2';
+const FALLBACK_VERSION = '0.1.5';
 const FALLBACK_DATE = 'April 30, 2026';
-
-const isDesktop = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
 
 // =============================================================
 // Web (Base44) view — original force-reload behavior
@@ -146,6 +144,24 @@ function DesktopUpdateView() {
     try { await window.quillosofi.updates.download(); } finally { setBusy(false); }
   }, []);
 
+  // Combined "Check + Download" — checks first, and if an update is
+  // available the main process will start the download automatically when
+  // autoInstall is on. If it's off we kick the download manually after the
+  // check resolves.
+  const handleCheckAndDownload = useCallback(async () => {
+    setBusy(true);
+    try {
+      const res = await window.quillosofi.updates.check();
+      if (res?.ok && res?.info && res.info.version && res.info.version !== state.currentVersion) {
+        // Try to download. Main process will reject silently if already
+        // downloading or unavailable.
+        try { await window.quillosofi.updates.download(); } catch (_) {}
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [state.currentVersion]);
+
   const handleInstall = useCallback(async () => {
     setBusy(true);
     await window.quillosofi.updates.install();
@@ -222,41 +238,14 @@ function DesktopUpdateView() {
     );
   }
 
-  // ---------- Action button ----------
-  let actionButton;
-  if (status === 'downloaded') {
-    actionButton = (
-      <Button onClick={handleInstall} disabled={busy} className="w-full flex items-center gap-2">
-        <RefreshCw className="h-4 w-4" />
-        Install &amp; Restart
-      </Button>
-    );
-  } else if (status === 'available') {
-    actionButton = (
-      <Button onClick={handleDownload} disabled={busy} className="w-full flex items-center gap-2">
-        <Download className="h-4 w-4" />
-        Download v{latestVersion}
-      </Button>
-    );
-  } else if (status === 'downloading') {
-    actionButton = (
-      <Button disabled className="w-full flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Downloading…
-      </Button>
-    );
-  } else {
-    actionButton = (
-      <Button
-        onClick={handleCheck}
-        disabled={busy || status === 'checking'}
-        className="w-full flex items-center gap-2"
-      >
-        <RefreshCw className={`h-4 w-4 ${status === 'checking' ? 'animate-spin' : ''}`} />
-        {status === 'checking' ? 'Checking…' : 'Check for Updates'}
-      </Button>
-    );
-  }
+  // ---------- Action buttons ----------
+  // We always render BOTH a "Check" and a "Download" button so the user has
+  // an obvious manual download path regardless of state. Buttons enable/disable
+  // themselves based on current updater state.
+  const checking = status === 'checking' || busy;
+  const downloading = status === 'downloading';
+  const installable = status === 'downloaded';
+  const downloadable = status === 'available';
 
   return (
     <div className="py-4 space-y-4">
@@ -304,8 +293,40 @@ function DesktopUpdateView() {
           </div>
         )}
 
-        {/* Action */}
-        {actionButton}
+        {/* Actions — always present */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCheck}
+            disabled={checking || downloading}
+            className="w-full flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+            {checking ? 'Checking…' : 'Check for Updates'}
+          </Button>
+
+          {installable ? (
+            <Button onClick={handleInstall} disabled={busy} className="w-full flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Install &amp; Restart
+            </Button>
+          ) : downloading ? (
+            <Button disabled className="w-full flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Downloading…
+            </Button>
+          ) : downloadable ? (
+            <Button onClick={handleDownload} disabled={busy} className="w-full flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Download v{latestVersion}
+            </Button>
+          ) : (
+            <Button onClick={handleCheckAndDownload} disabled={checking} className="w-full flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Download New Update
+            </Button>
+          )}
+        </div>
 
         {/* Open release page */}
         <button
@@ -345,8 +366,21 @@ function DesktopUpdateView() {
 }
 
 // =============================================================
-// Main export — picks view based on environment
+// Main export — picks view based on environment.
+// We re-evaluate isDesktop on every render so timing-of-preload
+// can never trap us in the wrong view.
 // =============================================================
 export default function AppUpdate({ updateCount = 0 }) {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && !!window.quillosofi?.isDesktop
+  );
+
+  // Re-check on mount in case preload hydrated after first render.
+  useEffect(() => {
+    if (!isDesktop && typeof window !== 'undefined' && !!window.quillosofi?.isDesktop) {
+      setIsDesktop(true);
+    }
+  }, [isDesktop]);
+
   return isDesktop ? <DesktopUpdateView /> : <WebUpdateView updateCount={updateCount} />;
 }
