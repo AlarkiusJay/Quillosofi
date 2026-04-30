@@ -14,6 +14,17 @@ import ConfirmDialog from '../components/chat/ConfirmDialog';
 import { Link } from 'react-router-dom';
 import Tooltip from '../components/Tooltip';
 
+// Models exposed in the picker. Keep the fastest options first so users
+// landing on the picker see the speedy ones up top. The leading bolt icon
+// is added at render time for any model marked `fast`.
+const MODEL_OPTIONS = [
+  { id: 'gemini_3_flash', label: 'Gemini Flash', fast: true, tip: 'Fastest — great default for everyday chat' },
+  { id: 'gpt_5_mini', label: 'GPT-4o mini', fast: true, tip: 'Fast and inexpensive' },
+  { id: 'gpt_5', label: 'GPT-4o', tip: 'Balanced quality and speed' },
+  { id: 'gpt_5_4', label: 'GPT-4.1', tip: 'Higher quality, slower' },
+  { id: 'claude_sonnet_4_6', label: 'Claude Sonnet 4.6', tip: 'Strong reasoning, slower' },
+];
+
 const MEMORY_KEYWORDS = [
   'save this to your memory',
   'remember this',
@@ -304,7 +315,16 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [quotedText, setQuotedText] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gpt_5');
+  // Persist the user's last model choice across sessions. Default to
+  // gemini_3_flash since it's the fastest path on desktop and dramatically
+  // improves perceived latency.
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (typeof localStorage === 'undefined') return 'gemini_3_flash';
+    return localStorage.getItem('quillosofi:selectedModel') || 'gemini_3_flash';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('quillosofi:selectedModel', selectedModel); } catch {}
+  }, [selectedModel]);
   const [searchInternet, setSearchInternet] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [userName, setUserName] = useState('You');
@@ -1040,7 +1060,7 @@ If nothing worth remembering, return empty items array.`,
             {messages.map((msg, idx) => (
               <ChatMessage key={msg.id} message={msg} userName={userName} onEdit={msg.role === 'user' ? handleEditMessage : undefined} onRegenerate={msg.role === 'assistant' ? handleRegenerate : undefined} onBranch={handleBranch} isNew={msg.role === 'assistant' && idx === messages.length - 1 && isLoading} autoOpenCanvas={msg.id === canvasOpenMessageId} onCanvasSaved={handleCanvasSaved} onSpreadsheetSaved={handleSpreadsheetSaved} />
             ))}
-            {isLoading && <TypingIndicator />}
+            {isLoading && <TypingIndicator modelLabel={MODEL_OPTIONS.find(m => m.id === selectedModel)?.label} />}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -1052,14 +1072,9 @@ If nothing worth remembering, return empty items array.`,
             <HelpCircle className="h-3.5 w-3.5 shrink-0 text-[hsl(220,7%,40%)] cursor-help hover:text-[hsl(220,7%,55%)] transition-colors" />
           </Tooltip>
           <span className="text-[10px] text-[hsl(220,7%,45%)] font-medium shrink-0">Model:</span>
-          {[
-            { id: 'gpt_5_mini', label: 'GPT-4o mini' },
-            { id: 'gpt_5', label: 'GPT-4o' },
-            { id: 'gpt_5_4', label: 'GPT-4.1' },
-            { id: 'claude_sonnet_4_6', label: 'Claude Sonnet 4.6' },
-          ].map(m => (
+          {MODEL_OPTIONS.map(m => (
+            <Tooltip key={m.id} text={m.tip || m.label}>
             <button
-              key={m.id}
               onClick={() => setSelectedModel(m.id)}
               className={`text-[10px] px-2 py-0.5 rounded-full border transition-all font-medium shrink-0 ${
                 selectedModel === m.id
@@ -1067,8 +1082,9 @@ If nothing worth remembering, return empty items array.`,
                   : 'border-[hsl(225,9%,20%)] text-[hsl(220,7%,45%)] hover:border-primary/30 hover:text-white'
               }`}
             >
-              {m.label}
+              {m.fast && '⚡ '}{m.label}
             </button>
+            </Tooltip>
           ))}
           <button
             onClick={() => setSearchInternet(!searchInternet)}
