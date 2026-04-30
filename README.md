@@ -15,45 +15,44 @@ By **Alarkius Elvya Jay**
 ---
 
 Quillosofi is an all-in-one AI writing & thinking studio for creators —
-chat, brainstorm, draft, and export, all in one place. It runs as both a
-**web app** (Base44) and a **native desktop app** (Windows `.exe`,
-macOS `.dmg`, Linux `.AppImage` / `.deb`) from this single repo.
+chat, brainstorm, draft, and export, all in one place. A **native desktop app** (Windows `.exe`,
+macOS `.dmg`, Linux `.AppImage` / `.deb`) from this single repo. Originally forked from https://quillosofi.com/ because it was a web-based app first. 
 
-## ✨ What Quillosofi Can Do
+## What Quillosofi Can Do
 
-### 💬 AI Chat
+### AI Chat
 Have rich, context-aware conversations with Quillosofi. It remembers your preferences and adapts to your style.
 
-### 🧠 Persistent Memory
+### Persistent Memory
 Quillosofi learns what matters to you. Save facts, preferences, and context that carry across every conversation.
 
-### 🗂️ Project Spaces
+### Project Spaces
 Organize your work into dedicated spaces with custom system prompts, reference links, and shared memory.
 
-### 📓 Canvas Vault
+### Canvas Vault
 Write, format, and save rich text canvases directly inside your chats. Export to TXT, MD, DOCX, or PDF.
 
-### 📊 Spreadsheets
+### Spreadsheets
 Build and manage live spreadsheets inside your conversations with conditional formatting and cell types.
 
-### 🌐 Web Search
+### Web Search
 Ask Quillosofi anything with live internet context — news, research, facts, and real-time information.
 
-### 🎨 Full Customization
+### Full Customization
 Choose your theme, font, bot personality, tone, response style, and even create custom AI personas.
 
-### 🔒 Privacy First
+### Privacy First
 Your data is encrypted, never sold, and always under your control. Export or delete everything at any time.
 
-### ⚡ Slash Commands
+### Slash Commands
 Trigger powerful tools instantly — `/canvas`, `/spreadsheet`, `/search`, and more — right inside any chat.
 
-### 📖 Custom Dictionary
+### Custom Dictionary
 Build your own personal vocabulary. Add words, definitions, and categories. Pin words to inject them passively into every AI conversation — perfect for characters, lore, or specialized terms.
 
 ---
 
-## 🖥️ Desktop edition
+## Desktop edition
 
 The desktop app gives you everything the web version has, plus:
 
@@ -63,12 +62,13 @@ The desktop app gives you everything the web version has, plus:
 - **Single-instance lock** — one Quillosofi at a time, focuses the existing window
 - **Auto-updates** — `electron-updater` checks GitHub Releases and installs in the background
 - **Branded native installer** with the mint feather icon
+- **Data is stored Locally** - We care about privacy. Your data is stored locally in your PC. 
 
 📥 [**Download the latest release →**](https://github.com/AlarkiusJay/Quillosofi/releases/latest)
 
 ---
 
-## 🛠️ Stack
+## Stack
 
 - **Frontend:** React 18 + Vite + Tailwind + Radix UI
 - **Backend:** Base44 (entities, auth, SDK)
@@ -77,7 +77,7 @@ The desktop app gives you everything the web version has, plus:
 
 ---
 
-## 🚀 Local development
+## Local development
 
 ```bash
 # 1. Install
@@ -95,7 +95,7 @@ npm run dev                # http://localhost:5173
 npm run electron:dev
 ```
 
-## 📦 Build a desktop installer
+## Build a desktop installer
 
 ```bash
 npm run build:win      # Quillosofi-Setup-<version>.exe   in release/
@@ -106,7 +106,7 @@ npm run build:all      # all three (only really works on macOS runners)
 
 Output lives in `release/`.
 
-## 🤖 Auto-release via GitHub Actions
+## Auto-release via GitHub Actions
 
 Push a tag and CI builds installers on Windows, macOS, and Linux runners
 in parallel and attaches them to a GitHub Release:
@@ -118,7 +118,7 @@ git push --follow-tags
 
 ---
 
-## 📂 Repo layout
+## Repo layout
 
 ```
 electron/                       Electron main + preload (CommonJS)
@@ -142,7 +142,7 @@ release/                        Electron-builder output (gitignored)
 
 ---
 
-## 📜 License
+## License
 
 Apache-2.0 — see `LICENSE`.
 
