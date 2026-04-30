@@ -48,6 +48,120 @@ if (!gotLock) {
 }
 
 // =============================================================
+// Update settings (persisted to disk in userData/)
+// =============================================================
+const userDataPath = () => app.getPath('userData');
+const updateSettingsFile = () => path.join(userDataPath(), 'update-settings.json');
+
+const DEFAULT_UPDATE_SETTINGS = {
+  autoInstall: true,        // auto-install on next launch
+  autoCheck: true,          // check on startup
+  channel: 'stable',
+};
+
+function loadUpdateSettings() {
+  try {
+    const raw = fs.readFileSync(updateSettingsFile(), 'utf8');
+    return { ...DEFAULT_UPDATE_SETTINGS, ...JSON.parse(raw) };
+  } catch (_) {
+    return { ...DEFAULT_UPDATE_SETTINGS };
+  }
+}
+function saveUpdateSettings(settings) {
+  try {
+    fs.mkdirSync(userDataPath(), { recursive: true });
+    fs.writeFileSync(updateSettingsFile(), JSON.stringify(settings, null, 2));
+  } catch (e) {
+    console.warn('Failed to persist update settings:', e.message);
+  }
+}
+let updateSettings = loadUpdateSettings();
+
+// =============================================================
+// Update state machine — broadcast to renderer over 'updates:state'
+// =============================================================
+const updateState = {
+  status: 'idle',           // idle | checking | available | not-available | downloading | downloaded | error
+  currentVersion: app.getVersion(),
+  latestVersion: null,
+  releaseNotes: null,
+  releaseDate: null,
+  downloadPercent: 0,
+  error: null,
+  lastChecked: null,
+};
+
+function emitUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updates:state', { ...updateState, settings: updateSettings });
+  }
+}
+
+function wireAutoUpdater() {
+  if (!autoUpdater || isDev) return;
+
+  autoUpdater.autoDownload = false;            // we control download timing
+  autoUpdater.autoInstallOnAppQuit = false;    // we honor user's autoInstall toggle ourselves
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    updateState.status = 'checking';
+    updateState.error = null;
+    updateState.lastChecked = Date.now();
+    emitUpdateState();
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    updateState.status = 'available';
+    updateState.latestVersion = info.version;
+    updateState.releaseDate = info.releaseDate || null;
+    updateState.releaseNotes =
+      typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes || null;
+    emitUpdateState();
+
+    // If user has autoInstall on, kick off the download immediately.
+    if (updateSettings.autoInstall) {
+      autoUpdater.downloadUpdate().catch((err) => {
+        console.error('downloadUpdate failed:', err);
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    updateState.status = 'not-available';
+    updateState.latestVersion = info.version;
+    updateState.error = null;
+    emitUpdateState();
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    updateState.status = 'downloading';
+    updateState.downloadPercent = Math.round(progress.percent || 0);
+    emitUpdateState();
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    updateState.status = 'downloaded';
+    updateState.latestVersion = info.version;
+    updateState.downloadPercent = 100;
+    emitUpdateState();
+
+    // If auto-install is on, install on next quit (user can also click Install Now).
+    if (updateSettings.autoInstall) {
+      app.once('before-quit', () => {
+        try { autoUpdater.quitAndInstall(true, false); } catch (_) {}
+      });
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    updateState.status = 'error';
+    updateState.error = err && err.message ? err.message : String(err);
+    emitUpdateState();
+  });
+}
+
+// =============================================================
 // Window
 // =============================================================
 function createWindow() {
@@ -69,7 +183,6 @@ function createWindow() {
     },
   });
 
-  // In dev, point at the Vite dev server. In prod, load the built bundle.
   if (isDev) {
     const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow.loadURL(devUrl);
@@ -79,7 +192,6 @@ function createWindow() {
     mainWindow.loadFile(indexPath);
   }
 
-  // Open external links in the user's default browser, not in-app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) {
       shell.openExternal(url);
@@ -88,7 +200,6 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  // Hide-to-tray instead of full close (unless quitting for real).
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
       e.preventDefault();
@@ -129,7 +240,11 @@ function createTray() {
     {
       label: 'Check for updates',
       click: () => {
-        if (autoUpdater) autoUpdater.checkForUpdatesAndNotify();
+        if (autoUpdater && !isDev) {
+          autoUpdater.checkForUpdates().catch((err) => {
+            console.warn('check-for-updates failed:', err && err.message);
+          });
+        }
       },
     },
     { type: 'separator' },
@@ -150,7 +265,7 @@ function createTray() {
 }
 
 // =============================================================
-// IPC
+// IPC — app
 // =============================================================
 ipcMain.handle('app:get-version', () => app.getVersion());
 ipcMain.handle('app:platform', () => process.platform);
@@ -167,11 +282,68 @@ ipcMain.on('app:quit', () => {
 });
 
 // =============================================================
+// IPC — updates
+// =============================================================
+ipcMain.handle('updates:status', () => ({ ...updateState, settings: updateSettings }));
+
+ipcMain.handle('updates:check', async () => {
+  if (!autoUpdater || isDev) {
+    return { ok: false, error: isDev ? 'Auto-updates disabled in dev' : 'Updater unavailable' };
+  }
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return { ok: true, info: r ? r.updateInfo : null };
+  } catch (err) {
+    updateState.status = 'error';
+    updateState.error = err && err.message ? err.message : String(err);
+    emitUpdateState();
+    return { ok: false, error: updateState.error };
+  }
+});
+
+ipcMain.handle('updates:download', async () => {
+  if (!autoUpdater || isDev) {
+    return { ok: false, error: 'Updater unavailable' };
+  }
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('updates:install', async () => {
+  if (!autoUpdater || isDev) {
+    return { ok: false, error: 'Updater unavailable' };
+  }
+  try {
+    setImmediate(() => autoUpdater.quitAndInstall(true, true));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('updates:setSettings', (_e, partial) => {
+  updateSettings = { ...updateSettings, ...(partial || {}) };
+  saveUpdateSettings(updateSettings);
+  emitUpdateState();
+  return updateSettings;
+});
+
+ipcMain.handle('updates:openReleasePage', () => {
+  shell.openExternal('https://github.com/AlarkiusJay/Quillosofi/releases');
+  return true;
+});
+
+// =============================================================
 // Lifecycle
 // =============================================================
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  wireAutoUpdater();
 
   // Global hotkey to summon Quillosofi (Ctrl/Cmd+Shift+Q).
   try {
@@ -185,11 +357,13 @@ app.whenReady().then(() => {
     });
   } catch (_) {}
 
-  if (autoUpdater && !isDev) {
-    try {
-      autoUpdater.autoDownload = true;
-      autoUpdater.checkForUpdatesAndNotify();
-    } catch (_) {}
+  // Initial update check 3s after launch (after window had time to render).
+  if (autoUpdater && !isDev && updateSettings.autoCheck) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((err) => {
+        console.warn('Initial update check failed:', err && err.message);
+      });
+    }, 3000);
   }
 
   app.on('activate', () => {
