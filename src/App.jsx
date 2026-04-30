@@ -1,7 +1,15 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes } from 'react-router-dom';
+
+// In the Electron desktop build the app is loaded from a file:// URL, which
+// breaks BrowserRouter (it tries to match the full file path as a route and
+// renders PageNotFound). HashRouter works with file://, so we use that when
+// running inside the desktop shell. The web build keeps BrowserRouter so URLs
+// stay clean.
+const isDesktop = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
+const Router = isDesktop ? HashRouter : BrowserRouter;
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
