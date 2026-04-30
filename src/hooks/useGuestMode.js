@@ -3,14 +3,17 @@ import { base44 } from '@/api/base44Client';
 
 const GUEST_START_KEY = 'zetryl_guest_first_visit';
 const GUEST_DISMISSED_BANNER_KEY = 'zetryl_guest_banner_dismissed_day';
+const IS_DESKTOP = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
 
 export function useGuestMode() {
+  // Desktop is fully local — never "guest mode" with countdown banners.
   const [isGuest, setIsGuest] = useState(false);
   const [daysElapsed, setDaysElapsed] = useState(0);
   const [firstVisit, setFirstVisit] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!IS_DESKTOP);
 
   useEffect(() => {
+    if (IS_DESKTOP) return; // no guest concept on desktop
     const init = async () => {
       const authed = await base44.auth.isAuthenticated();
       if (authed) {

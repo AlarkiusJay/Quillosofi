@@ -4,18 +4,28 @@ import { LogIn, LogOut, Settings } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 
 const CURRENT_VERSION = "1.0.0";
+const IS_DESKTOP = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
+
+// Synthetic local user for desktop — no auth, fully offline-friendly.
+const LOCAL_USER = {
+  id: 'local-desktop-user',
+  email: 'local@quillosofi.desktop',
+  full_name: 'Local User',
+  is_local: true,
+};
 
 export default function InAppLogin({ onAuthChange }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(IS_DESKTOP ? LOCAL_USER : null);
   const [botConfig, setBotConfig] = useState(null);
   const [showEmail, setShowEmail] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!IS_DESKTOP);
   const [showSettings, setShowSettings] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
   const popupRef = useRef(null);
   const pollRef = useRef(null);
 
   useEffect(() => {
+    if (IS_DESKTOP) return; // version handled by the desktop AppUpdate component
     base44.functions.invoke('getAppVersion', {}).then(res => {
       if (res.data?.version && res.data.version !== CURRENT_VERSION) {
         setHasUpdate(true);
@@ -42,6 +52,13 @@ export default function InAppLogin({ onAuthChange }) {
   };
 
   useEffect(() => {
+    if (IS_DESKTOP) {
+      // Desktop: skip auth, just hydrate the bot config (avatar/nickname).
+      base44.entities.BotConfig.list(null, 1)
+        .then((configs) => setBotConfig(configs?.[0] || null))
+        .catch(() => {});
+      return;
+    }
     loadUser();
 
     // Listen for auth completion from the popup tab
@@ -68,6 +85,7 @@ export default function InAppLogin({ onAuthChange }) {
   };
 
   const handleLogout = async () => {
+    if (IS_DESKTOP) return; // no logout on desktop — it's local-only
     await base44.auth.logout();
     setUser(null);
     onAuthChange?.();
@@ -75,7 +93,8 @@ export default function InAppLogin({ onAuthChange }) {
 
   if (loading) return null;
 
-  if (!user) {
+  // Desktop never shows the Login / Sign Up prompt — fully local app.
+  if (!user && !IS_DESKTOP) {
     return (
       <div className="shrink-0 px-3 py-3 border-t border-black/30">
         <button
@@ -112,13 +131,15 @@ export default function InAppLogin({ onAuthChange }) {
               {showEmail ? user.email : '••••••••••••••••'}
             </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(220,7%,55%)] hover:text-red-400 p-1 rounded"
-            title="Logout"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
+          {!IS_DESKTOP && (
+            <button
+              onClick={handleLogout}
+              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(220,7%,55%)] hover:text-red-400 p-1 rounded"
+              title="Logout"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} initialTab="update" />}

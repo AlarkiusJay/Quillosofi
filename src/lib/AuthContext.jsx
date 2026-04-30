@@ -5,15 +5,30 @@ import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 
 const AuthContext = createContext();
 
+// Desktop builds run fully local — no Base44 auth round-trip, no login wall.
+// All app data is stored on disk via Electron, so we synthesize a local user
+// and skip every auth check.
+const IS_DESKTOP = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
+const LOCAL_USER = {
+  id: 'local-desktop-user',
+  email: 'local@quillosofi.desktop',
+  full_name: 'Local User',
+  display_name: 'You',
+  is_local: true,
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
+  const [user, setUser] = useState(IS_DESKTOP ? LOCAL_USER : null);
+  const [isAuthenticated, setIsAuthenticated] = useState(IS_DESKTOP);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(!IS_DESKTOP);
+  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(!IS_DESKTOP);
   const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  const [appPublicSettings, setAppPublicSettings] = useState(
+    IS_DESKTOP ? { id: 'desktop', public_settings: {} } : null
+  );
 
   useEffect(() => {
+    if (IS_DESKTOP) return; // skip Base44 calls entirely on desktop
     checkAppState();
   }, []);
 
@@ -111,9 +126,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    if (IS_DESKTOP) {
+      // No-op on desktop — there's no remote session to end.
+      return;
+    }
     setUser(null);
     setIsAuthenticated(false);
-    
+
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect
       base44.auth.logout(window.location.href);
@@ -124,6 +143,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
+    if (IS_DESKTOP) {
+      // Desktop doesn't have a login. Stay put.
+      return;
+    }
     // Use the SDK's redirectToLogin method
     base44.auth.redirectToLogin(window.location.href);
   };
