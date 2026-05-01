@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { guestStorage } from '../utils/guestStorage';
 
@@ -12,6 +12,8 @@ import SettingsModal from './SettingsModal';
 import StatsPanel from './StatsPanel.jsx';
 import SpaceRail from './SpaceRail.jsx';
 import GuestExpiredScreen from './guest/GuestExpiredScreen';
+import { useGlobalKeybinds } from '@/lib/keybinds';
+import { addCustomWord } from '@/lib/customDict';
 
 import { useGuestMode } from '../hooks/useGuestMode';
 
@@ -104,8 +106,40 @@ export default function Layout() {
   }, [loadConversations, loadSpaces]);
 
   const handleNewChat = () => {
-    navigate('/');
+    navigate('/chat');
   };
+
+  // Wire global keybinds. Settings + AI Settings are routed through window
+  // events so SpaceRail (which owns the modals) picks them up. The dictionary
+  // shortcut grabs the current selection and stuffs it into the local store.
+  const keybindHandlers = useMemo(() => ({
+    openSettings:    () => window.dispatchEvent(new CustomEvent('quillosofi:open-settings')),
+    openAiSettings:  () => window.dispatchEvent(new CustomEvent('quillosofi:open-ai-settings')),
+    addToDictionary: () => {
+      const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
+      const word = sel?.toString?.().trim();
+      if (!word) return;
+      addCustomWord({ word });
+    },
+    toggleAiDictionary: () => {
+      // Pinning toggle from a selection — pinning a freshly-added word puts
+      // it in AI vocabulary; on an existing pinned word, this unpins it.
+      const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
+      const word = sel?.toString?.().trim();
+      if (!word) return;
+      // Use a dynamic import to avoid circulars; safe because keybinds.js
+      // already imports React.
+      import('@/lib/customDict').then(mod => {
+        const existing = mod.getCustomWord(word);
+        if (existing) {
+          mod.updateCustomWord(existing.id, { is_pinned: !existing.is_pinned });
+        } else {
+          mod.addCustomWord({ word, is_pinned: true });
+        }
+      });
+    },
+  }), []);
+  useGlobalKeybinds(keybindHandlers);
 
   const handleDelete = (id) => setPendingDelete(id);
 

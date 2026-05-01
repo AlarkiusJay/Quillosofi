@@ -22,6 +22,7 @@ import AuthCallback from './pages/AuthCallback';
 import CanvasVault from './pages/CanvasVault';
 import Research from './pages/Research';
 import QuillosofiCentre from './pages/QuillosofiCentre';
+import Quillounge from './pages/Quillounge';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -49,12 +50,15 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Chat />} />
+        <Route path="/" element={<Quillounge />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="/chat/:conversationId" element={<Chat />} />
         <Route path="/spaces" element={<SpacesGrid />} /> {/* loads its own data */}
         <Route path="/settings" element={<Settings />} />
         <Route path="/space/:spaceId" element={<Space />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
+        {/* Quillibrary — renamed from Canvas Vault in v0.4. Old path kept for back-compat. */}
+        <Route path="/quillibrary" element={<CanvasVault />} />
         <Route path="/canvas-vault" element={<CanvasVault />} />
         <Route path="/research" element={<Research />} />
         <Route path="/research/:researchId" element={<Research />} />

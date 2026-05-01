@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { Brain, Trash2, Sparkles, Pin, PinOff, Pencil, Check, X, Bot, Sliders, Shield, User, Upload, Plus, Palette, RefreshCw, Key } from 'lucide-react';
+import { Brain, Trash2, Sparkles, Pin, PinOff, Pencil, Check, X, Bot, Sliders, Shield, User, Upload, Plus, Palette, RefreshCw, Key, Keyboard, MessageSquare, BookOpen, Grid3x3, Table2, Search, Zap } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import BotCustomization from './settings/BotCustomization';
 import AppUpdate from './settings/AppUpdate';
@@ -13,6 +13,69 @@ import UpgradeTab from './settings/UpgradeTab';
 import ApiKeyTab from './settings/ApiKeyTab';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useKeybinds, KEYBIND_LABELS, formatBinding, bindingFromEvent, DEFAULT_KEYBINDS } from '@/lib/keybinds';
+import { useUserName } from '@/lib/userProfile';
+
+// About section — features list (mirrors src/pages/QuillosofiCentre.jsx)
+const ABOUT_FEATURES = [
+  { icon: MessageSquare, title: 'AI Chat', description: 'Have rich, context-aware conversations with Quillosofi. It remembers your preferences and adapts to your style.' },
+  { icon: Brain, title: 'Persistent Memory', description: 'Quillosofi learns what matters to you. Save facts, preferences, and context that carry across every conversation.' },
+  { icon: Grid3x3, title: 'Project Spaces', description: 'Organize your work into dedicated spaces with custom system prompts, reference links, and shared memory.' },
+  { icon: BookOpen, title: 'Canvas Vault', description: 'Write, format, and save rich text canvases directly inside your chats. Export to TXT, MD, DOCX, or PDF.' },
+  { icon: Table2, title: 'Spreadsheets', description: 'Build and manage live spreadsheets inside your conversations with conditional formatting and cell types.' },
+  { icon: Search, title: 'Web Search', description: 'Ask Quillosofi anything with live internet context — news, research, facts, and real-time information.' },
+  { icon: Palette, title: 'Full Customization', description: 'Choose your theme, font, bot personality, tone, response style, and even create custom AI personas.' },
+  { icon: Shield, title: 'Privacy First', description: 'Your data is encrypted, never sold, and always under your control. Export or delete everything at any time.' },
+  { icon: Zap, title: 'Slash Commands', description: 'Trigger powerful tools instantly — /canvas, /spreadsheet, /search, and more — right inside any chat.' },
+  { icon: BookOpen, title: 'Custom Dictionary', description: 'Build your own personal vocabulary. Add words, definitions, and categories. Pin words to inject them passively into every AI conversation.' },
+];
+
+function KeybindRow({ action, binding, onCapture }) {
+  const [capturing, setCapturing] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = bindingFromEvent(e);
+      if (!next) return; // ignore plain modifier presses
+      onCapture(action, next);
+      setCapturing(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [capturing, action, onCapture]);
+
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg border border-border bg-background">
+      <span className="text-xs md:text-sm text-foreground">{KEYBIND_LABELS[action] || action}</span>
+      <div className="flex items-center gap-2">
+        <button
+          ref={ref}
+          onClick={() => setCapturing((v) => !v)}
+          className={cn(
+            "px-2 py-1 rounded-md text-[11px] font-mono border transition-colors min-w-24 text-center",
+            capturing
+              ? "border-primary text-primary bg-primary/10 animate-pulse"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+          )}
+          title="Click then press a key combo to rebind"
+        >
+          {capturing ? 'Press keys…' : formatBinding(binding)}
+        </button>
+        <button
+          onClick={() => onCapture(action, DEFAULT_KEYBINDS[action])}
+          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          title="Reset to default"
+        >
+          reset
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const categoryColors = {
   personal: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -86,6 +149,8 @@ function MemoryRow({ memory, onDelete, onPin, onEdit }) {
 export default function SettingsModal({ onClose, initialTab = 'general', onDataUpdate, updateCount = 0 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isLoading, setIsLoading] = useState(true);
+  const [keybinds, setKeybind, resetKeybinds] = useKeybinds();
+  const [userName, setUserName] = useUserName();
   const [user, setUser] = useState(null);
   const [memories, setMemories] = useState([]);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -347,6 +412,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           { id: 'general', label: 'General', icon: Sliders },
           { id: 'customize', label: 'Customize', icon: Palette },
           { id: 'data', label: 'Data & Security', icon: Shield },
+          { id: 'keybinds', label: 'Keybinds', icon: Keyboard },
           { id: 'upgrade', label: '⚡ Upgrade', icon: Sparkles },
           { id: 'api', label: 'API', icon: Key },
           { id: 'update', label: 'Update', icon: RefreshCw, badge: updateCount > 0 }].
@@ -508,6 +574,18 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
 
           {activeTab === 'general' &&
           <div className="py-3 md:py-4 space-y-3 md:space-y-4">
+              {/* Display name (used by Quillounge greeting) */}
+              <div className="bg-card rounded-xl border border-border p-3 md:p-4">
+                <label className="text-xs font-medium text-foreground mb-1.5 block">Your name</label>
+                <input
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="How Quillounge greets you"
+                  className="w-full text-xs md:text-sm bg-background border border-border rounded-lg px-3 py-1.5 md:py-2 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                />
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-1.5">Shown in the time-aware greeting on your home page.</p>
+              </div>
+
               <BotCustomization />
 
               <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex items-start gap-2">
@@ -581,6 +659,52 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
               <DataSecurity />
               <div className="border-t border-border pt-3 md:pt-5" />
               <ImportExport />
+            </div>
+          }
+
+          {activeTab === 'keybinds' &&
+          <div className="py-3 md:py-4 space-y-3">
+              <div className="bg-card rounded-xl border border-border p-3 md:p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs md:text-sm font-medium text-foreground">Keyboard shortcuts</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Click a binding, then press the new key combo. Modifiers (Ctrl/Alt/Shift/Cmd) are recorded.</p>
+                  </div>
+                  <button
+                    onClick={resetKeybinds}
+                    className="text-[10px] md:text-xs px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0"
+                  >
+                    Reset all
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {Object.keys(keybinds).map((action) => (
+                    <KeybindRow
+                      key={action}
+                      action={action}
+                      binding={keybinds[action]}
+                      onCapture={(a, b) => setKeybind(a, b)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* About Quillosofi — in the Keybinds + General overflow region per spec, mirrors QuillosofiCentre features */}
+              <div className="bg-card rounded-xl border border-border p-3 md:p-4">
+                <p className="text-xs md:text-sm font-semibold text-foreground mb-2">About Quillosofi</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {ABOUT_FEATURES.map(({ icon: Icon, title, description }) => (
+                    <div key={title} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-background">
+                      <Icon className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium text-foreground">{title}</p>
+                        <p className="text-[10px] text-muted-foreground leading-snug">{description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2">Quillosofi v0.4 — Writing First. Local-first by design.</p>
+              </div>
             </div>
           }
 

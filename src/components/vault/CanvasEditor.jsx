@@ -4,6 +4,8 @@ import ReactQuill from 'react-quill';
 import { base44 } from '@/api/base44Client';
 import { X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload, ChevronDown, BookPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { addCustomWord } from '@/lib/customDict';
+import DictionaryContextMenu from '@/components/DictionaryContextMenu';
 
 const modules = { toolbar: false };
 
@@ -102,14 +104,16 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
   const importRef = useRef(null);
   const [dictToast, setDictToast] = useState('');
 
-  const handleAddToDictionary = async () => {
+  const editorContainerRef = useRef(null);
+
+  const handleAddToDictionary = () => {
     const q = quillRef.current?.getEditor?.();
     if (!q) return;
     const range = q.getSelection?.();
     if (!range || range.length === 0) { setDictToast('Select a word first'); setTimeout(() => setDictToast(''), 2000); return; }
     const word = q.getText(range.index, range.length).trim();
     if (!word) return;
-    await base44.entities.CustomWord.create({ word });
+    addCustomWord({ word });
     setDictToast(`"${word}" added!`);
     setTimeout(() => setDictToast(''), 2000);
   };
@@ -197,8 +201,9 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-6">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      <div className="relative z-10 flex flex-col w-full max-w-4xl h-[90vh] rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl overflow-hidden bg-[hsl(220,8%,13%)]">
+      <div ref={editorContainerRef} className="relative z-10 flex flex-col w-full max-w-4xl h-[90vh] rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl overflow-hidden bg-[hsl(220,8%,13%)]">
         <style>{editorStyles}</style>
+        <DictionaryContextMenu containerRef={editorContainerRef} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[hsl(225,9%,18%)] bg-[hsl(220,8%,15%)] shrink-0">

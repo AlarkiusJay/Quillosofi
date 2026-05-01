@@ -4,6 +4,7 @@ import { exportTxt, exportMd, exportDocx, exportPdf } from '../vault/canvasExpor
  import { base44 } from '@/api/base44Client';
 import { X, Save, Maximize2, Minimize2, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code, Link, Heading2, Minus, Download, Upload, ChevronDown, BookPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { addCustomWord } from '@/lib/customDict';
 
 const modules = { toolbar: false };
 
@@ -108,14 +109,14 @@ export default function MessageCanvas({ message, onClose, onSave: onSaveCallback
   const [showExport, setShowExport] = useState(false);
   const [dictToast, setDictToast] = useState('');
 
-  const handleAddToDictionary = async () => {
+  const handleAddToDictionary = () => {
     const q = quillRef.current?.getEditor?.();
     if (!q) return;
     const range = q.getSelection?.();
     if (!range || range.length === 0) { setDictToast('Select a word first'); setTimeout(() => setDictToast(''), 2000); return; }
     const word = q.getText(range.index, range.length).trim();
     if (!word) return;
-    await base44.entities.CustomWord.create({ word });
+    addCustomWord({ word });
     setDictToast(`"${word}" added!`);
     setTimeout(() => setDictToast(''), 2000);
   };

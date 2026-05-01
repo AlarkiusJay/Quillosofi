@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useState, useMemo } from 'react';
 import { Search, Plus, Trash2, Pin, Edit3, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useCustomDict } from '@/lib/customDict';
+import { isExtensionActive, useAiEnabled, useAiExtensions } from '@/lib/aiState';
 
-function WordRow({ word, onDelete, onTogglePin, onUpdate }) {
+function WordRow({ word, onDelete, onTogglePin, onUpdate, aiActive }) {
   const [editing, setEditing] = useState(false);
   const [def, setDef] = useState(word.definition || '');
   const [cat, setCat] = useState(word.category || '');
 
   const save = async () => {
-    await onUpdate(word.id, { definition: def, category: cat });
+    onUpdate(word.id, { definition: def, category: cat });
     setEditing(false);
   };
 
@@ -33,7 +34,12 @@ function WordRow({ word, onDelete, onTogglePin, onUpdate }) {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">{word.category}</span>
             )}
             {word.is_pinned && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-medium">AI Context</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                aiActive ? "bg-purple-500/15 text-purple-400" : "bg-[hsl(228,7%,30%)] text-[hsl(220,7%,55%)]"
+              )}>
+                {aiActive ? 'AI Context' : 'Pinned (AI off)'}
+              </span>
             )}
           </div>
 
@@ -93,45 +99,37 @@ function WordRow({ word, onDelete, onTogglePin, onUpdate }) {
 }
 
 export default function CustomDictionary() {
-  const [words, setWords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { words, add, update, remove, togglePin } = useCustomDict();
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newWord, setNewWord] = useState('');
+  const [aiEnabled] = useAiEnabled();
+  const [extensions] = useAiExtensions();
+  // The "AI Context" pill only lights up when both global AI and the
+  // Custom Dictionary AI extension are on. Otherwise pinned words still exist
+  // (so the user keeps their list across AI on/off cycles) but we make it
+  // visually clear they aren't being injected anywhere right now.
+  const aiDictActive = !!aiEnabled && !!extensions?.customDictionary;
 
-  const load = async () => {
-    setLoading(true);
-    const data = await base44.entities.CustomWord.list('-created_date', 500);
-    setWords(data);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const trimmed = newWord.trim();
     if (!trimmed) return;
-    const created = await base44.entities.CustomWord.create({ word: trimmed });
-    setWords(prev => [created, ...prev]);
+    add({ word: trimmed });
     setNewWord('');
     setShowAdd(false);
   };
 
-  const handleDelete = async (word) => {
+  const handleDelete = (word) => {
     if (!confirm(`Delete "${word.word}" from dictionary?`)) return;
-    setWords(prev => prev.filter(w => w.id !== word.id));
-    await base44.entities.CustomWord.delete(word.id);
+    remove(word.id);
   };
 
-  const handleTogglePin = async (word) => {
-    const next = !word.is_pinned;
-    setWords(prev => prev.map(w => w.id === word.id ? { ...w, is_pinned: next } : w));
-    await base44.entities.CustomWord.update(word.id, { is_pinned: next });
+  const handleTogglePin = (word) => {
+    togglePin(word.id);
   };
 
-  const handleUpdate = async (id, data) => {
-    setWords(prev => prev.map(w => w.id === id ? { ...w, ...data } : w));
-    await base44.entities.CustomWord.update(id, data);
+  const handleUpdate = (id, data) => {
+    update(id, data);
   };
 
   const filtered = useMemo(() => {
@@ -184,30 +182,26 @@ export default function CustomDictionary() {
       )}
 
       {/* Stats */}
-      <div className="px-4 py-2.5 border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,16%)] flex items-center gap-4">
+      <div className="px-4 py-2.5 border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,16%)] flex items-center gap-4 flex-wrap">
         <span className="text-[11px] text-[hsl(220,7%,45%)]">{words.length} words total</span>
-        <span className="text-[11px] text-purple-400">
+        <span className={cn("text-[11px]", aiDictActive ? "text-purple-400" : "text-[hsl(220,7%,45%)]")}>
           <Pin className="h-2.5 w-2.5 inline mr-1" fill="currentColor" />
-          {pinnedCount} in AI context
+          {pinnedCount} pinned {aiDictActive ? '· in AI context' : '· AI off'}
         </span>
-        <span className="text-[10px] text-[hsl(220,7%,35%)]">· Pinned words are read by Quillosofi in every chat</span>
+        <span className="text-[10px] text-[hsl(220,7%,35%)]">· Right-click any word in a canvas to add or pin it</span>
       </div>
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6">
             <span className="text-4xl mb-3">📖</span>
             <p className="text-sm font-medium text-white mb-1">{search ? 'No words match your search' : 'Your dictionary is empty'}</p>
-            <p className="text-xs text-[hsl(220,7%,45%)]">{search ? 'Try a different term' : 'Select a word in any canvas and right-click → Add to Dictionary, or add manually above'}</p>
+            <p className="text-xs text-[hsl(220,7%,45%)]">{search ? 'Try a different term' : 'Right-click any word in a canvas, or add manually above'}</p>
           </div>
         ) : (
           filtered.map(w => (
-            <WordRow key={w.id} word={w} onDelete={handleDelete} onTogglePin={handleTogglePin} onUpdate={handleUpdate} />
+            <WordRow key={w.id} word={w} onDelete={handleDelete} onTogglePin={handleTogglePin} onUpdate={handleUpdate} aiActive={aiDictActive} />
           ))
         )}
       </div>

@@ -4,6 +4,8 @@ import { useParams, useNavigate, useOutletContext, useLocation } from 'react-rou
 import { HelpCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { smartInvoke } from '@/lib/llm';
+import { getPinnedAiContext } from '@/lib/customDict';
+import { isExtensionActive } from '@/lib/aiState';
 import SpacesGrid from '../components/SpacesGrid';
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatInput from '../components/chat/ChatInput';
@@ -458,15 +460,29 @@ export default function Chat() {
       detailed: 'Provide thorough, detailed responses when relevant.',
     };
 
-    // Fetch pinned custom dictionary words
+    // Fetch pinned custom dictionary words — local-first store, gated by the
+    // Custom Dictionary AI extension toggle (AI Settings → Overview).
     let dictContext = '';
-    if (authed) {
-      const pinnedWords = await base44.entities.CustomWord.filter({ is_pinned: true }, 'word', 100);
+    if (isExtensionActive('customDictionary')) {
+      const pinnedWords = getPinnedAiContext();
       if (pinnedWords.length > 0) {
         dictContext = `\n\nCUSTOM DICTIONARY (user-defined words — understand and use them correctly):\n` +
           pinnedWords.map(w => `- ${w.word}${w.definition ? `: ${w.definition}` : ''}${w.category ? ` [${w.category}]` : ''}`).join('\n');
       }
     }
+
+    // AI Behavior overrides — the user can stuff extra system-prompt text from
+    // AI Settings → AI Behavior. Stored at quillosofi:aiBehavior.
+    let behaviorPrefix = '';
+    try {
+      const raw = localStorage.getItem('quillosofi:aiBehavior');
+      if (raw) {
+        const cfg = JSON.parse(raw);
+        if (cfg?.systemPrompt?.trim()) {
+          behaviorPrefix = `\n\nUSER BEHAVIOR OVERRIDES:\n${cfg.systemPrompt.trim()}`;
+        }
+      }
+    } catch { /* ignore */ }
 
     let memoryContext = '';
     if (memories.length > 0) {
@@ -485,7 +501,7 @@ export default function Chat() {
 ${cfg.user_address?.trim() ? `If you address the user by name, use only: "${cfg.user_address.trim()}". Do not use their email or any login handle. Only address them by name occasionally — not in every response.` : `Do NOT address the user by any name at all — no "User", no "Guest", no salutations. Just respond naturally.`}
 Respond in: ${cfg.language || 'English'}
 ${cfg.custom_instructions ? `\nCustom instructions you must always follow:\n${cfg.custom_instructions}` : ''}${personaPrompt}
-${memoryContext}${dictContext}
+${memoryContext}${dictContext}${behaviorPrefix}
 
 IMPORTANT INSTRUCTIONS:
 - Your name is Quillosofi. NEVER refer to yourself as any other name.
