@@ -17,11 +17,18 @@ const path = require('path');
 const fs = require('fs');
 
 // Optional auto-updater — only loaded if installed (so dev install works without it).
+// IMPORTANT: electron-updater MUST live in `dependencies`, not devDependencies.
+// electron-builder only bundles `dependencies` into the packaged app, and a
+// silently-caught require here was the root cause of v0.4.3 → v0.4.7 "Check for
+// Updates does nothing". Surfacing the load failure loudly so this can't regress.
 let autoUpdater = null;
+let updaterLoadError = null;
 try {
   ({ autoUpdater } = require('electron-updater'));
-} catch (_) {
-  // electron-updater not installed; auto-update disabled.
+} catch (e) {
+  updaterLoadError = (e && e.message) || String(e);
+  console.error('[updater] FAILED to load electron-updater:', updaterLoadError);
+  console.error('[updater] Auto-updates DISABLED. Check that electron-updater is in `dependencies`.');
 }
 
 const isDev = !app.isPackaged || process.argv.includes('--dev');
@@ -328,11 +335,27 @@ ipcMain.on('app:quit', () => {
 // =============================================================
 // IPC — updates
 // =============================================================
-ipcMain.handle('updates:status', () => ({ ...updateState, settings: updateSettings }));
+ipcMain.handle('updates:status', () => ({
+  ...updateState,
+  settings: updateSettings,
+  // Diagnostic flags so the renderer can show *why* the updater isn't working
+  // instead of pretending everything's fine.
+  updaterAvailable: !!autoUpdater,
+  updaterLoadError,
+  isDev,
+}));
 
 ipcMain.handle('updates:check', async () => {
   if (!autoUpdater || isDev) {
-    return { ok: false, error: isDev ? 'Auto-updates disabled in dev' : 'Updater unavailable' };
+    const reason = isDev
+      ? 'Auto-updates disabled in dev'
+      : `Updater unavailable: ${updaterLoadError || 'electron-updater module not loaded'}`;
+    // Push to the state stream so the diagnostic panel + sass tier counter both see it.
+    updateState.status = 'error';
+    updateState.error = reason;
+    updateState.lastChecked = Date.now();
+    emitUpdateState();
+    return { ok: false, error: reason };
   }
   try {
     const r = await autoUpdater.checkForUpdates();

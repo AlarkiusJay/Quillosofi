@@ -205,6 +205,9 @@ function DesktopUpdateView() {
       `Installed:     v${state.currentVersion}`,
       `Latest seen:   ${state.latestVersion ? 'v' + state.latestVersion : '(not yet seen)'}`,
       `Status:        ${state.status}`,
+      `Updater mod:   ${state.updaterAvailable ? 'loaded' : 'NOT LOADED'}`,
+      `Updater error: ${state.updaterLoadError || '(none)'}`,
+      `Dev mode:      ${state.isDev ? 'yes (auto-update disabled in dev)' : 'no'}`,
       `Last checked:  ${formatChecked(state.lastChecked)}`,
       `Last error:    ${state.error || '(none)'}`,
       `Feed:          ${FEED_URL}`,
@@ -220,7 +223,7 @@ function DesktopUpdateView() {
     } catch (_) {}
   }, [state]);
 
-  const { status, currentVersion, latestVersion, downloadPercent, error, releaseNotes, settings, lastChecked } = state;
+  const { status, currentVersion, latestVersion, downloadPercent, error, releaseNotes, settings, lastChecked, updaterAvailable, updaterLoadError, isDev } = state;
   const isUpToDate = status === 'not-available' || (latestVersion && latestVersion === currentVersion);
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
 
@@ -459,6 +462,9 @@ function DesktopUpdateView() {
 {`Installed:     v${currentVersion}
 Latest seen:   ${latestVersion ? 'v' + latestVersion : '(not yet seen)'}
 Status:        ${status}
+Updater mod:   ${updaterAvailable ? 'loaded' : 'NOT LOADED'}
+Updater error: ${updaterLoadError || '(none)'}
+Dev mode:      ${isDev ? 'yes (auto-update disabled in dev)' : 'no'}
 Last checked:  ${formatChecked(lastChecked)}
 Last error:    ${error || '(none)'}
 Feed:          ${FEED_URL}
