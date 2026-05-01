@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
+import { entriesUpTo } from '@/data/changelog';
 
 const FEED_URL = 'https://github.com/AlarkiusJay/Quillosofi/releases';
 
@@ -91,6 +92,12 @@ function DesktopUpdateView() {
   const [busy, setBusy] = useState(false);
   const [showDiag, setShowDiag] = useState(false);
   const [diagCopied, setDiagCopied] = useState(false);
+  // v0.4.17: Changelog block — collapsed by default to stay calm; expand
+  // toggles in-place like the Diagnostic. Inside, the entry matching the
+  // currently-installed version is auto-expanded so users see what they just
+  // got; older entries collapse to a single-row tag + tagline.
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [openVersions, setOpenVersions] = useState({});
   // Pull initial status + subscribe to live state pushes. Also auto-fire one
   // check on mount so the panel isn't stuck on "Not checked yet" forever.
   useEffect(() => {
@@ -370,6 +377,18 @@ function DesktopUpdateView() {
         </button>
       </div>
 
+      {/* Changelog — v0.4.17. Mirrors the Diagnostic block's collapsed-by-
+          default pattern. Lists every release up through the installed
+          version, newest first. The entry for the installed version is
+          auto-expanded; older entries collapse to a single-row summary. */}
+      <ChangelogBlock
+        currentVersion={currentVersion}
+        show={showChangelog}
+        onToggle={() => setShowChangelog((v) => !v)}
+        openVersions={openVersions}
+        setOpenVersions={setOpenVersions}
+      />
+
       {/* Preferences */}
       <div className="bg-card rounded-xl border border-border p-5 space-y-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Update Preferences</p>
@@ -429,6 +448,90 @@ Auto-install:  ${settings.autoInstall ? 'on' : 'off'}`}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// =============================================================
+// Changelog block — collapsed by default. Once opened, lists every
+// release up through the installed version, newest first. The entry for
+// the installed version is auto-expanded so users land on "what they just
+// got"; older versions collapse to a single-row tagline.
+// =============================================================
+function ChangelogBlock({ currentVersion, show, onToggle, openVersions, setOpenVersions }) {
+  const entries = entriesUpTo(currentVersion);
+  // The installed version is open by default once the panel is expanded;
+  // user toggles override that. Track via the controlled `openVersions` map.
+  const isEntryOpen = (v) => {
+    if (Object.prototype.hasOwnProperty.call(openVersions, v)) return openVersions[v];
+    return v === currentVersion; // default: open the installed version
+  };
+  const toggleEntry = (v) => {
+    setOpenVersions((m) => ({ ...m, [v]: !isEntryOpen(v) }));
+  };
+
+  return (
+    <div className="bg-card rounded-xl border border-border p-5 space-y-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+      >
+        <span>Changelog</span>
+        {show ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      </button>
+      {show && (
+        <div className="space-y-2">
+          {entries.length === 0 && (
+            <p className="text-xs text-muted-foreground">No changelog entries available.</p>
+          )}
+          {entries.map((e) => {
+            const open = isEntryOpen(e.version);
+            const isInstalled = e.version === currentVersion;
+            return (
+              <div
+                key={e.version}
+                className={`bg-muted/40 border rounded-lg overflow-hidden ${
+                  isInstalled ? 'border-primary/40' : 'border-border'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleEntry(e.version)}
+                  className="w-full flex items-start justify-between gap-3 px-3 py-2 text-left hover:bg-muted/60 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-mono font-medium text-foreground">v{e.version}</span>
+                      {isInstalled && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5">
+                          Installed
+                        </span>
+                      )}
+                      {e.date && (
+                        <span className="text-[10px] text-muted-foreground font-mono">{e.date}</span>
+                      )}
+                    </div>
+                    {e.tagline && (
+                      <p className="text-xs text-foreground/80 mt-1 leading-snug">{e.tagline}</p>
+                    )}
+                  </div>
+                  <span className="shrink-0 mt-0.5 text-muted-foreground">
+                    {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  </span>
+                </button>
+                {open && Array.isArray(e.changes) && e.changes.length > 0 && (
+                  <ul className="px-4 pb-3 pt-1 space-y-1.5 list-disc list-outside ml-5 text-xs text-foreground/80 leading-relaxed">
+                    {e.changes.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
