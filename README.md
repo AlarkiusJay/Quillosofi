@@ -55,6 +55,12 @@ Build your own personal vocabulary. Add words, definitions, and categories. Pin 
 
 ---
 
+📥 [**Download the latest release**](https://github.com/AlarkiusJay/Quillosofi/releases/latest)
+
+If you get a SmartScreen Warning from Windows, ignore it and press "Run Anyway"
+
+<img width="556" height="518" alt="srcnsht-png-15-55" src="https://github.com/user-attachments/assets/c9acbf0d-a0d7-4976-ad17-0a8603aa61c9" />
+
 ## Desktop edition
 
 The desktop app gives you everything the web version has, plus:
@@ -67,11 +73,6 @@ The desktop app gives you everything the web version has, plus:
 - **Branded native installer** with the mint feather icon
 - **Data is stored Locally** - We care about privacy. Your data is stored locally in your PC. 
 
-📥 [**Download the latest release**](https://github.com/AlarkiusJay/Quillosofi/releases/latest)
-
-If you get a SmartScreen Warning from Windows, ignore it and press "Run Anyway"
-
-<img width="556" height="518" alt="srcnsht-png-15-55" src="https://github.com/user-attachments/assets/c9acbf0d-a0d7-4976-ad17-0a8603aa61c9" />
 ---
 
 ## Stack
@@ -155,6 +156,5 @@ Apache-2.0 — see `LICENSE`.
 <div align="center">
 
 Quillosofi — Built with care. Designed for you.
-Powered by **Base44**.
 
 </div>
