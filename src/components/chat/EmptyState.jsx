@@ -6,6 +6,27 @@ const suggestions = [
 { icon: Brain, text: "Remember my preferences", desc: "Personalize your experience" },
 { icon: Zap, text: "Help me brainstorm ideas", desc: "Creative thinking partner" }];
 
+// Hidden gag: hold the QF logo for ~5s (mouse) / ~2s (touch) and the app
+// pops the rickroll out to the SYSTEM BROWSER. Quillosofi is a desktop app,
+// so navigating with `location.href` (the previous behavior) was a bug — it
+// loaded YouTube *inside* the Electron window, replacing the whole app UI
+// with a guest YouTube page. Now uses window.quillosofi.openExternal to
+// hand off to the OS default browser. Aligned to the same trap URL the
+// (now-retired) Update tab prank used.
+const TRAP_URL = 'https://www.youtube.com/watch?v=Aq5WXmQQooo';
+
+function openTrap() {
+  try {
+    if (window.quillosofi?.openExternal) {
+      window.quillosofi.openExternal(TRAP_URL);
+      return;
+    }
+  } catch (_) { /* fall through to web fallback */ }
+  // Web/dev fallback (no Electron preload bridge): new tab is the closest
+  // we can get to "don't replace this page".
+  try { window.open(TRAP_URL, '_blank', 'noopener,noreferrer'); } catch (_) {}
+}
+
 
 export default function EmptyState({ onSuggestionClick }) {
   const [holdProgress, setHoldProgress] = useState(0);
@@ -21,7 +42,7 @@ export default function EmptyState({ onSuggestionClick }) {
 
       if (progress >= 1) {
         setTimeout(() => {
-          location.href = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+          openTrap();
           setHoldProgress(0);
         }, 100);
       } else {
