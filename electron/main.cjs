@@ -104,6 +104,31 @@ function wireAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = false;    // we honor user's autoInstall toggle ourselves
   autoUpdater.allowPrerelease = false;
 
+  // Explicit feed URL — belt-and-suspenders so even older installs whose
+  // bundled app-update.yml predates the public-repo rename can still find
+  // releases. Public repo, no token required for read.
+  try {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'AlarkiusJay',
+      repo: 'Quillosofi',
+      releaseType: 'release',
+    });
+  } catch (e) {
+    console.warn('setFeedURL failed (will fall back to bundled yml):', e && e.message);
+  }
+
+  // Pipe verbose updater logs to stderr so 'Not checked yet' failures stop
+  // being silent. Surfaced in the Update tab via the 'error' event below.
+  try {
+    autoUpdater.logger = {
+      info: (...args) => console.log('[updater]', ...args),
+      warn: (...args) => console.warn('[updater]', ...args),
+      error: (...args) => console.error('[updater]', ...args),
+      debug: (...args) => console.log('[updater:debug]', ...args),
+    };
+  } catch (_) {}
+
   autoUpdater.on('checking-for-update', () => {
     updateState.status = 'checking';
     updateState.error = null;

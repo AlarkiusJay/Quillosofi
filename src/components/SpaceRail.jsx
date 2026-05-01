@@ -153,19 +153,19 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             </button>
           </Tooltip>
 
-          <Tooltip text="All Spaces">
-            <button
-              onClick={() => navigate('/spaces')}
-              style={{ touchAction: 'manipulation' }}
-              className={railBtn(isSpacesHome)}
-            >
-              <Grid3x3 className="h-4 w-4 text-white" />
-            </button>
-          </Tooltip>
-
           {aiEnabled && (
             <>
               <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
+
+              <Tooltip text="Spaces — Chat folders (AI)">
+                <button
+                  onClick={() => navigate('/spaces')}
+                  style={{ touchAction: 'manipulation' }}
+                  className={railBtn(isSpacesHome)}
+                >
+                  <Grid3x3 className="h-4 w-4 text-white" />
+                </button>
+              </Tooltip>
 
               <Tooltip text="Research & Cite (AI)">
                 <button
@@ -192,10 +192,13 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
         </div>
 
-        {/* Scrollable spaces section */}
+        {/* Scrollable spaces section — spaces are an AI feature, hidden when AI is off */}
         <div
           ref={scrollRef}
-          className="flex items-center gap-2 overflow-x-auto spacerail-scroll flex-1 px-2"
+          className={cn(
+            "flex items-center gap-2 overflow-x-auto spacerail-scroll flex-1 px-2",
+            !aiEnabled && "pointer-events-none opacity-0"
+          )}
           style={{ WebkitOverflowScrolling: 'touch', overflowX: 'auto', touchAction: 'pan-x' }}
           onPointerDown={(e) => {
             const el = scrollRef.current;

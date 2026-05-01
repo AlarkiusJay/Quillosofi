@@ -14,11 +14,13 @@ import SpaceRail from './SpaceRail.jsx';
 import GuestExpiredScreen from './guest/GuestExpiredScreen';
 import { useGlobalKeybinds } from '@/lib/keybinds';
 import { addCustomWord } from '@/lib/customDict';
+import { useAiEnabled } from '@/lib/aiState';
 
 import { useGuestMode } from '../hooks/useGuestMode';
 
 export default function Layout() {
   const { isExpired, isGuest, loading: guestLoading } = useGuestMode();
+  const [aiEnabled] = useAiEnabled();
 
   useEffect(() => {
     if (isExpired && isGuest) {
@@ -188,24 +190,26 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Left: ChatSidebar - Desktop */}
-      <div className="hidden md:flex md:w-60 border-r border-border overflow-hidden flex-col" style={{ background: 'hsl(220, 8%, 18%)' }}>
-        <ChatSidebar
-          conversations={conversations}
-          spaces={spaces}
-          activeId={activeId}
-          onNewChat={handleNewChat}
-          onDelete={handleDelete}
-          onClose={() => {}}
-          onSpaceCreated={(s) => setSpaces(prev => [s, ...prev])}
-          onUpdate={loadConversations}
-          refreshTrigger={refreshTrigger}
-          onAuthChange={handleAuthChange}
-        />
-      </div>
+      {/* Left: ChatSidebar - Desktop (AI feature — hidden when AI is off) */}
+      {aiEnabled && (
+        <div className="hidden md:flex md:w-60 border-r border-border overflow-hidden flex-col" style={{ background: 'hsl(220, 8%, 18%)' }}>
+          <ChatSidebar
+            conversations={conversations}
+            spaces={spaces}
+            activeId={activeId}
+            onNewChat={handleNewChat}
+            onDelete={handleDelete}
+            onClose={() => {}}
+            onSpaceCreated={(s) => setSpaces(prev => [s, ...prev])}
+            onUpdate={loadConversations}
+            refreshTrigger={refreshTrigger}
+            onAuthChange={handleAuthChange}
+          />
+        </div>
+      )}
 
-      {/* Left: ChatSidebar - Mobile Overlay */}
-      {leftSidebarOpen && (
+      {/* Left: ChatSidebar - Mobile Overlay (AI feature — hidden when AI is off) */}
+      {aiEnabled && leftSidebarOpen && (
         <>
           <div className={`fixed inset-0 z-40 bg-black/60 md:hidden ${leftSidebarClosing ? 'animate-out fade-out duration-300' : 'animate-in fade-in duration-300'}`} onClick={closeLeftSidebar} />
           <div className={`fixed left-0 top-0 h-screen w-60 z-50 md:hidden overflow-hidden flex flex-col ${leftSidebarClosing ? 'animate-out slide-out-to-left duration-300' : 'animate-in slide-in-from-left duration-300'}`} style={{ background: 'hsl(220, 8%, 18%)' }}>
@@ -234,12 +238,16 @@ export default function Layout() {
 
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between h-12 px-3 border-b border-border" style={{ background: 'hsl(220, 8%, 18%)' }}>
-          <button
-            onClick={() => setLeftSidebarOpen(true)}
-            className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          {aiEnabled ? (
+            <button
+              onClick={() => setLeftSidebarOpen(true)}
+              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          ) : (
+            <span className="w-8" />
+          )}
           <span className="font-semibold text-sm flex-1 text-center">Quillosofi</span>
           <button
             onClick={() => setRightSidebarOpen(true)}

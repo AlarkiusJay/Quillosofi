@@ -265,9 +265,9 @@ function NewResearchView({
   onRun, onSubmitKey, onCiteClick, onSaveSource, onJumpToHistory, onNew, onDelete, onExport, onFollowup,
 }) {
   return (
-    <div className="grid h-full" style={{ gridTemplateColumns: '240px 1fr 320px' }}>
+    <div className="grid h-full grid-cols-1 lg:[grid-template-columns:220px_minmax(0,1fr)_300px] xl:[grid-template-columns:240px_minmax(0,1fr)_320px] overflow-y-auto lg:overflow-hidden">
       {/* History sidebar */}
-      <div className="border-r border-border overflow-y-auto p-3 bg-card/30">
+      <div className="border-b lg:border-b-0 lg:border-r border-border lg:overflow-y-auto p-3 bg-card/30 max-h-48 lg:max-h-none overflow-y-auto">
         <button
           onClick={onNew}
           className="w-full mb-3 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-primary text-white font-medium hover:brightness-110 transition"
@@ -414,7 +414,7 @@ function NewResearchView({
       </div>
 
       {/* Sources panel */}
-      <div className="border-l border-border overflow-y-auto bg-card/30">
+      <div className="border-t lg:border-t-0 lg:border-l border-border lg:overflow-y-auto bg-card/30">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between sticky top-0 bg-card/95 backdrop-blur z-10">
           <div className="flex items-center gap-1.5">
             <Library className="h-3.5 w-3.5 text-primary" />
