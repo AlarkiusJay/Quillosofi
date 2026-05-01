@@ -25,6 +25,31 @@ export default function TextSelectionPopup({ containerRef, onQuote }) {
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, [containerRef]);
 
+  // v0.4.16: kill double-click word selection inside the chat container.
+  // Drag-highlight (the actual AI follow-up trigger) MUST keep working, so we
+  // intercept mousedown only when the click count is ≥2 (e.detail). Single
+  // mousedown → drag flow is untouched. Triple-click line-select also blocked
+  // since that compounds the same auto-select behavior the user finds noisy.
+  useEffect(() => {
+    const blockMultiClickSelect = (e) => {
+      if (!containerRef.current?.contains(e.target)) return;
+      // Don't interfere with inputs/textareas/contenteditable — users still
+      // need to double-click to select words inside editable fields.
+      const t = e.target;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (t?.isContentEditable) return;
+      if (e.detail >= 2) {
+        e.preventDefault();
+        // Wipe any selection the OS already started before our preventDefault
+        // landed (some browsers eagerly select on the down event).
+        try { window.getSelection()?.removeAllRanges(); } catch (_) {}
+      }
+    };
+    document.addEventListener('mousedown', blockMultiClickSelect);
+    return () => document.removeEventListener('mousedown', blockMultiClickSelect);
+  }, [containerRef]);
+
   // Hide context menu when clicking elsewhere
   useEffect(() => {
     const hide = (e) => {
