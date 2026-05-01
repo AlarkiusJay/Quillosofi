@@ -2,37 +2,52 @@
  * AI Settings Modal — opened via the gear+brain icon in the StatsPanel
  * (or via the Ctrl+; keybind).
  *
- * Six tabs per the v0.4 spec:
- *   1. Overview      Status pane (AI on/off, key, model, retention)
- *   2. Tutorial      Walk-through of @ mentions, Research, Chat, Custom Dict
- *   3. API           OpenRouter key entry (already shipped — reuse ApiKeyTab)
- *   4. Usage         Token counters / monthly summary / recent calls (local)
- *   5. AI Behavior   System prompt overrides, temperature, model picker
- *   6. AI Privacy    Retention toggle, local-only logs, wipe AI history
+ * v0.4.2 settings reorg: ALL bot-personality / AI-context / AI-data surfaces
+ * live here now. The plain Settings modal keeps only the writing-app
+ * essentials (Your Name, theme, keybinds, upgrade, update, generic
+ * data + import/export).
  *
- * The modal is intentionally separate from SettingsModal — Alaria wanted
- * them to coexist as distinct surfaces.
+ * Tabs:
+ *   1. Overview         AI on/off, key, model, retention status; extension toggles
+ *   2. Profile          Avatar + bio + links (used as AI personalization context)
+ *   3. Bot Customization  Bot name, personality, tone, response length
+ *   4. Persona          Pick a Bot Persona (Life Coach, Therapist, etc.)
+ *   5. Memory           Saved facts + pinned memories
+ *   6. API              OpenRouter key
+ *   7. Behavior         System prompt override, temperature, default model
+ *   8. Tutorial         Walk-through of @ mentions, Research, Chat, Custom Dict
+ *   9. Usage            Token counters / monthly summary / recent calls (local)
+ *   10. Privacy         Retention toggle, local-only logs, wipe AI data
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   X, BookOpen, Key, Activity, Sliders, Shield, Compass,
-  Sparkles, MessageSquare, Search, Pin, AtSign, Lock, Power, Trash2, Brain,
+  Sparkles, MessageSquare, Search, Pin, PinOff, AtSign, Lock, Power, Trash2, Brain,
+  User, Bot, Upload, Plus, Pencil, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { useAiEnabled, useAiRetention, useAiExtensions } from '@/lib/aiState';
 import { hasOpenRouterKey } from '@/lib/llm';
 import { clearAll as clearDict } from '@/lib/customDict';
+import { base44 } from '@/api/base44Client';
 import ApiKeyTab from './settings/ApiKeyTab';
+import BotCustomization from './settings/BotCustomization';
+import BotPersona from './settings/BotPersona';
 
 const TABS = [
-  { id: 'overview', label: 'Overview', icon: Compass },
-  { id: 'tutorial', label: 'Tutorial', icon: BookOpen },
-  { id: 'api',      label: 'API',      icon: Key },
-  { id: 'usage',    label: 'Usage',    icon: Activity },
-  { id: 'behavior', label: 'AI Behavior', icon: Sliders },
-  { id: 'privacy',  label: 'AI Privacy',  icon: Shield },
+  { id: 'overview',   label: 'Overview',         icon: Compass },
+  { id: 'profile',    label: 'Profile',          icon: User },
+  { id: 'bot',        label: 'Bot Customization', icon: Bot },
+  { id: 'persona',    label: 'Persona',          icon: Sparkles },
+  { id: 'memory',     label: 'Memory',           icon: Brain },
+  { id: 'api',        label: 'API',              icon: Key },
+  { id: 'behavior',   label: 'Behavior',         icon: Sliders },
+  { id: 'tutorial',   label: 'Tutorial',         icon: BookOpen },
+  { id: 'usage',      label: 'Usage',            icon: Activity },
+  { id: 'privacy',    label: 'Privacy',          icon: Shield },
 ];
 
 // ---- Persisted AI behavior settings -----------------------------------
@@ -64,6 +79,79 @@ function getUsage() {
 }
 function clearUsage() { try { localStorage.removeItem(USAGE_KEY); } catch { /* ignore */ } }
 
+// =======================================================================
+// Memory subcomponents (migrated from old SettingsModal General tab)
+// =======================================================================
+const categoryColors = {
+  personal: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  preference: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  context: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  interest: 'bg-green-500/10 text-green-400 border-green-500/20',
+};
+const categoryLabels = {
+  personal: 'Personal',
+  preference: 'Preference',
+  context: 'Context',
+  interest: 'Interest',
+};
+
+function MemoryRow({ memory, onDelete, onPin, onEdit }) {
+  const [editing, setEditing] = useState(false);
+  const [editKey, setEditKey] = useState(memory.key);
+  const [editValue, setEditValue] = useState(memory.value);
+
+  const handleSave = () => {
+    onEdit(memory.id, { key: editKey, value: editValue });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="px-4 py-3 bg-secondary/30 border-b border-border">
+        <div className="space-y-2">
+          <input value={editKey} onChange={(e) => setEditKey(e.target.value)} placeholder="Key"
+            className="w-full text-sm bg-card border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary/40" />
+          <textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="Value" rows={2}
+            className="w-full text-sm bg-card border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none" />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave} className="h-7 text-xs"><Check className="h-3 w-3 mr-1" />Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="h-7 text-xs"><X className="h-3 w-3 mr-1" />Cancel</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex items-center gap-3 px-4 py-2.5 group hover:bg-secondary/50 transition-colors border-b border-border last:border-0', memory.is_pinned && 'bg-primary/5')}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          {memory.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
+          <span className="text-xs font-medium truncate">{memory.key}</span>
+          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium shrink-0', categoryColors[memory.category] || 'bg-muted text-muted-foreground border-border')}>
+            {categoryLabels[memory.category] || memory.category}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground truncate">{memory.value}</p>
+      </div>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+        <button onClick={() => onPin(memory.id, !memory.is_pinned)} className="p-1 rounded transition-colors text-muted-foreground hover:text-primary">
+          {memory.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+        </button>
+        <button onClick={() => setEditing(true)} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors">
+          <Pencil className="h-3 w-3" />
+        </button>
+        <button onClick={() => onDelete(memory.id)} className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// =======================================================================
+// Main modal
+// =======================================================================
 export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [aiEnabled, setAiEnabled] = useAiEnabled();
@@ -72,12 +160,146 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
   const [behavior, setBehavior] = useState(getBehavior);
   const [usage] = useState(getUsage);
 
+  // Profile state (migrated from old SettingsModal Profile tab)
+  const [configId, setConfigId] = useState(null);
+  const [profilePicture, setProfilePicture] = useState('');
+  const [tempProfilePicture, setTempProfilePicture] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [userBio, setUserBio] = useState('');
+  const [socials, setSocials] = useState([]);
+  const fileInputRef = useRef(null);
+
+  // Memory state
+  const [memories, setMemories] = useState([]);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  // Load persisted profile + memories on mount
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [mems, configs] = await Promise.all([
+          base44.entities.UserMemory.filter({}, '-updated_date', 100),
+          base44.entities.BotConfig.list('-created_date', 1),
+        ]);
+        setMemories(mems);
+        if (configs.length > 0) {
+          setProfilePicture(configs[0].profile_picture || '');
+          setUserBio(configs[0].user_bio || '');
+          setSocials(configs[0].socials || []);
+          setConfigId(configs[0].id);
+        }
+      } catch (err) {
+        console.error('AI Settings load error:', err);
+      }
+    };
+    load();
+  }, []);
+
   const updateBehavior = (patch) => {
     const next = { ...behavior, ...patch };
     setBehavior(next);
     saveBehavior(next);
   };
 
+  // ---- profile handlers ------------------------------------------------
+  const ensureConfig = async (patch) => {
+    if (configId) {
+      await base44.entities.BotConfig.update(configId, patch);
+      return configId;
+    }
+    const created = await base44.entities.BotConfig.create(patch);
+    setConfigId(created.id);
+    return created.id;
+  };
+
+  const handleUploadPicture = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setTempProfilePicture(file_url);
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveProfilePicture = async () => {
+    if (!tempProfilePicture) return;
+    try {
+      setProfilePicture(tempProfilePicture);
+      await ensureConfig({ profile_picture: tempProfilePicture });
+      setTempProfilePicture('');
+    } catch (err) {
+      console.error('Save picture error:', err);
+    }
+  };
+
+  const handleBioSave = async () => {
+    try { await ensureConfig({ user_bio: userBio }); }
+    catch (err) { console.error('Save bio error:', err); }
+  };
+
+  const handleAddLink = async () => {
+    if (socials.length >= 15) return;
+    const updated = [...socials, { title: '', url: '' }];
+    setSocials(updated);
+    try { await ensureConfig({ socials: updated }); }
+    catch (err) { console.error('Add link error:', err); }
+  };
+
+  const handleUpdateLink = async (idx, field, value) => {
+    const updated = [...socials];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setSocials(updated);
+    try { if (configId) await base44.entities.BotConfig.update(configId, { socials: updated }); }
+    catch (err) { console.error('Update link error:', err); }
+  };
+
+  const handleRemoveLink = async (idx) => {
+    const updated = socials.filter((_, i) => i !== idx);
+    setSocials(updated);
+    try { if (configId) await base44.entities.BotConfig.update(configId, { socials: updated }); }
+    catch (err) { console.error('Remove link error:', err); }
+  };
+
+  // ---- memory handlers -------------------------------------------------
+  const handleDeleteMem = async (id) => {
+    try {
+      await base44.entities.UserMemory.delete(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) { console.error('Delete memory error:', err); }
+  };
+
+  const handlePinMem = async (id, pinned) => {
+    try {
+      await base44.entities.UserMemory.update(id, { is_pinned: pinned });
+      setMemories((prev) => {
+        const updated = prev.map((m) => m.id === id ? { ...m, is_pinned: pinned } : m);
+        return [...updated.filter((m) => m.is_pinned), ...updated.filter((m) => !m.is_pinned)];
+      });
+    } catch (err) { console.error('Pin memory error:', err); }
+  };
+
+  const handleEditMem = async (id, data) => {
+    try {
+      await base44.entities.UserMemory.update(id, data);
+      setMemories((prev) => prev.map((m) => m.id === id ? { ...m, ...data } : m));
+    } catch (err) { console.error('Edit memory error:', err); }
+  };
+
+  const handleClearAllMems = async () => {
+    try {
+      for (const m of memories) await base44.entities.UserMemory.delete(m.id);
+      setMemories([]);
+      setConfirmClear(false);
+    } catch (err) { console.error('Clear memories error:', err); }
+  };
+
+  const pinnedMems = memories.filter((m) => m.is_pinned);
+  const unpinnedMems = memories.filter((m) => !m.is_pinned);
   const keyConfigured = hasOpenRouterKey();
 
   return (
@@ -180,6 +402,183 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
               </div>
             )}
 
+            {activeTab === 'profile' && (
+              <div className="space-y-4 max-w-xl">
+                <p className="text-[11px] text-[hsl(220,7%,55%)] leading-relaxed -mt-1">
+                  Personal context the AI sees so it can write more like <em>you</em>. Stays on this device.
+                </p>
+
+                {/* Avatar */}
+                <div className="bg-[hsl(220,8%,12%)] rounded-xl border border-[hsl(225,9%,22%)] p-4 space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-white mb-3 block">Profile Picture</label>
+                    <div className="flex items-end gap-4">
+                      <div className="h-20 w-20 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-2xl font-bold text-white overflow-hidden shrink-0">
+                        {tempProfilePicture
+                          ? <img src={tempProfilePicture} alt="Profile" className="w-full h-full object-cover" />
+                          : profilePicture
+                            ? <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                            : <User className="h-8 w-8" />}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".png,.jpg,.jpeg"
+                          className="hidden"
+                          onChange={handleUploadPicture}
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[hsl(225,9%,22%)] bg-[hsl(220,8%,16%)] hover:border-primary/40 text-xs font-medium text-[hsl(220,7%,75%)] hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          {uploading ? 'Uploading...' : 'Upload'}
+                        </button>
+                        {tempProfilePicture && (
+                          <button
+                            onClick={handleSaveProfilePicture}
+                            className="w-full px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
+                          >
+                            Save Picture
+                          </button>
+                        )}
+                        <p className="text-[10px] text-[hsl(220,7%,50%)]">PNG or JPG, max 5MB</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                <div className="bg-[hsl(220,8%,12%)] rounded-xl border border-[hsl(225,9%,22%)] p-4">
+                  <label className="text-xs font-medium text-white mb-1.5 block">What Quillosofi should know about you</label>
+                  <textarea
+                    value={userBio}
+                    onChange={(e) => setUserBio(e.target.value)}
+                    onBlur={handleBioSave}
+                    placeholder="Share your interests, profession, hobbies, goals..."
+                    rows={4}
+                    className="w-full text-xs bg-[hsl(220,8%,16%)] border border-[hsl(225,9%,22%)] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50 resize-none"
+                  />
+                  <p className="text-[10px] text-[hsl(220,7%,50%)] mt-2">Injected as personal context into AI conversations.</p>
+                </div>
+
+                {/* Links */}
+                <div className="bg-[hsl(220,8%,12%)] rounded-xl border border-[hsl(225,9%,22%)] p-4">
+                  <label className="text-xs font-medium text-white mb-2 block">Links</label>
+                  <p className="text-[10px] text-[hsl(220,7%,50%)] mb-3">Add reference links (portfolio, social, project pages).</p>
+                  <div className="space-y-2">
+                    {socials.map((link, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-[hsl(220,8%,16%)] rounded-lg border border-[hsl(225,9%,22%)] p-2.5">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={link.title || ''}
+                            onChange={(e) => handleUpdateLink(idx, 'title', e.target.value)}
+                            placeholder="Title"
+                            className="text-[11px] bg-[hsl(220,8%,12%)] border border-[hsl(225,9%,22%)] rounded px-2 py-1.5 text-white focus:outline-none focus:border-primary/50"
+                          />
+                          <input
+                            type="text"
+                            value={link.url || ''}
+                            onChange={(e) => handleUpdateLink(idx, 'url', e.target.value)}
+                            placeholder="URL"
+                            className="text-[11px] bg-[hsl(220,8%,12%)] border border-[hsl(225,9%,22%)] rounded px-2 py-1.5 text-white focus:outline-none focus:border-primary/50"
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleRemoveLink(idx)}
+                          className="p-1 text-[hsl(220,7%,55%)] hover:text-red-400 transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {socials.length === 0 && (
+                    <p className="text-[11px] text-[hsl(220,7%,45%)] text-center py-4">No links added yet</p>
+                  )}
+                  <button
+                    onClick={handleAddLink}
+                    disabled={socials.length >= 15}
+                    className="text-[11px] font-medium text-primary hover:text-primary/80 transition-colors mt-3 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add link
+                  </button>
+                  <p className="text-[10px] text-[hsl(220,7%,45%)] mt-2">{socials.length}/15 links</p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'bot' && (
+              <div className="max-w-xl">
+                <BotCustomization />
+              </div>
+            )}
+
+            {activeTab === 'persona' && (
+              <div className="max-w-2xl">
+                <BotPersona />
+              </div>
+            )}
+
+            {activeTab === 'memory' && (
+              <div className="max-w-xl space-y-3">
+                <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex items-start gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-[hsl(220,7%,65%)]">
+                    Say <span className="font-mono bg-[hsl(220,8%,16%)] px-1 py-0.5 rounded text-[10px]">"remember this"</span> in chat to save anything.
+                  </p>
+                </div>
+
+                <div className="bg-[hsl(220,8%,12%)] rounded-xl border border-[hsl(225,9%,22%)] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[hsl(225,9%,22%)] flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Brain className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm font-medium text-white">Memory</span>
+                      <span className="text-xs text-[hsl(220,7%,55%)]">({memories.length})</span>
+                    </div>
+                    {memories.length > 0 && (confirmClear
+                      ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-[hsl(220,7%,55%)]">Sure?</span>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmClear(false)} className="h-6 text-xs px-2">No</Button>
+                          <Button variant="destructive" size="sm" onClick={handleClearAllMems} className="h-6 text-xs px-2">Yes</Button>
+                        </div>
+                      )
+                      : <Button variant="ghost" size="sm" onClick={() => setConfirmClear(true)} className="text-red-400 text-xs h-6">Clear</Button>
+                    )}
+                  </div>
+
+                  {memories.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Sparkles className="h-6 w-6 text-[hsl(220,7%,30%)] mx-auto mb-2" />
+                      <p className="text-sm text-[hsl(220,7%,55%)]">No memories yet</p>
+                    </div>
+                  ) : (
+                    <div>
+                      {pinnedMems.length > 0 && (
+                        <>
+                          <div className="px-4 py-1.5 bg-primary/5 border-b border-[hsl(225,9%,22%)]">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/70">📌 Pinned</p>
+                          </div>
+                          {pinnedMems.map((m) => <MemoryRow key={m.id} memory={m} onDelete={handleDeleteMem} onPin={handlePinMem} onEdit={handleEditMem} />)}
+                        </>
+                      )}
+                      {unpinnedMems.map((m) => <MemoryRow key={m.id} memory={m} onDelete={handleDeleteMem} onPin={handlePinMem} onEdit={handleEditMem} />)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'api' && (
+              <div className="max-w-xl">
+                <ApiKeyTab />
+              </div>
+            )}
+
             {activeTab === 'tutorial' && (
               <div className="space-y-5 max-w-2xl">
                 <h3 className="text-base font-semibold text-white">Quick walk-through</h3>
@@ -206,14 +605,8 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
                 <TutCard
                   icon={AtSign}
                   title="@ mentions (v0.5)"
-                  body={`In the next phase, @ inside chat will pull pages from your Quillibrary directly into the AI's context — your own personal RAG, no Base44 or external services.`}
+                  body={`In the next phase, @ inside chat will pull pages from your Quillibrary directly into the AI's context — your own personal RAG, no remote services.`}
                 />
-              </div>
-            )}
-
-            {activeTab === 'api' && (
-              <div className="max-w-xl">
-                <ApiKeyTab />
               </div>
             )}
 

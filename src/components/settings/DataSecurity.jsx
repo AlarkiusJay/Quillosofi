@@ -1,5 +1,4 @@
-import { Shield, Lock, Database, Eye, RefreshCw, AlertTriangle, Palette, Mail, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Lock, Database, Eye, RefreshCw, AlertTriangle, Palette, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 const Section = ({ icon: Icon, title, children, accent = 'text-primary', bg = 'bg-primary/10' }) =>
@@ -32,22 +31,8 @@ function CopyEmail({ email }) {
 }
 
 export default function DataSecurity() {
-  const navigate = useNavigate();
   return (
     <div className="space-y-3 pb-2">
-      <button
-        onClick={() => navigate('/quillosofi-centre')}
-        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-primary/15 to-purple-500/10 border border-primary/25 hover:border-primary/50 hover:from-primary/25 hover:to-purple-500/20 transition-all group"
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="text-lg">✨</span>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-white">Quillosofi Centre</p>
-            <p className="text-[10px] text-[hsl(220,7%,50%)])">Features, info & more</p>
-          </div>
-        </div>
-        <ExternalLink className="h-3.5 w-3.5 text-primary group-hover:text-white transition-colors" />
-      </button>
       <div className="px-1 pb-1">
         <p className="text-xs text-muted-foreground leading-relaxed">This document describes how Quillosofi handles your data, what security measures are in place, and your rights as a user. By using Quillosofi, you agree to these terms.
 
@@ -80,7 +65,7 @@ export default function DataSecurity() {
       </Section>
 
       <Section icon={Lock} title="How Your Data Is Protected" bg="bg-blue-500/10" accent="text-blue-400">
-        <p>All data is encrypted in transit using TLS and encrypted at rest on the Base44 platform. Access to your data is enforced by authenticated user sessions — only you can read or modify your conversations, memories, and settings.</p>
+        <p>Quillosofi is local-first — your conversations, memories, and settings live in your browser's local storage on your device. Nothing is uploaded to a remote server unless you explicitly export your data.</p>
         <p>AI responses are generated via third-party model providers (OpenAI, Anthropic). Your messages are sent to these providers solely for generating responses and are subject to their respective data handling policies. No data is stored by these providers beyond what their standard API terms allow.</p>
       </Section>
 
