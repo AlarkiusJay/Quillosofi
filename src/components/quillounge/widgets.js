@@ -9,6 +9,12 @@
 
 const LAYOUT_KEY = 'quillosofi:quillounge:layout';
 const STATE_KEY = 'quillosofi:quillounge:state';
+const CUSTOMIZED_KEY = 'quillosofi:quillounge:layout:customized';
+
+// Column counts must match Quillounge's <ResponsiveGridLayout cols={...}>.
+// Centralised here so derive logic + the page can't drift apart.
+export const BREAKPOINT_COLS = { lg: 12, md: 8, sm: 4 };
+export const BREAKPOINTS = { lg: 1280, md: 960, sm: 640 };
 
 // 12-column grid. Each entry: { i, x, y, w, h, minW, minH }.
 export const DEFAULT_LAYOUT = [
@@ -36,14 +42,63 @@ export const WIDGET_THEMES = {
   noir:      { bg: 'hsl(220, 8%, 10%)',  accent: 'hsl(220, 14%, 75%)', label: 'Noir' },
 };
 
-// Layout is now a per-breakpoint object: { lg: [...], md: [...], sm: [...] }.
-// We migrate the legacy flat-array shape into the new shape on read so users
-// who saved layouts under v0.4.x don't lose their custom positions.
+// Layout is a per-breakpoint object: { lg: [...], md: [...], sm: [...] }.
+//
+// v0.4.8: derive md/sm from lg *proportionally* instead of letting RGL
+// auto-stack everything when the user shrinks the window. The user's spatial
+// intent ("todo top-right, prompt top-left") carries across breakpoints by
+// scaling x/w by the column ratio. Customisations at md/sm are tracked
+// independently so a later lg edit doesn't blow them away.
+
+// Scale a single layout entry from the lg (12-col) grid to a target column
+// count, preserving relative position and width. Heights are unchanged because
+// row height is constant across breakpoints.
+function scaleLayoutEntry(entry, targetCols) {
+  const ratio = targetCols / BREAKPOINT_COLS.lg;
+  const minW = entry.minW != null ? Math.max(1, Math.min(targetCols, Math.round(entry.minW * ratio))) : undefined;
+  const w = Math.max(minW || 1, Math.min(targetCols, Math.round(entry.w * ratio)));
+  // Clamp x so x+w never overflows the target grid; RGL will repack y.
+  const x = Math.max(0, Math.min(targetCols - w, Math.round(entry.x * ratio)));
+  const out = { ...entry, x, w };
+  if (minW != null) out.minW = minW;
+  return out;
+}
+
+export function deriveLayoutFromLg(lgLayout, breakpoint) {
+  const cols = BREAKPOINT_COLS[breakpoint];
+  if (!cols || breakpoint === 'lg') return (lgLayout || []).map(l => ({ ...l }));
+  return (lgLayout || []).map(entry => scaleLayoutEntry(entry, cols));
+}
+
 function defaultLayouts() {
-  // Only seed lg from DEFAULT_LAYOUT — react-grid-layout will compute md/sm
-  // from lg the first time those breakpoints are actually rendered, and we'll
-  // capture them on the user's next interaction at that breakpoint.
-  return { lg: DEFAULT_LAYOUT.map(l => ({ ...l })) };
+  // Seed lg from DEFAULT_LAYOUT, then derive md/sm proportionally so the
+  // first windowed render matches the maximised spatial intent instead of
+  // RGL's auto-stack.
+  const lg = DEFAULT_LAYOUT.map(l => ({ ...l }));
+  return {
+    lg,
+    md: deriveLayoutFromLg(lg, 'md'),
+    sm: deriveLayoutFromLg(lg, 'sm'),
+  };
+}
+
+function loadCustomizedFlags() {
+  try {
+    const raw = localStorage.getItem(CUSTOMIZED_KEY);
+    if (!raw) return { lg: false, md: false, sm: false };
+    const parsed = JSON.parse(raw);
+    return {
+      lg: !!(parsed && parsed.lg),
+      md: !!(parsed && parsed.md),
+      sm: !!(parsed && parsed.sm),
+    };
+  } catch {
+    return { lg: false, md: false, sm: false };
+  }
+}
+
+export function saveCustomizedFlags(flags) {
+  try { localStorage.setItem(CUSTOMIZED_KEY, JSON.stringify(flags)); } catch { /* ignore */ }
 }
 
 export function loadLayout() {
@@ -51,15 +106,33 @@ export function loadLayout() {
     const raw = localStorage.getItem(LAYOUT_KEY);
     if (!raw) return defaultLayouts();
     const parsed = JSON.parse(raw);
+    const customized = loadCustomizedFlags();
+
     // Legacy: a flat array means it was saved by the old single-breakpoint
-    // code path. Treat it as the lg layout so users keep their positions.
+    // code path. Treat it as the lg layout, derive md/sm from it.
     if (Array.isArray(parsed)) {
-      return parsed.length === 0 ? defaultLayouts() : { lg: parsed };
+      if (parsed.length === 0) return defaultLayouts();
+      const lg = parsed;
+      return {
+        lg,
+        md: deriveLayoutFromLg(lg, 'md'),
+        sm: deriveLayoutFromLg(lg, 'sm'),
+      };
     }
     if (parsed && typeof parsed === 'object') {
-      // Sanity-filter — require at least one breakpoint with a non-empty array.
-      const ok = ['lg', 'md', 'sm'].some(bp => Array.isArray(parsed[bp]) && parsed[bp].length > 0);
-      return ok ? parsed : defaultLayouts();
+      const lg = Array.isArray(parsed.lg) && parsed.lg.length > 0
+        ? parsed.lg
+        : DEFAULT_LAYOUT.map(l => ({ ...l }));
+      // For md/sm: only honour the saved layout if the user has customised
+      // at that breakpoint. Otherwise re-derive from lg so a later lg edit
+      // propagates into windowed mode automatically.
+      const md = customized.md && Array.isArray(parsed.md) && parsed.md.length > 0
+        ? parsed.md
+        : deriveLayoutFromLg(lg, 'md');
+      const sm = customized.sm && Array.isArray(parsed.sm) && parsed.sm.length > 0
+        ? parsed.sm
+        : deriveLayoutFromLg(lg, 'sm');
+      return { lg, md, sm };
     }
     return defaultLayouts();
   } catch {
@@ -72,8 +145,13 @@ export function saveLayout(layouts) {
 }
 
 export function resetLayout() {
-  try { localStorage.removeItem(LAYOUT_KEY); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(LAYOUT_KEY);
+    localStorage.removeItem(CUSTOMIZED_KEY);
+  } catch { /* ignore */ }
 }
+
+export { loadCustomizedFlags };
 
 export function loadWidgetState() {
   try {

@@ -20,6 +20,9 @@ import { Lock, Unlock, RotateCcw } from 'lucide-react';
 import {
   loadLayout, saveLayout, resetLayout,
   loadWidgetState, saveWidgetState,
+  loadCustomizedFlags, saveCustomizedFlags,
+  deriveLayoutFromLg,
+  BREAKPOINTS, BREAKPOINT_COLS,
   DEFAULT_LAYOUT,
 } from '@/components/quillounge/widgets';
 import QuilloungeWidget from '@/components/quillounge/QuilloungeWidget';
@@ -81,17 +84,49 @@ export default function Quillounge() {
   const [widgetState, setWidgetState] = useState(loadWidgetState);
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => { saveWidgetState(widgetState); }, [widgetState]);
+  // Active breakpoint reported by RGL. Used to decide which breakpoint a user
+  // edit should mark as "customised" — only the one they're actually looking
+  // at and dragging in.
+  const [activeBreakpoint, setActiveBreakpoint] = useState('lg');
 
-  // RGL signature: onLayoutChange(currentLayout, allLayouts). We persist the
-  // full allLayouts object so positions stick across breakpoints — the prior
-  // implementation only stored `current`, which silently overwrote saved lg
-  // positions whenever RGL re-emitted a computed layout at a different
-  // breakpoint (or during mount/hydration).
+  // Per-breakpoint customisation flags. md/sm stay derived-from-lg until the
+  // user manually edits at that breakpoint, at which point they become sticky.
+  const [customized, setCustomized] = useState(loadCustomizedFlags);
+
+  useEffect(() => { saveWidgetState(widgetState); }, [widgetState]);
+  useEffect(() => { saveCustomizedFlags(customized); }, [customized]);
+
+  // RGL signature: onLayoutChange(currentLayout, allLayouts). Strategy:
+  //   - Always trust the active breakpoint's layout (that's what the user sees
+  //     and may have just dragged).
+  //   - For *non*-active breakpoints, only honour what RGL/storage sent if
+  //     that breakpoint has been customised. Otherwise re-derive from the
+  //     latest lg so a maximised edit cascades into windowed mode.
+  //   - Mark the active breakpoint customised on real edits (drag/resize),
+  //     not on mount/hydration emissions.
   const handleLayoutChange = (_current, all) => {
     if (!all || typeof all !== 'object') return;
-    setLayouts(all);
-    saveLayout(all);
+    const lg = Array.isArray(all.lg) && all.lg.length > 0 ? all.lg : layouts.lg;
+    const next = {
+      lg,
+      md: customized.md && Array.isArray(all.md) ? all.md : deriveLayoutFromLg(lg, 'md'),
+      sm: customized.sm && Array.isArray(all.sm) ? all.sm : deriveLayoutFromLg(lg, 'sm'),
+    };
+    setLayouts(next);
+    saveLayout(next);
+  };
+
+  // RGL fires onDragStop/onResizeStop only after a user-initiated edit, so
+  // these are the safe hooks to flip the customised flag without false
+  // positives from initial-render layout emissions.
+  const markActiveCustomized = () => {
+    if (!customized[activeBreakpoint]) {
+      setCustomized(prev => ({ ...prev, [activeBreakpoint]: true }));
+    }
+  };
+
+  const handleBreakpointChange = (bp) => {
+    setActiveBreakpoint(bp);
   };
 
   const updateWidgetSettings = (id, patch) => {
@@ -101,7 +136,13 @@ export default function Quillounge() {
   const handleReset = () => {
     if (!confirm('Reset Quillounge to the default layout?')) return;
     resetLayout();
-    setLayouts({ lg: DEFAULT_LAYOUT.map(l => ({ ...l })) });
+    const lg = DEFAULT_LAYOUT.map(l => ({ ...l }));
+    setLayouts({
+      lg,
+      md: deriveLayoutFromLg(lg, 'md'),
+      sm: deriveLayoutFromLg(lg, 'sm'),
+    });
+    setCustomized({ lg: false, md: false, sm: false });
   };
 
   // Filter to only render widgets we have layout entries for. Prefer lg as
@@ -146,8 +187,8 @@ export default function Quillounge() {
         <ResponsiveGridLayout
           className={`quillounge-grid ${editing ? 'editing' : ''}`}
           layouts={layouts}
-          breakpoints={{ lg: 1100, md: 760, sm: 0 }}
-          cols={{ lg: 12, md: 8, sm: 4 }}
+          breakpoints={BREAKPOINTS}
+          cols={BREAKPOINT_COLS}
           rowHeight={56}
           margin={[12, 12]}
           containerPadding={[8, 12]}
@@ -155,6 +196,9 @@ export default function Quillounge() {
           isResizable={editing}
           draggableHandle="[data-widget-handle]"
           onLayoutChange={handleLayoutChange}
+          onBreakpointChange={handleBreakpointChange}
+          onDragStop={markActiveCustomized}
+          onResizeStop={markActiveCustomized}
           compactType="vertical"
         >
           {visibleWidgets.map((id) => {
