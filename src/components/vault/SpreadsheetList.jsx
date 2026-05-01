@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { app } from '@/api/localClient';
-import { Search, LayoutGrid, List, Trash2, SortAsc, ChevronDown, Table2, Star, Pin } from 'lucide-react';
+import { Search, LayoutGrid, List, Trash2, SortAsc, ChevronDown, Table2, Star, Pin, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -11,14 +12,14 @@ const SORT_OPTIONS = [
   { id: 'name_desc', label: 'Name (Z–A)' },
 ];
 
-function SpreadsheetCard({ sheet, view, onDelete, onTogglePin, onToggleFavorite }) {
+function SpreadsheetCard({ sheet, view, onOpen, onDelete, onTogglePin, onToggleFavorite }) {
   const date = sheet.updated_date ? format(new Date(sheet.updated_date), 'MMM d, yyyy') : '';
   const rows = sheet.num_rows || 0;
   const cols = sheet.num_cols || 0;
 
   if (view === 'details' || view === 'list') {
     return (
-      <div className="group flex items-center gap-3 px-4 py-2.5 border-b border-[hsl(225,9%,14%)] hover:bg-[hsl(228,7%,22%)] transition-colors">
+      <div onClick={() => onOpen?.(sheet)} className="group flex items-center gap-3 px-4 py-2.5 border-b border-[hsl(225,9%,14%)] hover:bg-[hsl(228,7%,22%)] cursor-pointer transition-colors">
         <span className="text-base shrink-0">📊</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-white font-medium truncate">{sheet.title}</p>
@@ -27,13 +28,16 @@ function SpreadsheetCard({ sheet, view, onDelete, onTogglePin, onToggleFavorite 
         <span className="text-xs text-[hsl(220,7%,45%)] shrink-0 hidden sm:block">{rows}×{cols}</span>
         <span className="text-xs text-[hsl(220,7%,45%)] shrink-0 w-28 text-right">{date}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => onToggleFavorite(sheet)} className={cn("h-6 w-6 rounded flex items-center justify-center transition-colors", sheet.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,45%)] hover:text-yellow-400")}>
+          <button onClick={(e) => { e.stopPropagation(); onOpen?.(sheet); }} title="Open in Sheets Editor" className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-primary transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(sheet); }} className={cn("h-6 w-6 rounded flex items-center justify-center transition-colors", sheet.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,45%)] hover:text-yellow-400")}>
             <Star className="h-3.5 w-3.5" fill={sheet.is_favorite ? 'currentColor' : 'none'} />
           </button>
-          <button onClick={() => onTogglePin(sheet)} className={cn("h-6 w-6 rounded flex items-center justify-center transition-colors", sheet.is_pinned ? "text-primary" : "text-[hsl(220,7%,45%)] hover:text-primary")}>
+          <button onClick={(e) => { e.stopPropagation(); onTogglePin(sheet); }} className={cn("h-6 w-6 rounded flex items-center justify-center transition-colors", sheet.is_pinned ? "text-primary" : "text-[hsl(220,7%,45%)] hover:text-primary")}>
             <Pin className="h-3.5 w-3.5" fill={sheet.is_pinned ? 'currentColor' : 'none'} />
           </button>
-          <button onClick={() => onDelete(sheet)} className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-red-400 transition-colors">
+          <button onClick={(e) => { e.stopPropagation(); onDelete(sheet); }} className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-red-400 transition-colors">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -41,9 +45,9 @@ function SpreadsheetCard({ sheet, view, onDelete, onTogglePin, onToggleFavorite 
     );
   }
 
-  // Grid view
+  // Grid view — click anywhere to open in the Sheets editor hub.
   return (
-    <div className="group relative rounded-xl border border-[hsl(225,9%,18%)] bg-[hsl(220,8%,16%)] hover:border-primary/40 hover:bg-[hsl(228,7%,20%)] transition-all overflow-hidden">
+    <div onClick={() => onOpen?.(sheet)} className="group relative rounded-xl border border-[hsl(225,9%,18%)] bg-[hsl(220,8%,16%)] hover:border-primary/40 hover:bg-[hsl(228,7%,20%)] cursor-pointer transition-all overflow-hidden">
       <div className="p-4 min-h-[80px] flex flex-col gap-1">
         {[...Array(4)].map((_, ri) => (
           <div key={ri} className="flex gap-1">
@@ -68,13 +72,16 @@ function SpreadsheetCard({ sheet, view, onDelete, onTogglePin, onToggleFavorite 
         </div>
       </div>
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onToggleFavorite(sheet)} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors", sheet.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,55%)] hover:text-yellow-400")}>
+        <button onClick={(e) => { e.stopPropagation(); onOpen?.(sheet); }} title="Open in Sheets Editor" className="h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] text-[hsl(220,7%,55%)] hover:text-primary transition-colors">
+          <ExternalLink className="h-3 w-3" />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(sheet); }} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors", sheet.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,55%)] hover:text-yellow-400")}>
           <Star className="h-3 w-3" fill={sheet.is_favorite ? 'currentColor' : 'none'} />
         </button>
-        <button onClick={() => onTogglePin(sheet)} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors", sheet.is_pinned ? "text-primary" : "text-[hsl(220,7%,55%)] hover:text-primary")}>
+        <button onClick={(e) => { e.stopPropagation(); onTogglePin(sheet); }} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors", sheet.is_pinned ? "text-primary" : "text-[hsl(220,7%,55%)] hover:text-primary")}>
           <Pin className="h-3 w-3" fill={sheet.is_pinned ? 'currentColor' : 'none'} />
         </button>
-        <button onClick={() => onDelete(sheet)} className="h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] text-[hsl(220,7%,55%)] hover:text-red-400 transition-colors">
+        <button onClick={(e) => { e.stopPropagation(); onDelete(sheet); }} className="h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] text-[hsl(220,7%,55%)] hover:text-red-400 transition-colors">
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
@@ -85,6 +92,7 @@ function SpreadsheetCard({ sheet, view, onDelete, onTogglePin, onToggleFavorite 
 // filter: 'all' | 'pinned' | 'favorites'
 // compact: hides topbar (used in combined Pinned/Favorites view)
 export default function SpreadsheetList({ filter = 'all', compact = false }) {
+  const navigate = useNavigate();
   const [sheets, setSheets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('grid');
@@ -107,6 +115,9 @@ export default function SpreadsheetList({ filter = 'all', compact = false }) {
     };
     load();
   }, []);
+
+  // Quillibrary is pure storage — "open" routes to the Sheets editor hub.
+  const handleOpen = (sheet) => navigate(`/sheets/${sheet.id}`);
 
   const handleDelete = async (sheet) => {
     if (!confirm(`Delete "${sheet.title}"?`)) return;
@@ -204,7 +215,7 @@ export default function SpreadsheetList({ filter = 'all', compact = false }) {
           </div>
         ) : view === 'grid' || compact ? (
           <div className={gridClass}>
-            {filtered.map(s => <SpreadsheetCard key={s.id} sheet={s} view="grid" onDelete={handleDelete} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} />)}
+            {filtered.map(s => <SpreadsheetCard key={s.id} sheet={s} view="grid" onOpen={handleOpen} onDelete={handleDelete} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} />)}
           </div>
         ) : (
           <div className="rounded-xl border border-[hsl(225,9%,16%)] overflow-hidden">
@@ -214,7 +225,7 @@ export default function SpreadsheetList({ filter = 'all', compact = false }) {
               <span className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-wider w-28 text-right">Last Edited</span>
               <span className="w-20" />
             </div>
-            {filtered.map(s => <SpreadsheetCard key={s.id} sheet={s} view={view} onDelete={handleDelete} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} />)}
+            {filtered.map(s => <SpreadsheetCard key={s.id} sheet={s} view={view} onOpen={handleOpen} onDelete={handleDelete} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} />)}
           </div>
         )}
       </div>

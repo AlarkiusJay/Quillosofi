@@ -99,7 +99,10 @@ function Toolbar({ quillRef }) {
   );
 }
 
-export default function CanvasEditor({ canvas, onClose, onUpdate }) {
+// `embedded` mode strips the fixed-overlay/modal chrome so the editor can be
+// dropped into the new Canvas Hub page (with its own tab strip). The same
+// component is still used as a modal from Quillibrary's grid views.
+export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = false }) {
   const [showExport, setShowExport] = useState(false);
   const importRef = useRef(null);
   const [dictToast, setDictToast] = useState('');
@@ -198,14 +201,22 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
     };
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-6">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      <div ref={editorContainerRef} className="relative z-10 flex flex-col w-full max-w-4xl h-[90vh] rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl overflow-hidden bg-[hsl(220,8%,13%)]">
+  // Inner shell — header, toolbar, editor, footer. Modal mode wraps this in a
+  // fixed overlay; embedded mode renders it as a flex child of the hub.
+  const shell = (
+      <div
+        ref={editorContainerRef}
+        className={cn(
+          'flex flex-col overflow-hidden bg-[hsl(220,8%,13%)]',
+          embedded
+            ? 'flex-1 w-full h-full'
+            : 'relative z-10 w-full max-w-4xl h-[90vh] rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl'
+        )}
+      >
         <style>{editorStyles}</style>
         <DictionaryContextMenu containerRef={editorContainerRef} />
 
-        {/* Header */}
+        {/* Header — close button is hidden in embedded mode (tabs handle close) */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[hsl(225,9%,18%)] bg-[hsl(220,8%,15%)] shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="text-lg">📄</span>
@@ -285,9 +296,11 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
             <button onClick={() => save()} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-white transition-colors" title="Save now">
               <Save className="h-4 w-4" />
             </button>
-            <button onClick={onClose} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-white transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+            {!embedded && (
+              <button onClick={onClose} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-white transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -315,6 +328,14 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
           )}
         </div>
       </div>
+  );
+
+  if (embedded) return shell;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-6">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      {shell}
     </div>
   );
 }

@@ -117,7 +117,12 @@ function fillValues(srcVal, count) {
   return Array(count).fill(srcVal);
 }
 
-export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCallback }) {
+// MessageSpreadsheet — used in two contexts:
+//  1) Inside a chat message (legacy /spreadsheet command). Pass `message`.
+//  2) Inside the new Sheets Editor Hub. Pass `sheet` directly (a Spreadsheet
+//     entity loaded by the hub) and `embedded={true}` to fill its container.
+// Exactly one of `message` or `sheet` must be provided.
+export default function MessageSpreadsheet({ message, sheet: sheetProp, onClose, onSave: onSaveCallback, embedded = false }) {
   const [spreadsheet, setSpreadsheet] = useState(null);
   const [data, setData] = useState(makeEmptyData(DEFAULT_ROWS, DEFAULT_COLS));
   const [title, setTitle] = useState('Spreadsheet');
@@ -151,31 +156,40 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
   const numRows = data.length;
   const numCols = data[0]?.length || DEFAULT_COLS;
 
-  // Load or create spreadsheet
+  // Load or create spreadsheet — either by sheet ID (hub mode) or message ID (chat mode).
+  const sheetIdProp = sheetProp?.id;
+  const messageId = message?.id;
   useEffect(() => {
     const load = async () => {
-      const existing = await app.entities.Spreadsheet.filter({ message_id: message.id });
-      if (existing.length > 0) {
-        const s = existing[0];
-        setSpreadsheet(s);
-        setTitle(s.title || 'Spreadsheet');
-        if (s.data) setData(JSON.parse(s.data));
-        if (s.col_widths) setColWidths(JSON.parse(s.col_widths));
-        if (s.row_heights) setRowHeights(JSON.parse(s.row_heights));
-        if (s.cell_formats) setCellFormats(JSON.parse(s.cell_formats));
-        if (s.cell_types) setCellTypes(JSON.parse(s.cell_types));
-        if (s.cf_rules) setCfRules(JSON.parse(s.cf_rules));
-      } else {
-        const s = await app.entities.Spreadsheet.create({
-          title: 'Spreadsheet', message_id: message.id,
-          data: JSON.stringify(makeEmptyData(DEFAULT_ROWS, DEFAULT_COLS)),
-          num_rows: DEFAULT_ROWS, num_cols: DEFAULT_COLS,
-        });
-        setSpreadsheet(s);
+      let s = null;
+      if (sheetIdProp) {
+        // Hub mode — sheet is provided. Use it directly (it was loaded by the hub).
+        s = sheetProp;
+      } else if (messageId) {
+        const existing = await app.entities.Spreadsheet.filter({ message_id: messageId });
+        if (existing.length > 0) {
+          s = existing[0];
+        } else {
+          s = await app.entities.Spreadsheet.create({
+            title: 'Spreadsheet', message_id: messageId,
+            data: JSON.stringify(makeEmptyData(DEFAULT_ROWS, DEFAULT_COLS)),
+            num_rows: DEFAULT_ROWS, num_cols: DEFAULT_COLS,
+          });
+        }
       }
+      if (!s) return;
+      setSpreadsheet(s);
+      setTitle(s.title || 'Spreadsheet');
+      if (s.data) try { setData(JSON.parse(s.data)); } catch { /* leave defaults */ }
+      if (s.col_widths) try { setColWidths(JSON.parse(s.col_widths)); } catch {}
+      if (s.row_heights) try { setRowHeights(JSON.parse(s.row_heights)); } catch {}
+      if (s.cell_formats) try { setCellFormats(JSON.parse(s.cell_formats)); } catch {}
+      if (s.cell_types) try { setCellTypes(JSON.parse(s.cell_types)); } catch {}
+      if (s.cf_rules) try { setCfRules(JSON.parse(s.cf_rules)); } catch {}
     };
     load();
-  }, [message.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetIdProp, messageId]);
 
   const save = useCallback(async (overrideData, overrideTitle) => {
     if (!spreadsheet) return;
@@ -188,9 +202,9 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
       cf_rules: JSON.stringify(cfRules),
       num_rows: d.length, num_cols: d[0]?.length || DEFAULT_COLS,
     });
-    // Generate CSV for AI context
+    // Generate CSV for AI context (chat mode); hub mode just gets the sheet id.
     const csv = d.map(r => r.map(c => String(c ?? '')).join(',')).join('\n');
-    onSaveCallback?.(message.id, csv);
+    onSaveCallback?.(messageId || spreadsheet.id, csv);
     setSavedLabel('Saved!');
     setTimeout(() => setSavedLabel(''), 1500);
   }, [spreadsheet, data, title, colWidths, rowHeights, cellFormats, cellTypes, cfRules, onSaveCallback]);
@@ -600,6 +614,16 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-0">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={() => setFullscreen(false)} />
         <div className="relative z-10 flex flex-col w-full md:w-[95vw] h-[90vh] rounded-xl border border-[hsl(225,9%,25%)] shadow-2xl overflow-hidden bg-[hsl(220,8%,16%)]">{inner}</div>
+      </div>
+    );
+  }
+
+  // Embedded mode (Sheets Hub) — fill the parent flex container instead of
+  // the constrained 360px chat-message preview.
+  if (embedded) {
+    return (
+      <div className="flex-1 w-full h-full bg-[hsl(220,8%,16%)] overflow-hidden">
+        {inner}
       </div>
     );
   }

@@ -92,11 +92,12 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   const isHome = location.pathname === '/';
   const isSpacesHome = location.pathname === '/spaces';
   const isQuillibrary = location.pathname === '/quillibrary' || location.pathname === '/canvas-vault';
+  // Canvas + Sheets get full editor hubs in v0.4.7 — dedicated routes with
+  // multi-doc tabs and Resume Last. Quillibrary remains pure storage.
+  const isCanvasHub = location.pathname === '/canvas' || location.pathname.startsWith('/canvas/');
+  const isSheetsHub = location.pathname === '/sheets' || location.pathname.startsWith('/sheets/');
   const isResearch = location.pathname.startsWith('/research');
   const isChat = location.pathname.startsWith('/chat');
-  // Canvas + Sheets editors are surfaced as new-document shortcuts that drop
-  // the user into Quillibrary's create flows. The actual editor modals live
-  // inside Quillibrary itself.
   const activeSpaceId = location.pathname.startsWith('/space/') ? location.pathname.split('/space/')[1] : null;
 
   const railBtn = (active) => cn(
@@ -119,21 +120,21 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             </Link>
           </Tooltip>
 
-          <Tooltip text="Canvas Editor — start a new canvas">
+          <Tooltip text="Canvas — writing editor">
             <button
-              onClick={() => navigate('/quillibrary?new=canvas')}
+              onClick={() => navigate('/canvas')}
               style={{ touchAction: 'manipulation' }}
-              className={railBtn(false)}
+              className={railBtn(isCanvasHub)}
             >
               <FileText className="h-4 w-4 text-white" />
             </button>
           </Tooltip>
 
-          <Tooltip text="Sheets Editor — start a new sheet">
+          <Tooltip text="Sheets — spreadsheet editor">
             <button
-              onClick={() => navigate('/quillibrary?new=sheet')}
+              onClick={() => navigate('/sheets')}
               style={{ touchAction: 'manipulation' }}
-              className={railBtn(false)}
+              className={railBtn(isSheetsHub)}
             >
               <Table2 className="h-4 w-4 text-white" />
             </button>

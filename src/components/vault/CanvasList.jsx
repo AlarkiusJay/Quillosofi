@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { app } from '@/api/localClient';
-import { Search, LayoutGrid, List, Table, Image, Star, Pin, Trash2, Plus, ChevronDown, SortAsc } from 'lucide-react';
+import { Search, LayoutGrid, List, Table, Image, Star, Pin, Trash2, Plus, ChevronDown, SortAsc, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import CanvasEditor from './CanvasEditor';
 
 const SORT_OPTIONS = [
   { id: 'updated_desc', label: 'Last Edited' },
@@ -24,7 +24,7 @@ function stripHtml(html) {
   return (html || '').replace(/<[^>]*>/g, '').trim();
 }
 
-function CanvasCard({ canvas, view, onOpen, onTogglePin, onToggleFavorite, onDelete, pinnedCount }) {
+function CanvasCard({ canvas, view, onOpen, onOpenInEditor, onTogglePin, onToggleFavorite, onDelete, pinnedCount }) {
   const snippet = stripHtml(canvas.content).slice(0, view === 'gallery' ? 200 : 80);
   const date = canvas.updated_date ? format(new Date(canvas.updated_date), 'MMM d, yyyy') : '';
   const canPin = !canvas.is_pinned && pinnedCount >= 7;
@@ -96,6 +96,9 @@ function CanvasCard({ canvas, view, onOpen, onTogglePin, onToggleFavorite, onDel
         </div>
       </div>
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={(e) => { e.stopPropagation(); onOpenInEditor(canvas); }} title="Open in Canvas Editor" className="h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] text-[hsl(220,7%,55%)] hover:text-primary transition-colors">
+          <ExternalLink className="h-3 w-3" />
+        </button>
         <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(canvas); }} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors", canvas.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,55%)] hover:text-yellow-400")}>
           <Star className="h-3 w-3" fill={canvas.is_favorite ? 'currentColor' : 'none'} />
         </button>
@@ -111,13 +114,13 @@ function CanvasCard({ canvas, view, onOpen, onTogglePin, onToggleFavorite, onDel
 }
 
 export default function CanvasList({ filter, spaces }) {
+  const navigate = useNavigate();
   const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('grid');
   const [sortBy, setSortBy] = useState('updated_desc');
   const [showSort, setShowSort] = useState(false);
   const [search, setSearch] = useState('');
-  const [openCanvas, setOpenCanvas] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -146,15 +149,11 @@ export default function CanvasList({ filter, spaces }) {
 
   const pinnedCount = canvases.filter(c => c.is_pinned).length;
 
+  // New canvas — create the entity and route into the editor hub.
   const handleCreate = async () => {
     const c = await app.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });
     setCanvases(prev => [c, ...prev]);
-    setOpenCanvas(c);
-  };
-
-  const handleUpdate = (updated) => {
-    setCanvases(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
-    if (openCanvas?.id === updated.id) setOpenCanvas(prev => ({ ...prev, ...updated }));
+    navigate(`/canvas/${c.id}`);
   };
 
   const handleTogglePin = async (canvas) => {
@@ -168,6 +167,12 @@ export default function CanvasList({ filter, spaces }) {
     const next = !canvas.is_favorite;
     setCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, is_favorite: next } : c));
     await app.entities.Canvas.update(canvas.id, { is_favorite: next });
+  };
+
+  // Quillibrary is pure storage — every "open" action routes to the Canvas
+  // editor hub, where the document opens as a new tab.
+  const handleOpenInEditor = (canvas) => {
+    navigate(`/canvas/${canvas.id}`);
   };
 
   const handleDelete = async (canvas) => {
@@ -287,9 +292,9 @@ export default function CanvasList({ filter, spaces }) {
                         <span className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-wider w-28 text-right">Last Edited</span>
                         <span className="w-20" />
                       </div>
-                      {pinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={setOpenCanvas} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
+                      {pinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={handleOpenInEditor} onOpenInEditor={handleOpenInEditor} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
                     </div>
-                  ) : pinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={setOpenCanvas} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
+                  ) : pinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={handleOpenInEditor} onOpenInEditor={handleOpenInEditor} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
                 </div>
               </div>
             )}
@@ -304,11 +309,11 @@ export default function CanvasList({ filter, spaces }) {
                       <span className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-wider w-28 text-right">Last Edited</span>
                       <span className="w-20" />
                     </div>
-                    {unpinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={setOpenCanvas} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
+                    {unpinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={handleOpenInEditor} onOpenInEditor={handleOpenInEditor} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
                   </div>
                 ) : (
                   <div className={gridClass}>
-                    {unpinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={setOpenCanvas} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
+                    {unpinnedItems.map(c => <CanvasCard key={c.id} canvas={c} view={view} onOpen={handleOpenInEditor} onOpenInEditor={handleOpenInEditor} onTogglePin={handleTogglePin} onToggleFavorite={handleToggleFavorite} onDelete={handleDelete} pinnedCount={pinnedCount} />)}
                   </div>
                 )}
               </div>
@@ -317,7 +322,6 @@ export default function CanvasList({ filter, spaces }) {
         )}
       </div>
 
-      {openCanvas && <CanvasEditor canvas={openCanvas} onClose={() => setOpenCanvas(null)} onUpdate={handleUpdate} />}
     </div>
   );
 }

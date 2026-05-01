@@ -20,6 +20,8 @@ import Space from './pages/Space';
 import SpacesGrid from './components/SpacesGrid';
 import AuthCallback from './pages/AuthCallback';
 import CanvasVault from './pages/CanvasVault';
+import CanvasEditorHub from './pages/CanvasEditorHub';
+import SheetsEditorHub from './pages/SheetsEditorHub';
 import Research from './pages/Research';
 import QuillosofiCentre from './pages/QuillosofiCentre';
 import Quillounge from './pages/Quillounge';
@@ -60,6 +62,11 @@ const AuthenticatedApp = () => {
         {/* Quillibrary — renamed from Canvas Vault in v0.4. Old path kept for back-compat. */}
         <Route path="/quillibrary" element={<CanvasVault />} />
         <Route path="/canvas-vault" element={<CanvasVault />} />
+        {/* Canvas & Sheets editor hubs (v0.4.7) — full editor workspaces with multi-doc tabs. */}
+        <Route path="/canvas" element={<CanvasEditorHub />} />
+        <Route path="/canvas/:id" element={<CanvasEditorHub />} />
+        <Route path="/sheets" element={<SheetsEditorHub />} />
+        <Route path="/sheets/:id" element={<SheetsEditorHub />} />
         <Route path="/research" element={<Research />} />
         <Route path="/research/:researchId" element={<Research />} />
         <Route path="*" element={<PageNotFound />} />
