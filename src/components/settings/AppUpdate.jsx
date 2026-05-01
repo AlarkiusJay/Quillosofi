@@ -228,9 +228,14 @@ function DesktopUpdateView() {
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
 
   // Pick the highest sass tier the user has earned (only when up to date).
-  const sassMessage = isUpToDate
-    ? [...SASS_TIERS].reverse().find((t) => sassClicks >= t.at)?.text
-    : null;
+  // Track the tier *index* separately so the sass <p> can key on the tier,
+  // not the click count — click 4 and click 5 stay on the same tier and
+  // therefore don't remount/refade. Only the tier transitions (3→6, 6→10,
+  // etc.) trigger the crossfade.
+  const sassTierIndex = isUpToDate
+    ? [...SASS_TIERS].map((t, i) => ({ ...t, i })).reverse().find((t) => sassClicks >= t.at)?.i ?? -1
+    : -1;
+  const sassMessage = sassTierIndex >= 0 ? SASS_TIERS[sassTierIndex].text : null;
   const trapArmed = isUpToDate && sassClicks >= TRAP_THRESHOLD;
 
   const handleTrap = useCallback(() => {
@@ -306,10 +311,30 @@ function DesktopUpdateView() {
   }
 
   // ---------- Action buttons ----------
+  // The right-hand action button morphs in place across states instead of
+  // unmounting/remounting different <Button> elements per state — that was
+  // the source of the glitch/flash on every status update. We compute one
+  // `action` descriptor and feed it to a single persistent <Button>.
   const checking = status === 'checking' || busy;
   const downloading = status === 'downloading';
   const installable = status === 'downloaded';
   const downloadable = status === 'available';
+
+  const action = (() => {
+    if (installable) {
+      return { label: 'Install & Restart', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
+    }
+    if (downloading) {
+      return { label: 'Downloading\u2026', icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
+    }
+    if (downloadable) {
+      return { label: `Download v${latestVersion}`, icon: <Download className="h-4 w-4" />, onClick: handleDownload, disabled: busy, variant: 'default' };
+    }
+    if (trapArmed) {
+      return { label: 'Download New Update', icon: <Download className="h-4 w-4" />, onClick: handleTrap, disabled: false, variant: 'default' };
+    }
+    return { label: 'Download New Update', icon: <Download className="h-4 w-4" />, onClick: handleCheckAndDownload, disabled: checking, variant: 'default' };
+  })();
 
   return (
     <div className="py-4 space-y-4">
@@ -368,44 +393,40 @@ function DesktopUpdateView() {
             disabled={checking || downloading}
             className="w-full flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-            {checking ? 'Checking…' : 'Check for Updates'}
+            <span
+              key={checking ? 'checking' : 'idle'}
+              className="flex items-center gap-2 animate-in fade-in duration-200"
+            >
+              <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+              {checking ? 'Checking…' : 'Check for Updates'}
+            </span>
           </Button>
 
-          {installable ? (
-            <Button onClick={handleInstall} disabled={busy} className="w-full flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Install &amp; Restart
-            </Button>
-          ) : downloading ? (
-            <Button disabled className="w-full flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Downloading…
-            </Button>
-          ) : downloadable ? (
-            <Button onClick={handleDownload} disabled={busy} className="w-full flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Download v{latestVersion}
-            </Button>
-          ) : trapArmed ? (
-            <Button onClick={handleTrap} className="w-full flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Download New Update
-            </Button>
-          ) : (
-            <Button onClick={handleCheckAndDownload} disabled={checking} className="w-full flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Download New Update
-            </Button>
-          )}
+          {/* Single persistent button that morphs in place. The contents are
+              keyed on (label) so changes crossfade subtly instead of popping. */}
+          <Button
+            onClick={action.onClick}
+            disabled={action.disabled}
+            className="w-full flex items-center gap-2"
+          >
+            <span
+              key={action.label}
+              className="flex items-center gap-2 animate-in fade-in duration-200"
+            >
+              {action.icon}
+              {action.label}
+            </span>
+          </Button>
         </div>
 
         {/* Easter egg — escalating sass when the user spam-clicks Check for
             Updates while already up to date. Only renders when there's a tier
-            unlocked AND no real update is pending. */}
+            unlocked AND no real update is pending. v0.4.10: keyed on tier
+            index, not click count, so it stays static *within* a tier and
+            only crossfades when you actually escalate (3→6→10→15→20). */}
         {sassMessage && (
           <p
-            key={sassClicks /* re-mount each tier so the fade re-plays */}
+            key={sassTierIndex}
             className="text-center text-xs text-muted-foreground/90 italic px-2 animate-in fade-in slide-in-from-bottom-1 duration-300"
           >
             {sassMessage}
