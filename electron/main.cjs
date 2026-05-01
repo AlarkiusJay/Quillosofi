@@ -37,6 +37,28 @@ const startHidden = process.argv.includes('--hidden');
 let mainWindow = null;
 let tray = null;
 app.isQuitting = false;
+// Set when an update install is in progress. Forces the app to actually die
+// (instead of hiding to tray) so NSIS can delete the old .exe without hitting
+// 'Failed to uninstall old application files' (Error 2 = file in use).
+app.isInstallingUpdate = false;
+
+// Centralised "prepare to die for an update" sequence. Cleanly tears down the
+// tray, all renderers, and global shortcuts so Windows releases file handles
+// on Quillosofi.exe before NSIS tries to delete it.
+function prepareForUpdateInstall() {
+  app.isQuitting = true;
+  app.isInstallingUpdate = true;
+  try {
+    if (tray) { tray.destroy(); tray = null; }
+  } catch (_) {}
+  try {
+    BrowserWindow.getAllWindows().forEach(w => {
+      try { w.removeAllListeners('close'); } catch (_) {}
+      try { w.destroy(); } catch (_) {}
+    });
+  } catch (_) {}
+  try { globalShortcut.unregisterAll(); } catch (_) {}
+}
 
 // =============================================================
 // Single-instance lock — focus the existing window if user double-launches
@@ -181,7 +203,12 @@ function wireAutoUpdater() {
     // If auto-install is on, install on next quit (user can also click Install Now).
     if (updateSettings.autoInstall) {
       app.once('before-quit', () => {
-        try { autoUpdater.quitAndInstall(true, false); } catch (_) {}
+        prepareForUpdateInstall();
+        // Tiny delay so window/tray destroy actually completes before NSIS
+        // starts uninstalling — mitigates 'file in use' on the .exe.
+        setTimeout(() => {
+          try { autoUpdater.quitAndInstall(true, false); } catch (_) {}
+        }, 200);
       });
     }
   });
@@ -385,7 +412,14 @@ ipcMain.handle('updates:install', async () => {
     return { ok: false, error: 'Updater unavailable' };
   }
   try {
-    setImmediate(() => autoUpdater.quitAndInstall(true, true));
+    // Tear down tray + renderers FIRST, then call quitAndInstall after a
+    // short delay so file handles release. Without this, NSIS hits Error 2
+    // ('Failed to uninstall old application files') because Quillosofi.exe
+    // is still locked by the lingering tray/main process.
+    prepareForUpdateInstall();
+    setTimeout(() => {
+      try { autoUpdater.quitAndInstall(true, true); } catch (_) {}
+    }, 250);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : String(err) };
@@ -440,8 +474,14 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   // Stay alive in tray on all platforms; user must explicitly Quit.
+  // EXCEPT when installing an update — in that case, actually exit so the
+  // installer can delete the old binary.
+  if (app.isInstallingUpdate) {
+    try { app.exit(0); } catch (_) {}
+  }
 });
 
 app.on('will-quit', () => {
   try { globalShortcut.unregisterAll(); } catch (_) {}
+  try { if (tray) { tray.destroy(); tray = null; } } catch (_) {}
 });
