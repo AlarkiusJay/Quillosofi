@@ -1,6 +1,6 @@
 /*
  * Local user profile (Quillounge greeting + display name).
- * Independent of Base44 so the home page works offline / pre-auth.
+ * Local-only so the home page works offline.
  */
 
 import { useEffect, useState, useCallback } from 'react';

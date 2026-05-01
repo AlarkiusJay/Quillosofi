@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { exportTxt, exportMd, exportDocx, exportPdf } from './canvasExportUtils';
 import ReactQuill from 'react-quill';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload, ChevronDown, BookPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
@@ -153,7 +153,7 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
 
   const save = async (val, extraFields = {}) => {
     const toSave = val !== undefined ? val : content;
-    const updated = await base44.entities.Canvas.update(canvas.id, {
+    const updated = await app.entities.Canvas.update(canvas.id, {
       content: toSave,
       title,
       ...extraFields,
@@ -173,21 +173,21 @@ export default function CanvasEditor({ canvas, onClose, onUpdate }) {
     const trimmed = newTitle.trim() || 'Untitled Canvas';
     setTitle(trimmed);
     setEditingTitle(false);
-    await base44.entities.Canvas.update(canvas.id, { title: trimmed });
+    await app.entities.Canvas.update(canvas.id, { title: trimmed });
     onUpdate?.({ ...canvas, title: trimmed });
   };
 
   const togglePin = async () => {
     const next = !isPinned;
     setIsPinned(next);
-    await base44.entities.Canvas.update(canvas.id, { is_pinned: next });
+    await app.entities.Canvas.update(canvas.id, { is_pinned: next });
     onUpdate?.({ ...canvas, is_pinned: next });
   };
 
   const toggleFavorite = async () => {
     const next = !isFavorite;
     setIsFavorite(next);
-    await base44.entities.Canvas.update(canvas.id, { is_favorite: next });
+    await app.entities.Canvas.update(canvas.id, { is_favorite: next });
     onUpdate?.({ ...canvas, is_favorite: next });
   };
 

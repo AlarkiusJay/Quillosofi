@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, Pin, PinOff, Pencil, FolderInput, FolderMinus, Trash2, Check, X, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 function SpacePicker({ spaces, currentSpaceId, onSelect, onClose, anchorRect }) {
   const style = anchorRect
@@ -51,7 +51,7 @@ export default function ChatHeader({ conversation, spaces, onUpdate, onDelete })
   };
 
   const handlePin = async () => {
-    await base44.entities.Conversation.update(conversation.id, { is_pinned: !conversation.is_pinned });
+    await app.entities.Conversation.update(conversation.id, { is_pinned: !conversation.is_pinned });
     setShowMenu(false);
     onUpdate?.();
   };
@@ -59,13 +59,13 @@ export default function ChatHeader({ conversation, spaces, onUpdate, onDelete })
   const handleEditSubmit = async (e) => {
     e?.preventDefault();
     if (!editTitle.trim()) return;
-    await base44.entities.Conversation.update(conversation.id, { title: editTitle.trim() });
+    await app.entities.Conversation.update(conversation.id, { title: editTitle.trim() });
     setEditing(false);
     onUpdate?.();
   };
 
   const handleMoveToSpace = async (spaceId) => {
-    await base44.entities.Conversation.update(conversation.id, { space_id: spaceId ?? null });
+    await app.entities.Conversation.update(conversation.id, { space_id: spaceId ?? null });
     setShowSpacePicker(false);
     setShowMenu(false);
     onUpdate?.();

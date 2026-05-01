@@ -1,7 +1,7 @@
 /*
  * Desktop runtime helpers for Quillosofi.
  *
- * v0.4.1: Quillosofi is now a fully local-only desktop app. Base44 is gone.
+ * Quillosofi is a fully local-only desktop app.
  * Everything routes through localStorage / IndexedDB / OpenRouter. There is
  * no remote backend.
  *
@@ -40,7 +40,7 @@ const safeWrite = (key, value) => {
 const uid = () => `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 // =============================================================
-// Local entity API — mirrors the subset of base44.entities.X that
+// Local entity API — mirrors the entity API surface that
 // the app actually uses. Each "entity" is a list under a single key.
 // =============================================================
 function makeEntity(key) {
@@ -195,7 +195,7 @@ export const localAuth = {
 };
 
 // =============================================================
-// Local integrations — drop-in replacements for the old Base44
+// Local integrations — drop-in replacements for legacy
 // integrations.Core.* surface. Everything is local / OpenRouter.
 // =============================================================
 const fileToDataUrl = (file) =>
@@ -217,7 +217,7 @@ export const localIntegrations = {
     },
 
     // Route LLM calls through OpenRouter. Lazy-imported to avoid a circular
-    // dep with llm.js (which itself used to import base44).
+    // dep with llm.js.
     InvokeLLM: async (params = {}) => {
       const { invokeLLM } = await import('@/lib/llm');
       return invokeLLM(params);

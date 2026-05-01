@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Pin, Hash } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 export default function PinnedRecentWidget() {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export default function PinnedRecentWidget() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await base44.entities.Canvas.list('-updated_date', 50);
+        const data = await app.entities.Canvas.list('-updated_date', 50);
         if (cancelled) return;
         const list = Array.isArray(data) ? data : [];
         setCanvases(list);

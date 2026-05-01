@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Microscope, Send, Loader2, Library, Sparkles, Plus, Search, AlertCircle, Trash2, ExternalLink, Download } from 'lucide-react';
 import { runResearch, domainFromUrl } from '@/lib/research';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import CitedAnswer from '@/components/research/CitedAnswer';
 import SourceCard from '@/components/research/SourceCard';
 import Tooltip from '@/components/Tooltip';
@@ -47,8 +47,8 @@ export default function Research() {
     (async () => {
       try {
         const [r, s] = await Promise.all([
-          base44.entities.Research.list('-created_date', 50),
-          base44.entities.Source.list('-created_date', 200),
+          app.entities.Research.list('-created_date', 50),
+          app.entities.Source.list('-created_date', 200),
         ]);
         if (cancelled) return;
         setHistory(Array.isArray(r) ? r : []);
@@ -66,7 +66,7 @@ export default function Research() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await base44.entities.Research.get(researchId);
+        const r = await app.entities.Research.get(researchId);
         if (!cancelled && r) {
           setActive(r);
           setTab(TAB_NEW);
@@ -96,7 +96,7 @@ export default function Research() {
     try {
       const result = await runResearch({ query: q, depth });
       // Persist as a Research entity.
-      const saved = await base44.entities.Research.create({
+      const saved = await app.entities.Research.create({
         query: q,
         depth,
         answer: result.answer,
@@ -120,7 +120,7 @@ export default function Research() {
 
   const handleSaveSource = useCallback(async (source) => {
     if (!source?.url || vaultUrlSet.has(source.url)) return;
-    const saved = await base44.entities.Source.create({
+    const saved = await app.entities.Source.create({
       url: source.url,
       title: source.title,
       snippet: source.snippet,
@@ -134,7 +134,7 @@ export default function Research() {
 
   const handleRemoveFromVault = useCallback(async (source) => {
     if (!source?.id) return;
-    await base44.entities.Source.delete(source.id);
+    await app.entities.Source.delete(source.id);
     setVault((v) => v.filter((x) => x.id !== source.id));
   }, []);
 
@@ -149,7 +149,7 @@ export default function Research() {
   const handleDeleteResearch = useCallback(async (id) => {
     if (!id) return;
     if (!confirm('Delete this research session? Saved sources stay in your vault.')) return;
-    await base44.entities.Research.delete(id);
+    await app.entities.Research.delete(id);
     setHistory((h) => h.filter((x) => x.id !== id));
     if (active?.id === id) {
       setActive(null);

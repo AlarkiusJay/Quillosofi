@@ -159,7 +159,6 @@ export default function QuillosofiCentre() {
       <div className="text-center py-12 px-6 border-t border-[hsl(225,9%,16%)]">
         <p className="text-xs text-[hsl(220,7%,35%)]">Quillosofi — Built with care. Designed for you.</p>
         <p className="text-[10px] text-[hsl(220,7%,28%)] mt-1">© {new Date().getFullYear()} Quillosofi. All rights reserved.</p>
-        <p className="text-[10px] text-[hsl(220,7%,28%)] mt-1">Powered by <span className="text-primary/60 font-medium">Base44</span></p>
       </div>
     </div>
   );

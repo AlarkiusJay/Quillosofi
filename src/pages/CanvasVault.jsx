@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CanvasList from '../components/vault/CanvasList';
@@ -13,7 +13,7 @@ export default function CanvasVault() {
   const [spaces, setSpaces] = useState([]);
 
   useEffect(() => {
-    base44.entities.ProjectSpace.list('-created_date', 50).then(setSpaces);
+    app.entities.ProjectSpace.list('-created_date', 50).then(setSpaces);
   }, []);
 
   const handleFilterClick = (id) => {

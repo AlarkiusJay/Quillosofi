@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Sparkles, Sliders, Shield, Palette, RefreshCw, Keyboard, MessageSquare, BookOpen, Grid3x3, Table2, Search, Zap, Brain, X } from 'lucide-react';
 import AppUpdate from './settings/AppUpdate';
 import ImportExport from './settings/ImportExport';
@@ -83,12 +83,12 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
   useEffect(() => {
     const load = async () => {
       try {
-        const isAuthed = await base44.auth.isAuthenticated();
+        const isAuthed = await app.auth.isAuthenticated();
         if (!isAuthed) {
           setIsLoading(false);
           return;
         }
-        const me = await base44.auth.me();
+        const me = await app.auth.me();
         setUser(me);
       } catch (error) {
         console.error('Error loading settings:', error);

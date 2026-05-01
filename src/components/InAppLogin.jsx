@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { LogIn, LogOut, Settings } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 
@@ -26,7 +26,7 @@ export default function InAppLogin({ onAuthChange }) {
 
   useEffect(() => {
     if (IS_DESKTOP) return; // version handled by the desktop AppUpdate component
-    base44.functions.invoke('getAppVersion', {}).then(res => {
+    app.functions.invoke('getAppVersion', {}).then(res => {
       if (res.data?.version && res.data.version !== CURRENT_VERSION) {
         setHasUpdate(true);
       }
@@ -35,11 +35,11 @@ export default function InAppLogin({ onAuthChange }) {
 
   const loadUser = async () => {
     try {
-      const isAuthed = await base44.auth.isAuthenticated();
+      const isAuthed = await app.auth.isAuthenticated();
       if (isAuthed) {
-        const u = await base44.auth.me();
+        const u = await app.auth.me();
         setUser(u);
-        const configs = await base44.entities.BotConfig.list(null, 1);
+        const configs = await app.entities.BotConfig.list(null, 1);
         setBotConfig(configs?.[0] || null);
       } else {
         setUser(null);
@@ -54,7 +54,7 @@ export default function InAppLogin({ onAuthChange }) {
   useEffect(() => {
     if (IS_DESKTOP) {
       // Desktop: skip auth, just hydrate the bot config (avatar/nickname).
-      base44.entities.BotConfig.list(null, 1)
+      app.entities.BotConfig.list(null, 1)
         .then((configs) => setBotConfig(configs?.[0] || null))
         .catch(() => {});
       return;
@@ -86,7 +86,7 @@ export default function InAppLogin({ onAuthChange }) {
 
   const handleLogout = async () => {
     if (IS_DESKTOP) return; // no logout on desktop — it's local-only
-    await base44.auth.logout();
+    await app.auth.logout();
     setUser(null);
     onAuthChange?.();
   };

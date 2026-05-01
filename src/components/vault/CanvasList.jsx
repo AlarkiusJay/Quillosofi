@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Search, LayoutGrid, List, Table, Image, Star, Pin, Trash2, Plus, ChevronDown, SortAsc } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -122,14 +122,14 @@ export default function CanvasList({ filter, spaces }) {
   const load = async () => {
     setLoading(true);
     const [data, messages] = await Promise.all([
-      base44.entities.Canvas.list('-updated_date', 200),
-      base44.entities.Message.filter({ role: 'user' }, '-created_date', 500),
+      app.entities.Canvas.list('-updated_date', 200),
+      app.entities.Message.filter({ role: 'user' }, '-created_date', 500),
     ]);
     const messagesWithCanvas = messages.filter(m => m.canvas_content && m.canvas_content.trim());
     const existingMessageIds = new Set(data.map(c => c.message_id).filter(Boolean));
     const toImport = messagesWithCanvas.filter(m => !existingMessageIds.has(m.id));
     const newCanvases = await Promise.all(
-      toImport.map(m => base44.entities.Canvas.create({
+      toImport.map(m => app.entities.Canvas.create({
         title: m.canvas_title || 'Untitled Canvas',
         content: m.canvas_content,
         message_id: m.id,
@@ -147,7 +147,7 @@ export default function CanvasList({ filter, spaces }) {
   const pinnedCount = canvases.filter(c => c.is_pinned).length;
 
   const handleCreate = async () => {
-    const c = await base44.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });
+    const c = await app.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });
     setCanvases(prev => [c, ...prev]);
     setOpenCanvas(c);
   };
@@ -161,19 +161,19 @@ export default function CanvasList({ filter, spaces }) {
     const next = !canvas.is_pinned;
     if (next && pinnedCount >= 7) return;
     setCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, is_pinned: next } : c));
-    await base44.entities.Canvas.update(canvas.id, { is_pinned: next });
+    await app.entities.Canvas.update(canvas.id, { is_pinned: next });
   };
 
   const handleToggleFavorite = async (canvas) => {
     const next = !canvas.is_favorite;
     setCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, is_favorite: next } : c));
-    await base44.entities.Canvas.update(canvas.id, { is_favorite: next });
+    await app.entities.Canvas.update(canvas.id, { is_favorite: next });
   };
 
   const handleDelete = async (canvas) => {
     if (!confirm(`Delete "${canvas.title}"?`)) return;
     setCanvases(prev => prev.filter(c => c.id !== canvas.id));
-    await base44.entities.Canvas.delete(canvas.id);
+    await app.entities.Canvas.delete(canvas.id);
   };
 
   const filtered = useMemo(() => {

@@ -2,7 +2,7 @@
  * Direct LLM client for Quillosofi.
  *
  * Hits OpenRouter (https://openrouter.ai) directly from the renderer with
- * streaming. As of v0.4.1 this is the ONLY LLM path — Base44 is gone.
+ * streaming. OpenRouter is the only LLM path.
  * Two surface APIs:
  *
  *   invokeLLM({ prompt, model, response_json_schema?, add_context_from_internet?, file_urls?, signal? })

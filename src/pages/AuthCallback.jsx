@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 export default function AuthCallback() {
   const [status, setStatus] = useState('checking'); // checking | logging_in | success
 
   useEffect(() => {
     const run = async () => {
-      const isAuthed = await base44.auth.isAuthenticated();
+      const isAuthed = await app.auth.isAuthenticated();
       if (isAuthed) {
         setStatus('success');
         // Notify the opener tab
@@ -15,7 +15,7 @@ export default function AuthCallback() {
         setTimeout(() => window.close(), 3000);
       } else {
         setStatus('logging_in');
-        base44.auth.redirectToLogin(window.location.href);
+        app.auth.redirectToLogin(window.location.href);
       }
     };
     run();

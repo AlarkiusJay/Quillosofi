@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { guestStorage } from '../../utils/guestStorage';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { X, Plus, Trash2, Link as LinkIcon, Brain, FileText, Settings, Upload, Smile, File } from 'lucide-react';
 import ConfirmDialog from '../chat/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ export default function SpaceModal({ initialSpace, onClose, onSave }) {
 
   useEffect(() => {
     if (isEdit) {
-      base44.entities.SpaceFile.filter({ space_id: initialSpace.id }).then(setSpaceFiles);
+      app.entities.SpaceFile.filter({ space_id: initialSpace.id }).then(setSpaceFiles);
     }
   }, [isEdit, initialSpace?.id]);
 
@@ -46,7 +46,7 @@ export default function SpaceModal({ initialSpace, onClose, onSave }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await app.integrations.Core.UploadFile({ file });
     set('emoji', file_url);
     setUploading(false);
   };
@@ -68,8 +68,8 @@ export default function SpaceModal({ initialSpace, onClose, onSave }) {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
       setUploading(true);
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const spaceFile = await base44.entities.SpaceFile.create({
+      const { file_url } = await app.integrations.Core.UploadFile({ file });
+      const spaceFile = await app.entities.SpaceFile.create({
         space_id: initialSpace.id,
         name: file.name,
         file_url,
@@ -83,21 +83,21 @@ export default function SpaceModal({ initialSpace, onClose, onSave }) {
   };
 
   const deleteSpaceFile = async (fileId) => {
-    await base44.entities.SpaceFile.delete(fileId);
+    await app.entities.SpaceFile.delete(fileId);
     setSpaceFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     let result;
     if (isEdit) {
-      if (isAuthed) await base44.entities.ProjectSpace.update(initialSpace.id, form);
+      if (isAuthed) await app.entities.ProjectSpace.update(initialSpace.id, form);
       else guestStorage.updateSpace(initialSpace.id, form);
       result = { ...initialSpace, ...form };
     } else {
-      if (isAuthed) result = await base44.entities.ProjectSpace.create(form);
+      if (isAuthed) result = await app.entities.ProjectSpace.create(form);
       else result = guestStorage.createSpace(form);
     }
     onSave(result);
@@ -108,11 +108,11 @@ export default function SpaceModal({ initialSpace, onClose, onSave }) {
 
   const doDelete = async () => {
     setConfirmDelete(false);
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.deleteSpace(initialSpace.id);
     } else {
-      await base44.entities.ProjectSpace.delete(initialSpace.id);
+      await app.entities.ProjectSpace.delete(initialSpace.id);
     }
     onSave({ deleted: true });
   };

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { guestStorage } from '../utils/guestStorage';
 import { useParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { HelpCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { smartInvoke } from '@/lib/llm';
 import { getPinnedAiContext } from '@/lib/customDict';
 import { isExtensionActive } from '@/lib/aiState';
@@ -363,15 +363,15 @@ export default function Chat() {
 
   useEffect(() => {
     const loadUserName = async () => {
-      const authed = await base44.auth.isAuthenticated();
+      const authed = await app.auth.isAuthenticated();
       setIsAuthed(authed);
       if (!authed) {
         setUserName('Guest');
         return;
       }
       const [configs, user] = await Promise.all([
-        base44.entities.BotConfig.list('-created_date', 1),
-        base44.auth.me(),
+        app.entities.BotConfig.list('-created_date', 1),
+        app.auth.me(),
       ]);
       const cfg = configs[0];
       setUserName(cfg?.user_address || 'You');
@@ -387,7 +387,7 @@ export default function Chat() {
     }
     const loadMessages = async () => {
       setIsLoadingMessages(true);
-      const authed = await base44.auth.isAuthenticated();
+      const authed = await app.auth.isAuthenticated();
       if (!authed) {
         const msgs = guestStorage.getMessages(conversationId);
         const convo = guestStorage.getConversationById(conversationId);
@@ -397,8 +397,8 @@ export default function Chat() {
         return;
       }
       const [data, convos] = await Promise.all([
-        base44.entities.Message.filter({ conversation_id: conversationId }, 'created_date', 200),
-        base44.entities.Conversation.filter({ id: conversationId }),
+        app.entities.Message.filter({ conversation_id: conversationId }, 'created_date', 200),
+        app.entities.Conversation.filter({ id: conversationId }),
       ]);
 
       // Load spreadsheet CSVs for any /spreadsheet messages
@@ -407,7 +407,7 @@ export default function Chat() {
       if (spreadsheetMsgs.length > 0) {
         const enriched = [...data];
         await Promise.all(spreadsheetMsgs.map(async (msg) => {
-          const sheets = await base44.entities.Spreadsheet.filter({ message_id: msg.id });
+          const sheets = await app.entities.Spreadsheet.filter({ message_id: msg.id });
           if (sheets[0]?.data) {
             const sheetData = JSON.parse(sheets[0].data);
             const csv = sheetData.map(r => r.map(c => String(c ?? '')).join(',')).join('\n');
@@ -430,11 +430,11 @@ export default function Chat() {
   }, [messages, isLoading, scrollToBottom]);
 
   const buildSystemPrompt = async () => {
-    const authed = await base44.auth.isAuthenticated();
+    const authed = await app.auth.isAuthenticated();
     const [memories, configs] = authed
       ? await Promise.all([
-          base44.entities.UserMemory.filter({}, '-updated_date', 50),
-          base44.entities.BotConfig.list('-created_date', 1),
+          app.entities.UserMemory.filter({}, '-updated_date', 50),
+          app.entities.BotConfig.list('-created_date', 1),
         ])
       : [[], []];
     const cfg = configs[0] || {};
@@ -516,23 +516,23 @@ IMPORTANT INSTRUCTIONS:
 
   // Guest-aware entity helpers
   const createConvo = (data) => isAuthed
-    ? base44.entities.Conversation.create(data)
+    ? app.entities.Conversation.create(data)
     : Promise.resolve(guestStorage.createConversation(data));
   const updateConvo = (id, data) => isAuthed
-    ? base44.entities.Conversation.update(id, data)
+    ? app.entities.Conversation.update(id, data)
     : Promise.resolve(guestStorage.updateConversation(id, data));
   const createMsg = (data) => isAuthed
-    ? base44.entities.Message.create(data)
+    ? app.entities.Message.create(data)
     : Promise.resolve(guestStorage.createMessage(data));
   const deleteMsg = (msgId) => {
-    if (isAuthed) return base44.entities.Message.delete(msgId);
+    if (isAuthed) return app.entities.Message.delete(msgId);
     const msg = messages.find(m => m.id === msgId);
     if (msg) guestStorage.deleteMessage(msg.conversation_id, msgId);
     return Promise.resolve();
   };
   const getConvoForSpace = async (convoId) => {
     if (!isAuthed) return guestStorage.getConversationById(convoId);
-    const r = await base44.entities.Conversation.filter({ id: convoId });
+    const r = await app.entities.Conversation.filter({ id: convoId });
     return r[0] || null;
   };
 
@@ -563,9 +563,9 @@ IMPORTANT INSTRUCTIONS:
     }
 
     // Stream the assistant response: append a placeholder message first
-    // and update its content as tokens arrive. When streaming isn't
-    // available (no OpenRouter key), smartInvoke falls back to Base44
-    // and fires a single 'whole text' delta so the UX stays consistent.
+    // and update its content as tokens arrive. If streaming isn't supported
+    // by the chosen model, smartInvoke fires a single 'whole text' delta so
+    // the UX stays consistent.
     const placeholderId = `streaming-${Date.now()}`;
     setMessages(prev => [...prev, { id: placeholderId, conversation_id: conversationId, role: 'assistant', content: '', _streaming: true }]);
     setIsLoading(false); // hide typing indicator since we're showing live text
@@ -608,7 +608,7 @@ IMPORTANT INSTRUCTIONS:
   const doEditMessage = async (messageId, newContent) => {
 
     // Update the user message
-    if (isAuthed) await base44.entities.Message.update(messageId, { content: newContent });
+    if (isAuthed) await app.entities.Message.update(messageId, { content: newContent });
     else { const msg = messages.find(m => m.id === messageId); if (msg) guestStorage.updateMessage(msg.conversation_id, messageId, { content: newContent }); }
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
 
@@ -696,7 +696,7 @@ IMPORTANT INSTRUCTIONS:
   };
 
   const extractMemories = async (userMessage, assistantResponse, forceExtract = false) => {
-    const authed = await base44.auth.isAuthenticated();
+    const authed = await app.auth.isAuthenticated();
     if (!authed) return;
     const result = await smartInvoke({
       prompt: `Analyze this conversation exchange and extract any personal information, preferences, or facts the user shared that should be remembered for future conversations.
@@ -728,11 +728,11 @@ If nothing worth remembering, return empty items array.`,
 
     if (result?.items?.length > 0) {
       for (const item of result.items) {
-        const existing = await base44.entities.UserMemory.filter({ key: item.key });
+        const existing = await app.entities.UserMemory.filter({ key: item.key });
         if (existing.length > 0) {
-          await base44.entities.UserMemory.update(existing[0].id, { value: item.value, category: item.category });
+          await app.entities.UserMemory.update(existing[0].id, { value: item.value, category: item.category });
         } else {
-          await base44.entities.UserMemory.create({ ...item, is_pinned: false });
+          await app.entities.UserMemory.create({ ...item, is_pinned: false });
         }
       }
     }
@@ -1030,7 +1030,7 @@ If nothing worth remembering, return empty items array.`,
     const titlePreview = `Branch: ${(conversation?.title || 'Chat').substring(0, 30)}`;
 
     // Create new conversation
-    const newConvo = await base44.entities.Conversation.create({
+    const newConvo = await app.entities.Conversation.create({
       title: titlePreview,
       last_message_preview: lastMsg.content.substring(0, 100),
       is_archived: false,
@@ -1039,7 +1039,7 @@ If nothing worth remembering, return empty items array.`,
 
     // Copy messages into the new conversation
     for (const msg of branchMessages) {
-      await base44.entities.Message.create({
+      await app.entities.Message.create({
         conversation_id: newConvo.id,
         role: msg.role,
         content: msg.content,
@@ -1061,7 +1061,7 @@ If nothing worth remembering, return empty items array.`,
   const handleConversationUpdate = async () => {
     await loadConversations();
     if (conversationId) {
-      const convos = await base44.entities.Conversation.filter({ id: conversationId });
+      const convos = await app.entities.Conversation.filter({ id: conversationId });
       setConversation(convos[0] || null);
     }
   };

@@ -4,7 +4,7 @@
  * Each widget is identified by a stable type id ('todo', 'pinnedRecent',
  * 'todaysPrompt', 'greeting'). The user's per-instance state — layout,
  * opacity, theme, custom data — is persisted to localStorage so it survives
- * reloads and Base44 outages.
+ * reloads.
  */
 
 const LAYOUT_KEY = 'quillosofi:quillounge:layout';

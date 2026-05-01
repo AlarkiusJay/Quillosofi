@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Zap, Infinity, Check } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 const isInIframe = window.self !== window.top;
 
@@ -33,7 +33,7 @@ export default function UpgradeModal({ onClose }) {
       return;
     }
     setLoading(planId);
-    const res = await base44.functions.invoke('createCheckout', { plan: planId });
+    const res = await app.functions.invoke('createCheckout', { plan: planId });
     if (res.data?.url) {
       window.location.href = res.data.url;
     } else {

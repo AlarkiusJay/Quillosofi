@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfirmDialog from '../components/chat/ConfirmDialog';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { guestStorage } from '../utils/guestStorage';
 import { ArrowLeft, Plus, MessageSquare, Trash2, Edit2, Link as LinkIcon, Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -20,7 +20,7 @@ export default function Space() {
 
   useEffect(() => {
     const load = async () => {
-      const isAuthed = await base44.auth.isAuthenticated();
+      const isAuthed = await app.auth.isAuthenticated();
       if (!isAuthed) {
         const guestSpaces = guestStorage.getSpaces();
         const guestConvos = guestStorage.getConversations().filter(c => c.space_id === spaceId && !c.is_archived);
@@ -28,8 +28,8 @@ export default function Space() {
         setConversations(guestConvos);
       } else {
         const [spaces, convos] = await Promise.all([
-          base44.entities.ProjectSpace.filter({ id: spaceId }),
-          base44.entities.Conversation.filter({ space_id: spaceId, is_archived: false }, '-created_date', 100),
+          app.entities.ProjectSpace.filter({ id: spaceId }),
+          app.entities.Conversation.filter({ space_id: spaceId, is_archived: false }, '-created_date', 100),
         ]);
         setSpace(spaces[0]);
         setConversations(convos);
@@ -40,13 +40,13 @@ export default function Space() {
   }, [spaceId]);
 
   const handleNewChat = async () => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     let convo;
     if (!isAuthed) {
       convo = guestStorage.createConversation({ title: 'New chat', space_id: spaceId, is_archived: false });
       setConversations(prev => [convo, ...prev]);
     } else {
-      convo = await base44.entities.Conversation.create({ title: 'New chat', space_id: spaceId, is_archived: false });
+      convo = await app.entities.Conversation.create({ title: 'New chat', space_id: spaceId, is_archived: false });
     }
     await loadConversations();
     navigate(`/chat/${convo.id}`);
@@ -55,11 +55,11 @@ export default function Space() {
   const handleDelete = (id) => setPendingDelete(id);
 
   const doDelete = async (id) => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.updateConversation(id, { is_archived: true });
     } else {
-      await base44.entities.Conversation.update(id, { is_archived: true });
+      await app.entities.Conversation.update(id, { is_archived: true });
     }
     setConversations(prev => prev.filter(c => c.id !== id));
   };

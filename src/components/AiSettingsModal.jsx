@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { useAiEnabled, useAiRetention, useAiExtensions } from '@/lib/aiState';
 import { hasOpenRouterKey } from '@/lib/llm';
 import { clearAll as clearDict } from '@/lib/customDict';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import ApiKeyTab from './settings/ApiKeyTab';
 import BotCustomization from './settings/BotCustomization';
 import BotPersona from './settings/BotPersona';
@@ -178,8 +178,8 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
     const load = async () => {
       try {
         const [mems, configs] = await Promise.all([
-          base44.entities.UserMemory.filter({}, '-updated_date', 100),
-          base44.entities.BotConfig.list('-created_date', 1),
+          app.entities.UserMemory.filter({}, '-updated_date', 100),
+          app.entities.BotConfig.list('-created_date', 1),
         ]);
         setMemories(mems);
         if (configs.length > 0) {
@@ -204,10 +204,10 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
   // ---- profile handlers ------------------------------------------------
   const ensureConfig = async (patch) => {
     if (configId) {
-      await base44.entities.BotConfig.update(configId, patch);
+      await app.entities.BotConfig.update(configId, patch);
       return configId;
     }
-    const created = await base44.entities.BotConfig.create(patch);
+    const created = await app.entities.BotConfig.create(patch);
     setConfigId(created.id);
     return created.id;
   };
@@ -217,7 +217,7 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
     if (!file) return;
     try {
       setUploading(true);
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await app.integrations.Core.UploadFile({ file });
       setTempProfilePicture(file_url);
     } catch (err) {
       console.error('Upload error:', err);
@@ -254,28 +254,28 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
     const updated = [...socials];
     updated[idx] = { ...updated[idx], [field]: value };
     setSocials(updated);
-    try { if (configId) await base44.entities.BotConfig.update(configId, { socials: updated }); }
+    try { if (configId) await app.entities.BotConfig.update(configId, { socials: updated }); }
     catch (err) { console.error('Update link error:', err); }
   };
 
   const handleRemoveLink = async (idx) => {
     const updated = socials.filter((_, i) => i !== idx);
     setSocials(updated);
-    try { if (configId) await base44.entities.BotConfig.update(configId, { socials: updated }); }
+    try { if (configId) await app.entities.BotConfig.update(configId, { socials: updated }); }
     catch (err) { console.error('Remove link error:', err); }
   };
 
   // ---- memory handlers -------------------------------------------------
   const handleDeleteMem = async (id) => {
     try {
-      await base44.entities.UserMemory.delete(id);
+      await app.entities.UserMemory.delete(id);
       setMemories((prev) => prev.filter((m) => m.id !== id));
     } catch (err) { console.error('Delete memory error:', err); }
   };
 
   const handlePinMem = async (id, pinned) => {
     try {
-      await base44.entities.UserMemory.update(id, { is_pinned: pinned });
+      await app.entities.UserMemory.update(id, { is_pinned: pinned });
       setMemories((prev) => {
         const updated = prev.map((m) => m.id === id ? { ...m, is_pinned: pinned } : m);
         return [...updated.filter((m) => m.is_pinned), ...updated.filter((m) => !m.is_pinned)];
@@ -285,14 +285,14 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
 
   const handleEditMem = async (id, data) => {
     try {
-      await base44.entities.UserMemory.update(id, data);
+      await app.entities.UserMemory.update(id, data);
       setMemories((prev) => prev.map((m) => m.id === id ? { ...m, ...data } : m));
     } catch (err) { console.error('Edit memory error:', err); }
   };
 
   const handleClearAllMems = async () => {
     try {
-      for (const m of memories) await base44.entities.UserMemory.delete(m.id);
+      for (const m of memories) await app.entities.UserMemory.delete(m.id);
       setMemories([]);
       setConfirmClear(false);
     } catch (err) { console.error('Clear memories error:', err); }

@@ -1,5 +1,5 @@
 import { LogIn } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 export default function GuestExpiredScreen() {
   return (
@@ -10,7 +10,7 @@ export default function GuestExpiredScreen() {
         Your 14-day guest window has ended. Create a free account to keep chatting and save your data permanently.
       </p>
       <button
-        onClick={() => base44.auth.redirectToLogin()}
+        onClick={() => app.auth.redirectToLogin()}
         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
       >
         <LogIn className="h-4 w-4" />

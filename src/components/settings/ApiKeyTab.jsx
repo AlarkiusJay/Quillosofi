@@ -6,7 +6,7 @@ import { getOpenRouterKey, setOpenRouterKey } from '@/lib/llm';
 /**
  * Settings → API tab.
  * Lets the user paste an OpenRouter key into localStorage so smartInvoke()
- * can call OpenRouter directly instead of going through Base44's slow proxy.
+ * can call OpenRouter directly instead of going direct to the LLM provider.
  *
  * Storage key: `quillosofi:openrouterKey` (handled inside lib/llm.js).
  */

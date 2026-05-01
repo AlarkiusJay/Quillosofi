@@ -7,7 +7,7 @@
  * chat, @ mentions) able to flip independently while still being gated by
  * the global toggle.
  *
- * Storage is plain localStorage so we don't depend on Base44.
+ * Storage is plain localStorage 2014 no remote backend.
  */
 
 import { useEffect, useState, useCallback } from 'react';

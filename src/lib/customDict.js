@@ -1,9 +1,9 @@
 /*
  * Custom dictionary for Quillosofi v0.4.
  *
- * Local-first vocabulary store backed by localStorage. Replaces the Base44
+ * Local-first vocabulary store backed by localStorage. Replaces the legacy
  * `CustomWord` entity so the dictionary works without auth and survives
- * Base44 removal in v0.4.2.
+ * cloud-backed dictionary that was removed in v0.4.2.
  *
  * Each entry: { id, word, definition, category, is_pinned, created_date }
  *

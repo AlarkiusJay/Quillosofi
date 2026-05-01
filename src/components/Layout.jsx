@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { guestStorage } from '../utils/guestStorage';
 
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { cn } from '@/lib/utils';
 import { Menu, X } from 'lucide-react';
 import ChatSidebar from './chat/ChatSidebar.jsx';
@@ -24,9 +24,9 @@ export default function Layout() {
 
   useEffect(() => {
     if (isExpired && isGuest) {
-      base44.entities.BotConfig.list('-created_date', 1).then(configs => {
+      app.entities.BotConfig.list('-created_date', 1).then(configs => {
         if (configs[0]?.user_address) {
-          base44.entities.BotConfig.update(configs[0].id, { user_address: '' });
+          app.entities.BotConfig.update(configs[0].id, { user_address: '' });
         }
       });
     }
@@ -75,12 +75,12 @@ export default function Layout() {
   const activeId = params.conversationId;
 
   const loadConversations = useCallback(async () => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       setConversations(guestStorage.getConversations().filter(c => !c.is_archived));
       return;
     }
-    const data = await base44.entities.Conversation.filter(
+    const data = await app.entities.Conversation.filter(
       { is_archived: false },
       '-created_date',
       100
@@ -89,12 +89,12 @@ export default function Layout() {
   }, []);
 
   const loadSpaces = useCallback(async () => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       setSpaces(guestStorage.getSpaces());
       return;
     }
-    const data = await base44.entities.ProjectSpace.list('-created_date', 50);
+    const data = await app.entities.ProjectSpace.list('-created_date', 50);
     setSpaces(data);
   }, []);
 
@@ -146,11 +146,11 @@ export default function Layout() {
   const handleDelete = (id) => setPendingDelete(id);
 
   const doDelete = async (id) => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.updateConversation(id, { is_archived: true });
     } else {
-      await base44.entities.Conversation.update(id, { is_archived: true });
+      await app.entities.Conversation.update(id, { is_archived: true });
     }
     setConversations(prev => prev.filter(c => c.id !== id));
     if (activeId === id) navigate('/');

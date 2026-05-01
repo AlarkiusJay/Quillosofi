@@ -1,17 +1,17 @@
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 export async function exportAllGuestData() {
   const [conversations, spaces, memories, botConfigs] = await Promise.all([
-    base44.entities.Conversation.filter({ is_archived: false }, '-created_date', 500),
-    base44.entities.ProjectSpace.list('-created_date', 100),
-    base44.entities.UserMemory.filter({}, '-updated_date', 200),
-    base44.entities.BotConfig.list('-created_date', 1),
+    app.entities.Conversation.filter({ is_archived: false }, '-created_date', 500),
+    app.entities.ProjectSpace.list('-created_date', 100),
+    app.entities.UserMemory.filter({}, '-updated_date', 200),
+    app.entities.BotConfig.list('-created_date', 1),
   ]);
 
   // Fetch all messages for each conversation
   const convoWithMessages = await Promise.all(
     conversations.map(async (c) => {
-      const messages = await base44.entities.Message.filter({ conversation_id: c.id }, 'created_date', 500);
+      const messages = await app.entities.Message.filter({ conversation_id: c.id }, 'created_date', 500);
       return { ...c, messages };
     })
   );

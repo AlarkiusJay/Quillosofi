@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Type } from 'lucide-react';
 
 const FONTS = [
@@ -18,7 +18,7 @@ export default function FontSelector() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    base44.auth.me().then(user => {
+    app.auth.me().then(user => {
       if (user?.preferred_font) {
         setSelectedFont(user.preferred_font);
         document.documentElement.classList.remove(...FONTS.map(f => f.className));
@@ -30,7 +30,7 @@ export default function FontSelector() {
   const handleFontChange = async (fontId) => {
     setSelectedFont(fontId);
     setLoading(true);
-    await base44.auth.updateMe({ preferred_font: fontId });
+    await app.auth.updateMe({ preferred_font: fontId });
     const fontObj = FONTS.find(f => f.id === fontId);
     document.documentElement.classList.remove(...FONTS.map(f => f.className));
     document.documentElement.classList.add(fontObj.className);

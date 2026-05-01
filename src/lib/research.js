@@ -1,7 +1,7 @@
 /*
  * Research engine for Quillosofi.
  *
- * Wraps base44.integrations.Core.InvokeLLM with a strict JSON response
+ * Wraps app.integrations.Core.InvokeLLM with a strict JSON response
  * schema so we get structured citations back instead of hoping the model
  * remembered to format them. The web tool is invoked via
  * `add_context_from_internet: true`.
@@ -20,7 +20,7 @@
  * }
  */
 
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { smartInvoke } from '@/lib/llm';
 
 const RESPONSE_SCHEMA = {
@@ -109,7 +109,7 @@ export async function runResearch({ query, depth = 'quick' }) {
     throw new Error(`Research request failed: ${e?.message || e}`);
   }
 
-  // Base44 returns the structured output in `data` when a schema is present,
+  // The LLM returns structured output in `data` when a schema is present,
   // but older builds put it under `output` or just stringify it. Cover all
   // the shapes defensively.
   let payload = res?.data ?? res?.output ?? res;

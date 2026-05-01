@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Hash, X, Pin, PinOff, Pencil, Check, FolderInput, FolderMinus, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Tooltip from '../Tooltip';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 const LONG_PRESS_MS = 500;
 
@@ -206,11 +206,11 @@ function ConvoItem({ c, pinnedCount, spaces, onClose, onDelete, onUpdate, active
 
   const handlePin = async () => {
     if (!c.is_pinned && pinnedCount >= 5) return;
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.updateConversation(c.id, { is_pinned: !c.is_pinned });
     } else {
-      await base44.entities.Conversation.update(c.id, { is_pinned: !c.is_pinned });
+      await app.entities.Conversation.update(c.id, { is_pinned: !c.is_pinned });
     }
     onUpdate?.();
   };
@@ -218,22 +218,22 @@ function ConvoItem({ c, pinnedCount, spaces, onClose, onDelete, onUpdate, active
   const handleEditSubmit = async (e) => {
     e?.preventDefault();
     if (!editTitle.trim()) return;
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.updateConversation(c.id, { title: editTitle.trim() });
     } else {
-      await base44.entities.Conversation.update(c.id, { title: editTitle.trim() });
+      await app.entities.Conversation.update(c.id, { title: editTitle.trim() });
     }
     setEditing(false);
     onUpdate?.();
   };
 
   const handleMoveToSpace = async (spaceId) => {
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.updateConversation(c.id, { space_id: spaceId ?? null });
     } else {
-      await base44.entities.Conversation.update(c.id, { space_id: spaceId ?? null });
+      await app.entities.Conversation.update(c.id, { space_id: spaceId ?? null });
     }
     onUpdate?.();
   };

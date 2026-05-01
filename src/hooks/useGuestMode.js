@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 
 const GUEST_START_KEY = 'zetryl_guest_first_visit';
 const GUEST_DISMISSED_BANNER_KEY = 'zetryl_guest_banner_dismissed_day';
@@ -15,7 +15,7 @@ export function useGuestMode() {
   useEffect(() => {
     if (IS_DESKTOP) return; // no guest concept on desktop
     const init = async () => {
-      const authed = await base44.auth.isAuthenticated();
+      const authed = await app.auth.isAuthenticated();
       if (authed) {
         setIsGuest(false);
         setLoading(false);

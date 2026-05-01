@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Save, Maximize2, Minimize2, TableIcon, Undo2, Redo2 } from 'lucide-react';
 import SpreadsheetToolbar from './SpreadsheetToolbar';
 import ConditionalFormatPanel from './ConditionalFormatPanel';
@@ -154,7 +154,7 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
   // Load or create spreadsheet
   useEffect(() => {
     const load = async () => {
-      const existing = await base44.entities.Spreadsheet.filter({ message_id: message.id });
+      const existing = await app.entities.Spreadsheet.filter({ message_id: message.id });
       if (existing.length > 0) {
         const s = existing[0];
         setSpreadsheet(s);
@@ -166,7 +166,7 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
         if (s.cell_types) setCellTypes(JSON.parse(s.cell_types));
         if (s.cf_rules) setCfRules(JSON.parse(s.cf_rules));
       } else {
-        const s = await base44.entities.Spreadsheet.create({
+        const s = await app.entities.Spreadsheet.create({
           title: 'Spreadsheet', message_id: message.id,
           data: JSON.stringify(makeEmptyData(DEFAULT_ROWS, DEFAULT_COLS)),
           num_rows: DEFAULT_ROWS, num_cols: DEFAULT_COLS,
@@ -181,7 +181,7 @@ export default function MessageSpreadsheet({ message, onClose, onSave: onSaveCal
     if (!spreadsheet) return;
     const d = overrideData ?? data;
     const t = overrideTitle ?? title;
-    await base44.entities.Spreadsheet.update(spreadsheet.id, {
+    await app.entities.Spreadsheet.update(spreadsheet.id, {
       title: t, data: JSON.stringify(d),
       col_widths: JSON.stringify(colWidths), row_heights: JSON.stringify(rowHeights),
       cell_formats: JSON.stringify(cellFormats), cell_types: JSON.stringify(cellTypes),

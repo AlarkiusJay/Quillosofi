@@ -3,7 +3,7 @@ import { guestStorage } from '../utils/guestStorage';
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import ConfirmDialog from './chat/ConfirmDialog';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import SpaceModal from './spaces/SpaceModal';
 
 export default function SpacesGrid() {
@@ -17,13 +17,13 @@ export default function SpacesGrid() {
 
   const loadSpaces = async () => {
     setLoading(true);
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       setSpaces(guestStorage.getSpaces());
       setLoading(false);
       return;
     }
-    const data = await base44.entities.ProjectSpace.list('-created_date', 50);
+    const data = await app.entities.ProjectSpace.list('-created_date', 50);
     setSpaces(data);
     setLoading(false);
   };
@@ -52,11 +52,11 @@ export default function SpacesGrid() {
   const doDeleteSpace = async () => {
     const space = pendingDeleteSpace;
     setPendingDeleteSpace(null);
-    const isAuthed = await base44.auth.isAuthenticated();
+    const isAuthed = await app.auth.isAuthenticated();
     if (!isAuthed) {
       guestStorage.deleteSpace(space.id);
     } else {
-      await base44.entities.ProjectSpace.delete(space.id);
+      await app.entities.ProjectSpace.delete(space.id);
     }
     loadSpaces();
   };

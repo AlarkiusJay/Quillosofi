@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Download, Upload, CheckCircle, AlertCircle, Loader2, Trash2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Button } from '@/components/ui/button';
 
 export default function ImportExport() {
@@ -14,10 +14,10 @@ export default function ImportExport() {
   const handleExport = async () => {
     setExporting(true);
     const [conversations, messages, memories, botConfig] = await Promise.all([
-      base44.entities.Conversation.filter({ is_archived: false }, '-created_date', 500),
-      base44.entities.Message.list('-created_date', 5000),
-      base44.entities.UserMemory.filter({}, '-updated_date', 500),
-      base44.entities.BotConfig.list('-created_date', 1),
+      app.entities.Conversation.filter({ is_archived: false }, '-created_date', 500),
+      app.entities.Message.list('-created_date', 5000),
+      app.entities.UserMemory.filter({}, '-updated_date', 500),
+      app.entities.BotConfig.list('-created_date', 1),
     ]);
     const exportData = {
       exported_at: new Date().toISOString(),
@@ -60,7 +60,7 @@ export default function ImportExport() {
     const convoIdMap = {};
     for (const c of (data.conversations || [])) {
       const { id, created_date, updated_date, created_by, ...fields } = c;
-      const created = await base44.entities.Conversation.create(fields);
+      const created = await app.entities.Conversation.create(fields);
       convoIdMap[id] = created.id;
       imported.conversations++;
     }
@@ -68,14 +68,14 @@ export default function ImportExport() {
       const newConvoId = convoIdMap[m.conversation_id];
       if (!newConvoId) continue;
       const { id, created_date, updated_date, created_by, ...fields } = m;
-      await base44.entities.Message.create({ ...fields, conversation_id: newConvoId });
+      await app.entities.Message.create({ ...fields, conversation_id: newConvoId });
       imported.messages++;
     }
     for (const mem of (data.memories || [])) {
-      const existing = await base44.entities.UserMemory.filter({ key: mem.key });
+      const existing = await app.entities.UserMemory.filter({ key: mem.key });
       if (existing.length === 0) {
         const { id, created_date, updated_date, created_by, ...fields } = mem;
-        await base44.entities.UserMemory.create(fields);
+        await app.entities.UserMemory.create(fields);
         imported.memories++;
       }
     }
@@ -90,13 +90,13 @@ export default function ImportExport() {
   const handleDeleteAll = async () => {
     setDeleting(true);
     const [convos, messages, memories] = await Promise.all([
-      base44.entities.Conversation.filter({}, '-created_date', 1000),
-      base44.entities.Message.list('-created_date', 10000),
-      base44.entities.UserMemory.filter({}, '-updated_date', 1000),
+      app.entities.Conversation.filter({}, '-created_date', 1000),
+      app.entities.Message.list('-created_date', 10000),
+      app.entities.UserMemory.filter({}, '-updated_date', 1000),
     ]);
-    for (const c of convos) await base44.entities.Conversation.delete(c.id);
-    for (const m of messages) await base44.entities.Message.delete(m.id);
-    for (const mem of memories) await base44.entities.UserMemory.delete(mem.id);
+    for (const c of convos) await app.entities.Conversation.delete(c.id);
+    for (const m of messages) await app.entities.Message.delete(m.id);
+    for (const mem of memories) await app.entities.UserMemory.delete(mem.id);
     setDeleting(false);
     setDeleteStep(0);
     setImportStatus({ type: 'success', message: 'All data has been permanently deleted.' });

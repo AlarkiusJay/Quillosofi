@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Search, LayoutGrid, List, Trash2, SortAsc, ChevronDown, Table2, Star, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -101,7 +101,7 @@ export default function SpreadsheetList({ filter = 'all', compact = false }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const data = await base44.entities.Spreadsheet.list('-updated_date', 200);
+      const data = await app.entities.Spreadsheet.list('-updated_date', 200);
       setSheets(data);
       setLoading(false);
     };
@@ -111,19 +111,19 @@ export default function SpreadsheetList({ filter = 'all', compact = false }) {
   const handleDelete = async (sheet) => {
     if (!confirm(`Delete "${sheet.title}"?`)) return;
     setSheets(prev => prev.filter(s => s.id !== sheet.id));
-    await base44.entities.Spreadsheet.delete(sheet.id);
+    await app.entities.Spreadsheet.delete(sheet.id);
   };
 
   const handleTogglePin = async (sheet) => {
     const next = !sheet.is_pinned;
     setSheets(prev => prev.map(s => s.id === sheet.id ? { ...s, is_pinned: next } : s));
-    await base44.entities.Spreadsheet.update(sheet.id, { is_pinned: next });
+    await app.entities.Spreadsheet.update(sheet.id, { is_pinned: next });
   };
 
   const handleToggleFavorite = async (sheet) => {
     const next = !sheet.is_favorite;
     setSheets(prev => prev.map(s => s.id === sheet.id ? { ...s, is_favorite: next } : s));
-    await base44.entities.Spreadsheet.update(sheet.id, { is_favorite: next });
+    await app.entities.Spreadsheet.update(sheet.id, { is_favorite: next });
   };
 
   const filtered = useMemo(() => {

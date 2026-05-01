@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Sparkles, Check } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -77,7 +77,7 @@ export default function BotPersona() {
 
   useEffect(() => {
     const load = async () => {
-      const configs = await base44.entities.BotConfig.list('-created_date', 1);
+      const configs = await app.entities.BotConfig.list('-created_date', 1);
       if (configs.length > 0) {
         setActivePersona(configs[0].persona || 'none');
         setConfigId(configs[0].id);
@@ -90,9 +90,9 @@ export default function BotPersona() {
     setActivePersona(personaId);
     setSaving(true);
     if (configId) {
-      await base44.entities.BotConfig.update(configId, { persona: personaId });
+      await app.entities.BotConfig.update(configId, { persona: personaId });
     } else {
-      const created = await base44.entities.BotConfig.create({ persona: personaId });
+      const created = await app.entities.BotConfig.create({ persona: personaId });
       setConfigId(created.id);
     }
     setSaving(false);

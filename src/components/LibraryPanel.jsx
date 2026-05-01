@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Upload, File, Image, FileText, X, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ export default function LibraryPanel({ spaces, onUpload }) {
 
   const loadFiles = async () => {
     setLoading(true);
-    const data = await base44.entities.SpaceFile.list('-created_date', 100);
+    const data = await app.entities.SpaceFile.list('-created_date', 100);
     setFiles(data);
     setLoading(false);
   };
@@ -39,8 +39,8 @@ export default function LibraryPanel({ spaces, onUpload }) {
     const file = e.target.files[0];
     if (!file || selectedSpace === 'all') return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.SpaceFile.create({
+    const { file_url } = await app.integrations.Core.UploadFile({ file });
+    await app.entities.SpaceFile.create({
       space_id: selectedSpace,
       name: file.name,
       file_url,
@@ -54,7 +54,7 @@ export default function LibraryPanel({ spaces, onUpload }) {
   };
 
   const handleDelete = async (id) => {
-    await base44.entities.SpaceFile.delete(id);
+    await app.entities.SpaceFile.delete(id);
     setFiles(prev => prev.filter(f => f.id !== id));
   };
 

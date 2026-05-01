@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Bot, Save, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export default function BotCustomization() {
 
   useEffect(() => {
     const load = async () => {
-      const configs = await base44.entities.BotConfig.list('-created_date', 1);
+      const configs = await app.entities.BotConfig.list('-created_date', 1);
       if (configs.length > 0) {
         setConfig({ ...config, ...configs[0] });
         setConfigId(configs[0].id);
@@ -60,9 +60,9 @@ export default function BotCustomization() {
       language: config.language,
     };
     if (configId) {
-      await base44.entities.BotConfig.update(configId, data);
+      await app.entities.BotConfig.update(configId, data);
     } else {
-      const created = await base44.entities.BotConfig.create(data);
+      const created = await app.entities.BotConfig.create(data);
       setConfigId(created.id);
     }
     setSaved(true);

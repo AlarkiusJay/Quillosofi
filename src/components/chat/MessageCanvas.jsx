@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { exportTxt, exportMd, exportDocx, exportPdf } from '../vault/canvasExportUtils';
  import ReactQuill from 'react-quill';
- import { base44 } from '@/api/base44Client';
+ import { app } from '@/api/localClient';
 import { X, Save, Maximize2, Minimize2, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code, Link, Heading2, Minus, Download, Upload, ChevronDown, BookPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
@@ -151,13 +151,13 @@ export default function MessageCanvas({ message, onClose, onSave: onSaveCallback
 
   const save = async (val) => {
     const toSave = val !== undefined ? val : content;
-    await base44.entities.Message.update(message.id, { canvas_content: toSave, canvas_title: title });
+    await app.entities.Message.update(message.id, { canvas_content: toSave, canvas_title: title });
     // Also upsert into Canvas Vault
-    const existing = await base44.entities.Canvas.filter({ message_id: message.id });
+    const existing = await app.entities.Canvas.filter({ message_id: message.id });
     if (existing.length > 0) {
-      await base44.entities.Canvas.update(existing[0].id, { content: toSave, title });
+      await app.entities.Canvas.update(existing[0].id, { content: toSave, title });
     } else {
-      await base44.entities.Canvas.create({
+      await app.entities.Canvas.create({
         title,
         content: toSave,
         message_id: message.id,
@@ -173,7 +173,7 @@ export default function MessageCanvas({ message, onClose, onSave: onSaveCallback
     const trimmed = newTitle.trim();
     if (trimmed) {
       setTitle(trimmed);
-      await base44.entities.Message.update(message.id, { canvas_title: trimmed });
+      await app.entities.Message.update(message.id, { canvas_title: trimmed });
     } else {
       setTitle(title);
     }

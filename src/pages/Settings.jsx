@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import { Brain, Trash2, ArrowLeft, Sparkles, Pin, PinOff, Pencil, Check, X, Bot, Sliders } from 'lucide-react';
 import BotCustomization from '../components/settings/BotCustomization';
 import BotPersona from '../components/settings/BotPersona';
@@ -143,8 +143,8 @@ export default function Settings() {
   useEffect(() => {
     const load = async () => {
       const [mems, me] = await Promise.all([
-        base44.entities.UserMemory.filter({}, '-updated_date', 100),
-        base44.auth.me(),
+        app.entities.UserMemory.filter({}, '-updated_date', 100),
+        app.auth.me(),
       ]);
       setMemories(mems);
       setUser(me);
@@ -154,12 +154,12 @@ export default function Settings() {
   }, []);
 
   const handleDelete = async (id) => {
-    await base44.entities.UserMemory.delete(id);
+    await app.entities.UserMemory.delete(id);
     setMemories(prev => prev.filter(m => m.id !== id));
   };
 
   const handlePin = async (id, pinned) => {
-    await base44.entities.UserMemory.update(id, { is_pinned: pinned });
+    await app.entities.UserMemory.update(id, { is_pinned: pinned });
     setMemories(prev => {
       const updated = prev.map(m => m.id === id ? { ...m, is_pinned: pinned } : m);
       // Sort: pinned first
@@ -168,12 +168,12 @@ export default function Settings() {
   };
 
   const handleEdit = async (id, data) => {
-    await base44.entities.UserMemory.update(id, data);
+    await app.entities.UserMemory.update(id, data);
     setMemories(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
   };
 
   const handleClearAll = async () => {
-    for (const m of memories) await base44.entities.UserMemory.delete(m.id);
+    for (const m of memories) await app.entities.UserMemory.delete(m.id);
     setMemories([]);
     setConfirmClear(false);
   };

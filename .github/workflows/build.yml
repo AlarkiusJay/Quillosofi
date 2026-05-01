@@ -27,16 +27,8 @@ jobs:
       - name: Install deps
         run: npm install --no-package-lock
         env:
-          # Skip the Base44 vite-plugin's optional native bits if any.
+          # Skip optional native build steps to keep CI fast.
           npm_config_build_from_source: false
-
-      - name: Provide Base44 env for build
-        shell: bash
-        run: |
-          # These can stay placeholder for the build to succeed; real values
-          # come from the user's local .env.local at runtime if needed.
-          echo "VITE_BASE44_APP_ID=${{ secrets.VITE_BASE44_APP_ID }}" >> $GITHUB_ENV
-          echo "VITE_BASE44_APP_BASE_URL=${{ secrets.VITE_BASE44_APP_BASE_URL }}" >> $GITHUB_ENV
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'

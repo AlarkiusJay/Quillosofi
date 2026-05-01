@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { app } from '@/api/localClient';
 import PuzzleChallenge from '../onboarding/PuzzleChallenge';
 import PinDisplay from '../onboarding/PinDisplay';
 
@@ -20,7 +20,7 @@ export default function PuzzleTokenSetup({ onComplete }) {
   const handleSolved = async () => {
     const newPin = generatePin();
     setPin(newPin);
-    await base44.auth.updateMe({ nexal_pin: newPin, pin_setup_complete: true });
+    await app.auth.updateMe({ nexal_pin: newPin, pin_setup_complete: true });
     setStep('pin');
   };
 
