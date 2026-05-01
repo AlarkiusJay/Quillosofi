@@ -1,50 +1,30 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+/*
+ * Local-only client.
+ *
+ * Historical name: this file used to wrap the Base44 SDK. As of v0.4.1
+ * Quillosofi is fully local-first, so this module just re-exports the
+ * desktop helpers in the same shape the rest of the app expects:
+ *
+ *   base44.entities.<Anything>.create/update/delete/filter/list/get/...
+ *   base44.auth.{me,isAuthenticated,logout,redirectToLogin,setToken}
+ *   base44.integrations.Core.{InvokeLLM,GenerateImage,UploadFile,ExtractDataFromUploadedFile}
+ *   base44.functions.invoke(name, data)
+ *
+ * 39 files import { base44 } from this path and we don't want to touch
+ * each one — preserving the surface as a drop-in shim is the cheapest
+ * migration. The export name stays `base44` for the same reason.
+ */
+
 import {
-  IS_DESKTOP,
   localEntities,
   localAuth,
   localFunctions,
+  localIntegrations,
 } from '@/lib/desktop';
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-// Real Base44 client (used on the web build, and on desktop for the
-// integration endpoints we don't want to fake — InvokeLLM, GenerateImage,
-// UploadFile, etc.).
-const remoteClient = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl,
-});
-
-// Desktop client — hybrid.
-//   entities  → localStorage (instant, offline, private)
-//   auth      → synthetic local user (no login round-trip)
-//   functions → local stubs (e.g. getAppVersion reads from preload)
-//   integrations → REAL Base44 endpoints. Quillosofi's chat needs these:
-//     * Core.InvokeLLM       — the LLM that powers chat
-//     * Core.GenerateImage   — image generation
-//     * Core.UploadFile      — file uploads
-//     * Core.ExtractDataFromUploadedFile — file analysis
-//   Routing the chat through the real endpoint is the same path the web
-//   build uses, so chat speed on desktop = chat speed on web.
-const desktopClient = {
+export const base44 = {
   entities: localEntities,
   auth: localAuth,
-  integrations: remoteClient.integrations,
-  functions: {
-    // Wrap functions so getAppVersion (and any future local-only function)
-    // resolves locally, and everything else falls through to remote.
-    invoke: async (name, data) => {
-      const local = await localFunctions.invoke(name, data);
-      if (local && local.data !== null && local.data !== undefined) return local;
-      return remoteClient.functions.invoke(name, data);
-    },
-  },
+  integrations: localIntegrations,
+  functions: localFunctions,
 };
-
-export const base44 = IS_DESKTOP ? desktopClient : remoteClient;

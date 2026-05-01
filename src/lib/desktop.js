@@ -1,24 +1,21 @@
 /*
  * Desktop runtime helpers for Quillosofi.
  *
- * On the Electron build the preload bridge exposes window.quillosofi.
- * In the renderer this lets us:
- *   - cleanly detect desktop mode (reactive, no module-load timing issues)
- *   - keep all "user data" in localStorage so we don't need Base44 at all
+ * v0.4.1: Quillosofi is now a fully local-only desktop app. Base44 is gone.
+ * Everything routes through localStorage / IndexedDB / OpenRouter. There is
+ * no remote backend.
  *
- * The IS_DESKTOP constant below is evaluated lazily on first call so
- * preload-injected globals are guaranteed to be ready.
+ * isDesktop() still exists for legacy callers but always returns true on the
+ * shipped build. The Electron preload bridge exposes window.quillosofi for
+ * version info, etc.
  */
 
-let _cachedIsDesktop = null;
 export function isDesktop() {
-  if (_cachedIsDesktop !== null) return _cachedIsDesktop;
-  _cachedIsDesktop = typeof window !== 'undefined' && !!window.quillosofi?.isDesktop;
-  return _cachedIsDesktop;
+  return true;
 }
 
 // Synchronous getter — used outside React render paths.
-export const IS_DESKTOP = isDesktop();
+export const IS_DESKTOP = true;
 
 // =============================================================
 // Local key/value store backed by localStorage.
@@ -164,7 +161,7 @@ export const localEntities = new Proxy(localEntitiesObj, {
 // =============================================================
 // Local auth — returns the synthetic LOCAL_USER instantly.
 // =============================================================
-export const LOCAL_USER = {
+const LOCAL_USER_BASE = {
   id: 'local-desktop-user',
   email: 'local@quillosofi.desktop',
   full_name: 'Local User',
@@ -172,16 +169,34 @@ export const LOCAL_USER = {
   is_local: true,
 };
 
+// Read user profile overlay from localStorage so updates from
+// FontSelector / SettingsModal / Persona panels persist between launches.
+const readUserOverlay = () => safeRead('userProfile', {});
+const writeUserOverlay = (patch) => {
+  const current = readUserOverlay();
+  const next = { ...current, ...patch };
+  safeWrite('userProfile', next);
+  return next;
+};
+const currentUser = () => ({ ...LOCAL_USER_BASE, ...readUserOverlay() });
+
+export const LOCAL_USER = currentUser();
+
 export const localAuth = {
   isAuthenticated: async () => true,
-  me: async () => LOCAL_USER,
+  me: async () => currentUser(),
   logout: () => {},
   redirectToLogin: () => {},
   setToken: () => {},
+  updateMe: async (patch = {}) => {
+    const overlay = writeUserOverlay(patch);
+    return { ...LOCAL_USER_BASE, ...overlay };
+  },
 };
 
 // =============================================================
-// Local integrations — minimal stubs so the modal doesn't crash.
+// Local integrations — drop-in replacements for the old Base44
+// integrations.Core.* surface. Everything is local / OpenRouter.
 // =============================================================
 const fileToDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -193,11 +208,38 @@ const fileToDataUrl = (file) =>
 
 export const localIntegrations = {
   Core: {
+    // Files become data URLs so they live entirely on the client.
+    // Good enough for profile pics, small attachments. For very large blobs
+    // a future version could swap this for IndexedDB + idb-keyval.
     UploadFile: async ({ file }) => {
-      // Inline files as data URLs so they survive without a server.
       const file_url = await fileToDataUrl(file);
       return { file_url };
     },
+
+    // Route LLM calls through OpenRouter. Lazy-imported to avoid a circular
+    // dep with llm.js (which itself used to import base44).
+    InvokeLLM: async (params = {}) => {
+      const { invokeLLM } = await import('@/lib/llm');
+      return invokeLLM(params);
+    },
+
+    // Image generation isn't wired up locally yet. Returning a clear error
+    // is better than silently failing.
+    GenerateImage: async () => {
+      throw new Error(
+        'Image generation is not available in the local desktop build. ' +
+          'Add an image-capable model + provider in a future update.'
+      );
+    },
+
+    // Same story for file extraction. The chat already accepts data: URLs as
+    // multimodal inputs via OpenRouter, so dedicated extraction is rarely
+    // needed. Stub politely instead of crashing.
+    ExtractDataFromUploadedFile: async () => ({
+      status: 'unsupported',
+      data: null,
+      message: 'File extraction is disabled in the local desktop build.',
+    }),
   },
 };
 

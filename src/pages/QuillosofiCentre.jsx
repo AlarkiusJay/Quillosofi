@@ -107,7 +107,7 @@ export default function QuillosofiCentre() {
 
         <div className="relative z-10 flex flex-col items-center gap-5 max-w-2xl mx-auto">
           <div className="h-16 w-16 rounded-2xl overflow-hidden shadow-2xl shadow-primary/30">
-            <img src="https://media.base44.com/images/public/69cec1d94563b236c10d8de7/cf53c7132_QuillosofiICO.svg" alt="Quillosofi" className="h-full w-full object-contain" />
+            <img src="./favicon.svg" alt="Quillosofi" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-br from-white via-white to-[hsl(220,14%,60%)] bg-clip-text text-transparent">
             Quillosofi

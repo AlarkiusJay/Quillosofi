@@ -62,7 +62,7 @@ export default function EmptyState({ onSuggestionClick }) {
             style={{ clipPath: `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos(holdProgress * 2 * Math.PI - Math.PI / 2)}% ${50 + 50 * Math.sin(holdProgress * 2 * Math.PI - Math.PI / 2)}%)` }} />
 
           }
-          <img src="https://media.base44.com/images/public/69cec1d94563b236c10d8de7/cf53c7132_QuillosofiICO.svg"
+          <img src="./favicon.svg"
 
           alt="Quillosofi Logo" className="h-full w-full object-contain relative"
 

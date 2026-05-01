@@ -2,8 +2,8 @@
  * Direct LLM client for Quillosofi.
  *
  * Hits OpenRouter (https://openrouter.ai) directly from the renderer with
- * streaming. This replaces the slow base44.integrations.Core.InvokeLLM hop
- * for chat / research / memory extraction. Two surface APIs:
+ * streaming. As of v0.4.1 this is the ONLY LLM path — Base44 is gone.
+ * Two surface APIs:
  *
  *   invokeLLM({ prompt, model, response_json_schema?, add_context_from_internet?, file_urls?, signal? })
  *     -> Promise<string | object>          // returns text, or parsed JSON if schema given
@@ -136,45 +136,24 @@ function buildRequest({ prompt, model, response_json_schema, add_context_from_in
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 // =============================================================
-// Hybrid: OpenRouter when key is set, Base44 fallback otherwise.
-// This lets users keep using the app without an API key (slower path)
-// while immediately benefitting from streaming once they paste one.
+// smartInvoke: streaming when onDelta is given, single-shot otherwise.
+// Throws OPENROUTER_KEY_MISSING_ERROR if no key is set — callers should
+// catch this and prompt the user to add one in Settings.
 // =============================================================
-/**
- * Try OpenRouter first; if no key is set, fall back to Base44.
- * Streaming only happens if useStreaming=true AND key is set.
- */
 export async function smartInvoke({
   prompt, model, response_json_schema, add_context_from_internet,
   file_urls, signal, onDelta,
 }) {
-  if (hasOpenRouterKey()) {
-    if (onDelta) {
-      return streamLLM({
-        prompt, model, response_json_schema, add_context_from_internet,
-        file_urls, signal, onDelta,
-      });
-    }
-    return invokeLLM({
+  if (onDelta) {
+    return streamLLM({
       prompt, model, response_json_schema, add_context_from_internet,
-      file_urls, signal,
+      file_urls, signal, onDelta,
     });
   }
-
-  // Fallback: lazy-import base44 to avoid a circular dependency.
-  const { base44 } = await import('@/api/base44Client');
-  const params = { prompt, model };
-  if (response_json_schema) params.response_json_schema = response_json_schema;
-  if (add_context_from_internet) params.add_context_from_internet = true;
-  if (file_urls?.length) params.file_urls = file_urls;
-  const res = await base44.integrations.Core.InvokeLLM(params);
-  if (onDelta) {
-    // Simulate a single 'all-at-once' delta so the UI doesn't break.
-    const text = typeof res === 'string' ? res : (res?.data ?? JSON.stringify(res));
-    try { onDelta(text, text); } catch (_) {}
-    return text;
-  }
-  return res;
+  return invokeLLM({
+    prompt, model, response_json_schema, add_context_from_internet,
+    file_urls, signal,
+  });
 }
 
 function authHeaders() {
