@@ -30,6 +30,21 @@ import { Progress } from '@/components/ui/progress';
 
 const FEED_URL = 'https://github.com/AlarkiusJay/Quillosofi/releases';
 
+// Easter egg — when the user is already on the latest version and keeps
+// hammering "Check for Updates", we tease them progressively. The trap at 20
+// flips the Download button into a one-time false-redirect that opens an
+// external link in the system browser. Click counter resets the moment a
+// real update appears (so we don't accidentally hide actual download flows).
+const SASS_TIERS = [
+  { at: 3,  text: 'Really? Are you that excited for a new update? Check back later.' },
+  { at: 6,  text: "You're persistent." },
+  { at: 10, text: "Clicking won't get you anywhere mortal \uD83D\uDE02" },
+  { at: 15, text: "You're so impatient. Learn some respect!" },
+  { at: 20, text: "Alright. You're getting a download. Click the Download Button!" },
+];
+const TRAP_THRESHOLD = 20;
+const TRAP_URL = 'https://www.youtube.com/watch?v=Aq5WXmQQooo';
+
 // Format an epoch ms into a friendly relative-ish timestamp.
 function formatChecked(ts) {
   if (!ts) return 'never';
@@ -86,6 +101,8 @@ function DesktopUpdateView() {
   const [busy, setBusy] = useState(false);
   const [showDiag, setShowDiag] = useState(false);
   const [diagCopied, setDiagCopied] = useState(false);
+  // Easter-egg counter for hammering Check-for-Updates while up to date.
+  const [sassClicks, setSassClicks] = useState(0);
 
   // Pull initial status + subscribe to live state pushes. Also auto-fire one
   // check on mount so the panel isn't stuck on "Not checked yet" forever.
@@ -120,6 +137,31 @@ function DesktopUpdateView() {
     setBusy(true);
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
   }, []);
+
+  // Wrapper around handleCheck used by the visible button. Increments the
+  // sass counter only when there's nothing new to find — so legit checks that
+  // surface a real update never count toward the easter egg.
+  const handleCheckClick = useCallback(async () => {
+    setBusy(true);
+    try {
+      await window.quillosofi.updates.check();
+    } finally {
+      setBusy(false);
+    }
+    // Status updates arrive via the IPC stream after the check resolves; we
+    // bump the counter optimistically and the effect below will reset it if a
+    // real update lands.
+    setSassClicks((n) => n + 1);
+  }, []);
+
+  // If a real update appears, wipe the prank state so we never hide the real
+  // download CTA behind the trap.
+  useEffect(() => {
+    if (state.status === 'available' || state.status === 'downloading' ||
+        state.status === 'downloaded') {
+      setSassClicks(0);
+    }
+  }, [state.status]);
 
   const handleDownload = useCallback(async () => {
     setBusy(true);
@@ -181,6 +223,24 @@ function DesktopUpdateView() {
   const { status, currentVersion, latestVersion, downloadPercent, error, releaseNotes, settings, lastChecked } = state;
   const isUpToDate = status === 'not-available' || (latestVersion && latestVersion === currentVersion);
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
+
+  // Pick the highest sass tier the user has earned (only when up to date).
+  const sassMessage = isUpToDate
+    ? [...SASS_TIERS].reverse().find((t) => sassClicks >= t.at)?.text
+    : null;
+  const trapArmed = isUpToDate && sassClicks >= TRAP_THRESHOLD;
+
+  const handleTrap = useCallback(() => {
+    try {
+      if (window.quillosofi?.openExternal) {
+        window.quillosofi.openExternal(TRAP_URL);
+      } else {
+        window.open(TRAP_URL, '_blank', 'noopener,noreferrer');
+      }
+    } catch (_) {}
+    // One-time gag — reset so the buttons return to normal afterward.
+    setSassClicks(0);
+  }, []);
 
   // ---------- Status block ----------
   let statusBlock;
@@ -301,7 +361,7 @@ function DesktopUpdateView() {
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
-            onClick={handleCheck}
+            onClick={handleCheckClick}
             disabled={checking || downloading}
             className="w-full flex items-center gap-2"
           >
@@ -324,6 +384,11 @@ function DesktopUpdateView() {
               <Download className="h-4 w-4" />
               Download v{latestVersion}
             </Button>
+          ) : trapArmed ? (
+            <Button onClick={handleTrap} className="w-full flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Download New Update
+            </Button>
           ) : (
             <Button onClick={handleCheckAndDownload} disabled={checking} className="w-full flex items-center gap-2">
               <Download className="h-4 w-4" />
@@ -331,6 +396,18 @@ function DesktopUpdateView() {
             </Button>
           )}
         </div>
+
+        {/* Easter egg — escalating sass when the user spam-clicks Check for
+            Updates while already up to date. Only renders when there's a tier
+            unlocked AND no real update is pending. */}
+        {sassMessage && (
+          <p
+            key={sassClicks /* re-mount each tier so the fade re-plays */}
+            className="text-center text-xs text-muted-foreground/90 italic px-2 animate-in fade-in slide-in-from-bottom-1 duration-300"
+          >
+            {sassMessage}
+          </p>
+        )}
 
         {/* Open release page */}
         <button
