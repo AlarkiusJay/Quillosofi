@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 
 // Bumped each release. Used by the web fallback view.
-const FALLBACK_VERSION = '0.2.0';
+const FALLBACK_VERSION = '0.3.0';
 const FALLBACK_DATE = 'April 30, 2026';
 
 // =============================================================

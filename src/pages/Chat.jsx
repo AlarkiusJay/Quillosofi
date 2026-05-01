@@ -3,6 +3,7 @@ import { guestStorage } from '../utils/guestStorage';
 import { useParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { HelpCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { smartInvoke } from '@/lib/llm';
 import SpacesGrid from '../components/SpacesGrid';
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatInput from '../components/chat/ChatInput';
@@ -545,19 +546,40 @@ IMPORTANT INSTRUCTIONS:
       }
     }
 
-    const response = await base44.integrations.Core.InvokeLLM({
-      prompt: fullPrompt + spacePrompt,
-      model: selectedModel,
-      add_context_from_internet: searchInternet,
-    });
+    // Stream the assistant response: append a placeholder message first
+    // and update its content as tokens arrive. When streaming isn't
+    // available (no OpenRouter key), smartInvoke falls back to Base44
+    // and fires a single 'whole text' delta so the UX stays consistent.
+    const placeholderId = `streaming-${Date.now()}`;
+    setMessages(prev => [...prev, { id: placeholderId, conversation_id: conversationId, role: 'assistant', content: '', _streaming: true }]);
+    setIsLoading(false); // hide typing indicator since we're showing live text
 
+    let response = '';
+    try {
+      response = await smartInvoke({
+        prompt: fullPrompt + spacePrompt,
+        model: selectedModel,
+        add_context_from_internet: searchInternet,
+        onDelta: (_delta, full) => {
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: full } : m));
+        },
+      });
+    } catch (err) {
+      const msg = err?.message === 'OPENROUTER_KEY_MISSING'
+        ? 'No OpenRouter key set. Open Settings → API to add one for fast streaming chat.'
+        : `Sorry — the model couldn't respond: ${err?.message || err}`;
+      setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: msg, _streaming: false, _error: true } : m));
+      return;
+    }
+
+    // Persist the final assistant message and swap the placeholder for the
+    // real one (so future regenerate / branch flows have a stable id).
     const newAssistantMsg = await createMsg({
       conversation_id: conversationId,
       role: 'assistant',
       content: response,
     });
-    setMessages(prev => [...prev, newAssistantMsg]);
-    setIsLoading(false);
+    setMessages(prev => prev.map(m => m.id === placeholderId ? newAssistantMsg : m));
 
     await updateConvo(conversationId, { last_message_preview: response.substring(0, 100) });
     await loadConversations();
@@ -622,15 +644,33 @@ IMPORTANT INSTRUCTIONS:
     const llmParams = { prompt: fullPrompt + spacePrompt, model: effectiveModel1, add_context_from_internet: searchInternet };
     if (uniqueFileUrls.length > 0) llmParams.file_urls = uniqueFileUrls;
 
-    const response = await base44.integrations.Core.InvokeLLM(llmParams);
+    // Stream the regenerated assistant response.
+    const placeholderId = `streaming-${Date.now()}`;
+    setMessages(prev => [...prev, { id: placeholderId, conversation_id: conversationId, role: 'assistant', content: '', _streaming: true }]);
+    setIsLoading(false);
+
+    let response = '';
+    try {
+      response = await smartInvoke({
+        ...llmParams,
+        onDelta: (_delta, full) => {
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: full } : m));
+        },
+      });
+    } catch (err) {
+      const errMsg = err?.message === 'OPENROUTER_KEY_MISSING'
+        ? 'No OpenRouter key set. Open Settings → API to add one for fast streaming chat.'
+        : `Sorry — the model couldn't respond: ${err?.message || err}`;
+      setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: errMsg, _streaming: false, _error: true } : m));
+      return;
+    }
 
     const assistantMsg = await createMsg({
       conversation_id: conversationId,
       role: 'assistant',
       content: response,
     });
-    setMessages(prev => [...prev, assistantMsg]);
-    setIsLoading(false);
+    setMessages(prev => prev.map(m => m.id === placeholderId ? assistantMsg : m));
 
     await updateConvo(conversationId, { last_message_preview: response.substring(0, 100) });
     await loadConversations();
@@ -642,7 +682,7 @@ IMPORTANT INSTRUCTIONS:
   const extractMemories = async (userMessage, assistantResponse, forceExtract = false) => {
     const authed = await base44.auth.isAuthenticated();
     if (!authed) return;
-    const result = await base44.integrations.Core.InvokeLLM({
+    const result = await smartInvoke({
       prompt: `Analyze this conversation exchange and extract any personal information, preferences, or facts the user shared that should be remembered for future conversations.
 
 User message: "${userMessage}"
@@ -726,7 +766,7 @@ If nothing worth remembering, return empty items array.`,
       setIsLoading(true);
 
       const systemPrompt = await buildSystemPrompt();
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await smartInvoke({
         prompt: `${systemPrompt}\n\nThe user has opened a canvas note. Acknowledge this and let them know you'll respond once they add content and save it, or offer a suggestion of what they could write.`,
         model: selectedModel,
       });
@@ -765,7 +805,7 @@ If nothing worth remembering, return empty items array.`,
       }
       setIsLoading(true);
       const systemPrompt = await buildSystemPrompt();
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await smartInvoke({
         prompt: `${systemPrompt}\n\nThe user has opened a spreadsheet editor. Acknowledge this warmly and let them know they can enter data, use formulas (like =SUM(A1:A5), =IF(...), =AVERAGE(...)), sort columns, and export to CSV, JSON, or XLSX. Offer to help them set it up.`,
         model: selectedModel,
       });
@@ -929,15 +969,33 @@ If nothing worth remembering, return empty items array.`,
     const llmParams = { prompt: fullPrompt + spacePrompt, model: effectiveModel2, add_context_from_internet: searchInternet };
     if (uniqueFileUrls.length > 0) llmParams.file_urls = uniqueFileUrls;
 
-    const response = await base44.integrations.Core.InvokeLLM(llmParams);
+    // Stream the assistant response.
+    const placeholderId = `streaming-${Date.now()}`;
+    setMessages(prev => [...prev, { id: placeholderId, conversation_id: currentConversationId, role: 'assistant', content: '', _streaming: true }]);
+    setIsLoading(false);
+
+    let response = '';
+    try {
+      response = await smartInvoke({
+        ...llmParams,
+        onDelta: (_delta, full) => {
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: full } : m));
+        },
+      });
+    } catch (err) {
+      const errMsg = err?.message === 'OPENROUTER_KEY_MISSING'
+        ? 'No OpenRouter key set. Open Settings → API to add one for fast streaming chat.'
+        : `Sorry — the model couldn't respond: ${err?.message || err}`;
+      setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: errMsg, _streaming: false, _error: true } : m));
+      return;
+    }
 
     const assistantMsg = await createMsg({
       conversation_id: currentConversationId,
       role: 'assistant',
       content: response,
     });
-    setMessages(prev => [...prev, assistantMsg]);
-    setIsLoading(false);
+    setMessages(prev => prev.map(m => m.id === placeholderId ? assistantMsg : m));
 
     await updateConvo(currentConversationId, { last_message_preview: response.substring(0, 100) });
     await loadConversations();

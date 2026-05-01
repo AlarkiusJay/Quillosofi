@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { Brain, Trash2, Sparkles, Pin, PinOff, Pencil, Check, X, Bot, Sliders, Shield, User, Upload, Plus, Palette, RefreshCw } from 'lucide-react';
+import { Brain, Trash2, Sparkles, Pin, PinOff, Pencil, Check, X, Bot, Sliders, Shield, User, Upload, Plus, Palette, RefreshCw, Key } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import BotCustomization from './settings/BotCustomization';
 import AppUpdate from './settings/AppUpdate';
@@ -10,6 +10,7 @@ import ImportExport from './settings/ImportExport';
 import DataSecurity from './settings/DataSecurity';
 import ThemeCustomizer from './settings/ThemeCustomizer';
 import UpgradeTab from './settings/UpgradeTab';
+import ApiKeyTab from './settings/ApiKeyTab';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -347,6 +348,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           { id: 'customize', label: 'Customize', icon: Palette },
           { id: 'data', label: 'Data & Security', icon: Shield },
           { id: 'upgrade', label: '⚡ Upgrade', icon: Sparkles },
+          { id: 'api', label: 'API', icon: Key },
           { id: 'update', label: 'Update', icon: RefreshCw, badge: updateCount > 0 }].
           map((tab) => {
             const IconComponent = tab.icon;
@@ -583,6 +585,13 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           }
 
           {activeTab === 'upgrade' && <UpgradeTab />}
+          {activeTab === 'api' &&
+            <div className="py-3 md:py-4">
+              <div className="bg-card rounded-xl border border-border p-4 md:p-5">
+                <ApiKeyTab />
+              </div>
+            </div>
+          }
           {activeTab === 'update' && <AppUpdate updateCount={updateCount} />}
         </div>
       </div>

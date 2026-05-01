@@ -21,6 +21,7 @@
  */
 
 import { base44 } from '@/api/base44Client';
+import { smartInvoke } from '@/lib/llm';
 
 const RESPONSE_SCHEMA = {
   type: 'object',
@@ -98,7 +99,7 @@ export async function runResearch({ query, depth = 'quick' }) {
 
   let res;
   try {
-    res = await base44.integrations.Core.InvokeLLM({
+    res = await smartInvoke({
       prompt,
       model,
       add_context_from_internet: true,
