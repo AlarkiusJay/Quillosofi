@@ -36,20 +36,39 @@ export const WIDGET_THEMES = {
   noir:      { bg: 'hsl(220, 8%, 10%)',  accent: 'hsl(220, 14%, 75%)', label: 'Noir' },
 };
 
+// Layout is now a per-breakpoint object: { lg: [...], md: [...], sm: [...] }.
+// We migrate the legacy flat-array shape into the new shape on read so users
+// who saved layouts under v0.4.x don't lose their custom positions.
+function defaultLayouts() {
+  // Only seed lg from DEFAULT_LAYOUT — react-grid-layout will compute md/sm
+  // from lg the first time those breakpoints are actually rendered, and we'll
+  // capture them on the user's next interaction at that breakpoint.
+  return { lg: DEFAULT_LAYOUT.map(l => ({ ...l })) };
+}
+
 export function loadLayout() {
   try {
     const raw = localStorage.getItem(LAYOUT_KEY);
-    if (!raw) return DEFAULT_LAYOUT.map(l => ({ ...l }));
+    if (!raw) return defaultLayouts();
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_LAYOUT.map(l => ({ ...l }));
-    return parsed;
+    // Legacy: a flat array means it was saved by the old single-breakpoint
+    // code path. Treat it as the lg layout so users keep their positions.
+    if (Array.isArray(parsed)) {
+      return parsed.length === 0 ? defaultLayouts() : { lg: parsed };
+    }
+    if (parsed && typeof parsed === 'object') {
+      // Sanity-filter — require at least one breakpoint with a non-empty array.
+      const ok = ['lg', 'md', 'sm'].some(bp => Array.isArray(parsed[bp]) && parsed[bp].length > 0);
+      return ok ? parsed : defaultLayouts();
+    }
+    return defaultLayouts();
   } catch {
-    return DEFAULT_LAYOUT.map(l => ({ ...l }));
+    return defaultLayouts();
   }
 }
 
-export function saveLayout(layout) {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* ignore */ }
+export function saveLayout(layouts) {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layouts)); } catch { /* ignore */ }
 }
 
 export function resetLayout() {

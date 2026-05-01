@@ -11,7 +11,7 @@
  * Layout, widget visual settings, and per-widget data persist to localStorage.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -75,20 +75,23 @@ const gridStyles = `
 `;
 
 export default function Quillounge() {
-  const [layouts, setLayouts] = useState(() => ({ lg: loadLayout() }));
+  // Stored shape: { lg: [...], md: [...], sm: [...] } — per-breakpoint so
+  // RGL doesn't clobber lg positions when the user briefly visits md/sm.
+  const [layouts, setLayouts] = useState(loadLayout);
   const [widgetState, setWidgetState] = useState(loadWidgetState);
   const [editing, setEditing] = useState(false);
-  const isFirstRender = useRef(true);
 
   useEffect(() => { saveWidgetState(widgetState); }, [widgetState]);
 
-  const handleLayoutChange = (current /* , all */) => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    setLayouts({ lg: current });
-    saveLayout(current);
+  // RGL signature: onLayoutChange(currentLayout, allLayouts). We persist the
+  // full allLayouts object so positions stick across breakpoints — the prior
+  // implementation only stored `current`, which silently overwrote saved lg
+  // positions whenever RGL re-emitted a computed layout at a different
+  // breakpoint (or during mount/hydration).
+  const handleLayoutChange = (_current, all) => {
+    if (!all || typeof all !== 'object') return;
+    setLayouts(all);
+    saveLayout(all);
   };
 
   const updateWidgetSettings = (id, patch) => {
@@ -101,9 +104,10 @@ export default function Quillounge() {
     setLayouts({ lg: DEFAULT_LAYOUT.map(l => ({ ...l })) });
   };
 
-  // Filter to only render widgets we have layout entries for.
+  // Filter to only render widgets we have layout entries for. Prefer lg as
+  // the source of truth for which widgets exist; fall back through md/sm.
   const visibleWidgets = useMemo(() => {
-    const lay = layouts.lg || [];
+    const lay = layouts.lg || layouts.md || layouts.sm || [];
     return lay.filter(l => WIDGET_REGISTRY[l.i]).map(l => l.i);
   }, [layouts]);
 
