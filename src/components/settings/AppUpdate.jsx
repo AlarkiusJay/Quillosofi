@@ -30,20 +30,10 @@ import { Progress } from '@/components/ui/progress';
 
 const FEED_URL = 'https://github.com/AlarkiusJay/Quillosofi/releases';
 
-// Easter egg — when the user is already on the latest version and keeps
-// hammering "Check for Updates", we tease them progressively. The trap at 20
-// flips the Download button into a one-time false-redirect that opens an
-// external link in the system browser. Click counter resets the moment a
-// real update appears (so we don't accidentally hide actual download flows).
-const SASS_TIERS = [
-  { at: 3,  text: 'Really? Are you that excited for a new update? Check back later.' },
-  { at: 6,  text: "You're persistent." },
-  { at: 10, text: "Clicking won't get you anywhere mortal \uD83D\uDE02" },
-  { at: 15, text: "You're so impatient. Learn some respect!" },
-  { at: 20, text: "Alright. You're getting a download. Click the Download Button!" },
-];
-const TRAP_THRESHOLD = 20;
-const TRAP_URL = 'https://www.youtube.com/watch?v=Aq5WXmQQooo';
+// v0.4.14: stealth twin prank button removed from the Update tab. The easter
+// egg lives elsewhere now — keeping this surface strictly functional so the
+// updater is unambiguously legit. (See whichever component currently hosts
+// the sass tiers; this file is intentionally clean.)
 
 // Format an epoch ms into a friendly relative-ish timestamp.
 function formatChecked(ts) {
@@ -101,9 +91,6 @@ function DesktopUpdateView() {
   const [busy, setBusy] = useState(false);
   const [showDiag, setShowDiag] = useState(false);
   const [diagCopied, setDiagCopied] = useState(false);
-  // Easter-egg counter for hammering Check-for-Updates while up to date.
-  const [sassClicks, setSassClicks] = useState(0);
-
   // Pull initial status + subscribe to live state pushes. Also auto-fire one
   // check on mount so the panel isn't stuck on "Not checked yet" forever.
   useEffect(() => {
@@ -137,38 +124,6 @@ function DesktopUpdateView() {
     setBusy(true);
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
   }, []);
-
-  // v0.4.12: the real Check for Updates button is now PURELY functional. No
-  // sass counter side effects — those moved to the stealth twin button below.
-  const handleCheckClick = useCallback(async () => {
-    setBusy(true);
-    try {
-      await window.quillosofi.updates.check();
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
-  // The stealth twin: looks identical to Check for Updates at rest (with a
-  // different-tinted hover glow as the only tell). Click it and you get a
-  // real check too — plausible deniability, the prank only manifests as the
-  // sass counter bumping. Once trapArmed, the actual click handler swaps to
-  // the rickroll trap (see button JSX below).
-  const handleTwinClick = useCallback(async () => {
-    // Fire a real check so it feels indistinguishable from the real button.
-    setBusy(true);
-    try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
-    setSassClicks((n) => n + 1);
-  }, []);
-
-  // If a real update appears, wipe the prank state so we never hide the real
-  // download CTA behind the trap.
-  useEffect(() => {
-    if (state.status === 'available' || state.status === 'downloading' ||
-        state.status === 'downloaded') {
-      setSassClicks(0);
-    }
-  }, [state.status]);
 
   const handleDownload = useCallback(async () => {
     setBusy(true);
@@ -233,29 +188,6 @@ function DesktopUpdateView() {
   const { status, currentVersion, latestVersion, downloadPercent, error, releaseNotes, settings, lastChecked, updaterAvailable, updaterLoadError, isDev } = state;
   const isUpToDate = status === 'not-available' || (latestVersion && latestVersion === currentVersion);
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
-
-  // Pick the highest sass tier the user has earned (only when up to date).
-  // Track the tier *index* separately so the sass <p> can key on the tier,
-  // not the click count — click 4 and click 5 stay on the same tier and
-  // therefore don't remount/refade. Only the tier transitions (3→6, 6→10,
-  // etc.) trigger the crossfade.
-  const sassTierIndex = isUpToDate
-    ? [...SASS_TIERS].map((t, i) => ({ ...t, i })).reverse().find((t) => sassClicks >= t.at)?.i ?? -1
-    : -1;
-  const sassMessage = sassTierIndex >= 0 ? SASS_TIERS[sassTierIndex].text : null;
-  const trapArmed = isUpToDate && sassClicks >= TRAP_THRESHOLD;
-
-  const handleTrap = useCallback(() => {
-    try {
-      if (window.quillosofi?.openExternal) {
-        window.quillosofi.openExternal(TRAP_URL);
-      } else {
-        window.open(TRAP_URL, '_blank', 'noopener,noreferrer');
-      }
-    } catch (_) {}
-    // One-time gag — reset so the buttons return to normal afterward.
-    setSassClicks(0);
-  }, []);
 
   // ---------- Status block ----------
   let statusBlock;
@@ -327,9 +259,8 @@ function DesktopUpdateView() {
   const installable = status === 'downloaded';
   const downloadable = status === 'available';
 
-  // v0.4.12: rickroll trap moved to the stealth twin. Real action button is
-  // now purely the legitimate Install/Download CTA — it can no longer be
-  // hijacked by sass-clicks.
+  // Real action button is purely the legitimate Install/Download CTA —
+  // never hijacked by easter eggs. (v0.4.14: prank twin removed entirely.)
   const action = (() => {
     if (installable) {
       return { label: 'Install & Restart', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
@@ -392,48 +323,27 @@ function DesktopUpdateView() {
           </div>
         )}
 
-        {/* Actions — the left half is split into a pair of identical-looking
-            outline buttons (real + stealth twin). Twin handles all easter-egg
-            clicks; real button is pure functionality. They share styling at
-            rest; only the hover tint differs (twin gets a faint primary glow). */}
+        {/* Actions — simple two-up: Check for Updates + the morphing action
+            button (Download / Install / Downloading). v0.4.14: stealth twin
+            removed; the prank lives somewhere else in the app now. */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="grid grid-cols-2 gap-1">
-            <Button
-              variant="outline"
-              onClick={handleCheckClick}
-              disabled={checking || downloading}
-              className="w-full flex items-center gap-2"
+          <Button
+            variant="outline"
+            onClick={handleCheck}
+            disabled={checking || downloading}
+            className="w-full flex items-center gap-2"
+          >
+            <span
+              key={checking ? 'checking' : 'idle'}
+              className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
             >
-              <span
-                key={checking ? 'checking' : 'idle'}
-                className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
-              >
-                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-                {checking ? 'Checking…' : 'Check for Updates'}
-              </span>
-            </Button>
-            {/* Stealth twin — same shape & label as real Check, but clicking
-                bumps the sass counter and arms the rickroll trap. Hover glow
-                is a faint primary-tinted ring instead of the default border. */}
-            <Button
-              variant="outline"
-              onClick={trapArmed ? handleTrap : handleTwinClick}
-              disabled={checking || downloading}
-              className="w-full flex items-center gap-2 hover:border-primary/40 hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.25)] transition-all"
-              title=""
-            >
-              <span
-                key={checking ? 'twin-checking' : 'twin-idle'}
-                className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
-              >
-                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-                {checking ? 'Checking…' : 'Check for Updates'}
-              </span>
-            </Button>
-          </div>
+              <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+              {checking ? 'Checking…' : 'Check for Updates'}
+            </span>
+          </Button>
 
-          {/* Right side: the single persistent action button. Contents key on
-              label so transitions crossfade instead of popping (300ms). */}
+          {/* Persistent action button. Contents key on label so transitions
+              crossfade instead of popping (300ms). */}
           <Button
             onClick={action.onClick}
             disabled={action.disabled}
@@ -448,20 +358,6 @@ function DesktopUpdateView() {
             </span>
           </Button>
         </div>
-
-        {/* Easter egg — escalating sass when the user spam-clicks Check for
-            Updates while already up to date. Only renders when there's a tier
-            unlocked AND no real update is pending. v0.4.10: keyed on tier
-            index, not click count, so it stays static *within* a tier and
-            only crossfades when you actually escalate (3→6→10→15→20). */}
-        {sassMessage && (
-          <p
-            key={sassTierIndex}
-            className="text-center text-xs text-muted-foreground/90 italic px-2 animate-in fade-in slide-in-from-bottom-1 duration-300"
-          >
-            {sassMessage}
-          </p>
-        )}
 
         {/* Open release page */}
         <button

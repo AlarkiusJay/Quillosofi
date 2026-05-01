@@ -7,14 +7,24 @@ const {
   app,
   BrowserWindow,
   ipcMain,
-  Menu,
-  Tray,
-  nativeImage,
   shell,
   globalShortcut,
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// v0.4.14: tray icon removed entirely.
+// Reasons:
+//   1. It duplicated the Update tab's "Check for updates" with a stripped
+//      version — confusing surface, no unique value.
+//   2. It was the suspected file-handle holder on Quillosofi.exe even after
+//      tray.destroy() during update install. Removing it eliminates the
+//      whole class of "Error 2" / "won't reinstall after download" issues.
+//   3. App still auto-checks for updates on launch (autoCheck setting) and
+//      the in-app Update tab handles everything else.
+// Side effects: closing the last window now actually quits the app on all
+// platforms (no more hide-to-tray). The global Ctrl/Cmd+Shift+Q hotkey
+// remains for quick foreground summoning of an already-running instance.
 
 // Optional auto-updater — only loaded if installed (so dev install works without it).
 // IMPORTANT: electron-updater MUST live in `dependencies`, not devDependencies.
@@ -35,28 +45,15 @@ const isDev = !app.isPackaged || process.argv.includes('--dev');
 const startHidden = process.argv.includes('--hidden');
 
 let mainWindow = null;
-let tray = null;
 app.isQuitting = false;
-// Set when an update install is in progress. Forces the app to actually die
-// (instead of hiding to tray) so NSIS can delete the old .exe without hitting
-// 'Failed to uninstall old application files' (Error 2 = file in use).
 app.isInstallingUpdate = false;
 
-// Centralised "prepare to die for an update" sequence. We DO NOT destroy
-// windows here — quitAndInstall() handles that itself, and pre-destroying
-// them was causing 'window-all-closed' to fire app.exit(0) BEFORE NSIS could
-// launch (v0.4.12 regression: Error 2 gone but new version never installed).
-// All we need to do is:
-//   1. Flag we're installing (so 'close' handlers don't hide-to-tray)
-//   2. Kill the tray (it was the actual file-handle culprit on Quillosofi.exe)
-//   3. Unregister global shortcuts (cosmetic but tidy)
-// Then let electron-updater's quitAndInstall drive the rest.
+// v0.4.14: with no tray to destroy and no "hide to tray" close handler, the
+// shutdown sequence is dramatically simpler. Just flag intent + drop global
+// shortcuts; quitAndInstall() handles the rest of the dance with NSIS.
 function prepareForUpdateInstall() {
   app.isQuitting = true;
   app.isInstallingUpdate = true;
-  try {
-    if (tray) { tray.destroy(); tray = null; }
-  } catch (_) {}
   try { globalShortcut.unregisterAll(); } catch (_) {}
 }
 
@@ -200,16 +197,15 @@ function wireAutoUpdater() {
     updateState.downloadPercent = 100;
     emitUpdateState();
 
-    // If auto-install is on, install on next quit (user can also click Install Now).
-    // Do NOT pre-destroy windows — quitAndInstall handles graceful shutdown.
+    // If auto-install is on, just flag intent on next quit. The actual
+    // install fires when the user clicks Install & Restart, OR on next
+    // launch after they quit normally (electron-updater detects the
+    // pending installer and applies it).
     if (updateSettings.autoInstall) {
       app.once('before-quit', () => {
         app.isQuitting = true;
         app.isInstallingUpdate = true;
-        try { if (tray) { tray.destroy(); tray = null; } } catch (_) {}
         try { globalShortcut.unregisterAll(); } catch (_) {}
-        // Don't auto-fire on quit — let next launch silently install instead.
-        // (This handler is only registered when autoInstall is true.)
       });
     }
   });
@@ -260,86 +256,9 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  mainWindow.on('close', (e) => {
-    if (!app.isQuitting) {
-      e.preventDefault();
-      mainWindow.hide();
-    }
-  });
-
+  // v0.4.14: closing the window now actually quits (no tray to hide into).
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-}
-
-// =============================================================
-// Tray
-// =============================================================
-function createTray() {
-  // Windows tray expects .ico for crispness across DPI scales; macOS/Linux
-  // do best with PNG. Fall back through a list of candidates so the tray
-  // never silently fails to render.
-  const buildDir = path.join(__dirname, '..', 'build');
-  const candidates = process.platform === 'win32'
-    ? ['tray-icon.ico', 'icon.ico', 'tray-icon.png', 'icon.png']
-    : ['tray-icon.png', 'icon.png', 'tray-icon.ico'];
-
-  let image = null;
-  for (const name of candidates) {
-    const p = path.join(buildDir, name);
-    try {
-      if (fs.existsSync(p)) {
-        const img = nativeImage.createFromPath(p);
-        if (!img.isEmpty()) {
-          image = img;
-          // On macOS, smaller tray icons feel more native.
-          if (process.platform === 'darwin') {
-            image = img.resize({ width: 18, height: 18 });
-          }
-          break;
-        }
-      }
-    } catch (_) { /* try next */ }
-  }
-  if (!image) image = nativeImage.createEmpty();
-
-  tray = new Tray(image);
-  tray.setToolTip('Quillosofi');
-  const menu = Menu.buildFromTemplate([
-    {
-      label: 'Open Quillosofi',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Check for updates',
-      click: () => {
-        if (autoUpdater && !isDev) {
-          autoUpdater.checkForUpdates().catch((err) => {
-            console.warn('check-for-updates failed:', err && err.message);
-          });
-        }
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit',
-      click: () => {
-        app.isQuitting = true;
-        app.quit();
-      },
-    },
-  ]);
-  tray.setContextMenu(menu);
-  tray.on('click', () => {
-    if (mainWindow) {
-      mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-    }
   });
 }
 
@@ -451,7 +370,6 @@ ipcMain.handle('updates:openReleasePage', () => {
 // =============================================================
 app.whenReady().then(() => {
   createWindow();
-  createTray();
   wireAutoUpdater();
 
   // Global hotkey to summon Quillosofi (Ctrl/Cmd+Shift+Q).
@@ -481,21 +399,13 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // Stay alive in tray on all platforms; user must explicitly Quit.
-  //
-  // NOTE: We previously called app.exit(0) here when installing an update.
-  // That was the bug behind v0.4.12: pre-destroying windows fired this event
-  // BEFORE quitAndInstall() could run, so we exited without ever launching
-  // NSIS. Now quitAndInstall() handles its own shutdown sequence and will
-  // call app.quit() / process exit AFTER spawning the installer. We just
-  // need to not interfere.
-  if (app.isInstallingUpdate) {
-    // Let electron-updater's quitAndInstall drive the exit. No-op here.
-    return;
-  }
+  // v0.4.14: no tray, no reason to linger. Quit on all platforms (mac
+  // included — no menu bar presence to maintain). If we're mid-install,
+  // electron-updater's quitAndInstall drives the exit, so do nothing here.
+  if (app.isInstallingUpdate) return;
+  app.quit();
 });
 
 app.on('will-quit', () => {
   try { globalShortcut.unregisterAll(); } catch (_) {}
-  try { if (tray) { tray.destroy(); tray = null; } } catch (_) {}
 });
