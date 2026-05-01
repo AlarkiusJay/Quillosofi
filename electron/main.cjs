@@ -42,20 +42,20 @@ app.isQuitting = false;
 // 'Failed to uninstall old application files' (Error 2 = file in use).
 app.isInstallingUpdate = false;
 
-// Centralised "prepare to die for an update" sequence. Cleanly tears down the
-// tray, all renderers, and global shortcuts so Windows releases file handles
-// on Quillosofi.exe before NSIS tries to delete it.
+// Centralised "prepare to die for an update" sequence. We DO NOT destroy
+// windows here — quitAndInstall() handles that itself, and pre-destroying
+// them was causing 'window-all-closed' to fire app.exit(0) BEFORE NSIS could
+// launch (v0.4.12 regression: Error 2 gone but new version never installed).
+// All we need to do is:
+//   1. Flag we're installing (so 'close' handlers don't hide-to-tray)
+//   2. Kill the tray (it was the actual file-handle culprit on Quillosofi.exe)
+//   3. Unregister global shortcuts (cosmetic but tidy)
+// Then let electron-updater's quitAndInstall drive the rest.
 function prepareForUpdateInstall() {
   app.isQuitting = true;
   app.isInstallingUpdate = true;
   try {
     if (tray) { tray.destroy(); tray = null; }
-  } catch (_) {}
-  try {
-    BrowserWindow.getAllWindows().forEach(w => {
-      try { w.removeAllListeners('close'); } catch (_) {}
-      try { w.destroy(); } catch (_) {}
-    });
   } catch (_) {}
   try { globalShortcut.unregisterAll(); } catch (_) {}
 }
@@ -201,14 +201,15 @@ function wireAutoUpdater() {
     emitUpdateState();
 
     // If auto-install is on, install on next quit (user can also click Install Now).
+    // Do NOT pre-destroy windows — quitAndInstall handles graceful shutdown.
     if (updateSettings.autoInstall) {
       app.once('before-quit', () => {
-        prepareForUpdateInstall();
-        // Tiny delay so window/tray destroy actually completes before NSIS
-        // starts uninstalling — mitigates 'file in use' on the .exe.
-        setTimeout(() => {
-          try { autoUpdater.quitAndInstall(true, false); } catch (_) {}
-        }, 200);
+        app.isQuitting = true;
+        app.isInstallingUpdate = true;
+        try { if (tray) { tray.destroy(); tray = null; } } catch (_) {}
+        try { globalShortcut.unregisterAll(); } catch (_) {}
+        // Don't auto-fire on quit — let next launch silently install instead.
+        // (This handler is only registered when autoInstall is true.)
       });
     }
   });
@@ -412,14 +413,21 @@ ipcMain.handle('updates:install', async () => {
     return { ok: false, error: 'Updater unavailable' };
   }
   try {
-    // Tear down tray + renderers FIRST, then call quitAndInstall after a
-    // short delay so file handles release. Without this, NSIS hits Error 2
-    // ('Failed to uninstall old application files') because Quillosofi.exe
-    // is still locked by the lingering tray/main process.
+    // v0.4.13: stop pre-destroying windows. The previous flow killed all
+    // BrowserWindows synchronously, which fired 'window-all-closed' →
+    // app.exit(0) BEFORE the setTimeout could call quitAndInstall(). Result:
+    // app exited cleanly, NSIS never ran, no upgrade.
+    //
+    // New flow:
+    //   1. Mark intent (so close handlers stop hiding to tray).
+    //   2. Kill the tray (this was the real file-handle culprit on .exe).
+    //   3. Call quitAndInstall(isSilent=true, isForceRunAfter=true) — it
+    //      gracefully closes all windows itself, then launches NSIS.
     prepareForUpdateInstall();
-    setTimeout(() => {
+    // Small tick so the IPC reply lands before we vanish.
+    setImmediate(() => {
       try { autoUpdater.quitAndInstall(true, true); } catch (_) {}
-    }, 250);
+    });
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : String(err) };
@@ -474,10 +482,16 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   // Stay alive in tray on all platforms; user must explicitly Quit.
-  // EXCEPT when installing an update — in that case, actually exit so the
-  // installer can delete the old binary.
+  //
+  // NOTE: We previously called app.exit(0) here when installing an update.
+  // That was the bug behind v0.4.12: pre-destroying windows fired this event
+  // BEFORE quitAndInstall() could run, so we exited without ever launching
+  // NSIS. Now quitAndInstall() handles its own shutdown sequence and will
+  // call app.quit() / process exit AFTER spawning the installer. We just
+  // need to not interfere.
   if (app.isInstallingUpdate) {
-    try { app.exit(0); } catch (_) {}
+    // Let electron-updater's quitAndInstall drive the exit. No-op here.
+    return;
   }
 });
 
