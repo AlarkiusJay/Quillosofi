@@ -138,9 +138,8 @@ function DesktopUpdateView() {
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
   }, []);
 
-  // Wrapper around handleCheck used by the visible button. Increments the
-  // sass counter only when there's nothing new to find — so legit checks that
-  // surface a real update never count toward the easter egg.
+  // v0.4.12: the real Check for Updates button is now PURELY functional. No
+  // sass counter side effects — those moved to the stealth twin button below.
   const handleCheckClick = useCallback(async () => {
     setBusy(true);
     try {
@@ -148,9 +147,17 @@ function DesktopUpdateView() {
     } finally {
       setBusy(false);
     }
-    // Status updates arrive via the IPC stream after the check resolves; we
-    // bump the counter optimistically and the effect below will reset it if a
-    // real update lands.
+  }, []);
+
+  // The stealth twin: looks identical to Check for Updates at rest (with a
+  // different-tinted hover glow as the only tell). Click it and you get a
+  // real check too — plausible deniability, the prank only manifests as the
+  // sass counter bumping. Once trapArmed, the actual click handler swaps to
+  // the rickroll trap (see button JSX below).
+  const handleTwinClick = useCallback(async () => {
+    // Fire a real check so it feels indistinguishable from the real button.
+    setBusy(true);
+    try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
     setSassClicks((n) => n + 1);
   }, []);
 
@@ -320,6 +327,9 @@ function DesktopUpdateView() {
   const installable = status === 'downloaded';
   const downloadable = status === 'available';
 
+  // v0.4.12: rickroll trap moved to the stealth twin. Real action button is
+  // now purely the legitimate Install/Download CTA — it can no longer be
+  // hijacked by sass-clicks.
   const action = (() => {
     if (installable) {
       return { label: 'Install & Restart', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
@@ -329,9 +339,6 @@ function DesktopUpdateView() {
     }
     if (downloadable) {
       return { label: `Download v${latestVersion}`, icon: <Download className="h-4 w-4" />, onClick: handleDownload, disabled: busy, variant: 'default' };
-    }
-    if (trapArmed) {
-      return { label: 'Download New Update', icon: <Download className="h-4 w-4" />, onClick: handleTrap, disabled: false, variant: 'default' };
     }
     return { label: 'Download New Update', icon: <Download className="h-4 w-4" />, onClick: handleCheckAndDownload, disabled: checking, variant: 'default' };
   })();
@@ -385,25 +392,48 @@ function DesktopUpdateView() {
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — the left half is split into a pair of identical-looking
+            outline buttons (real + stealth twin). Twin handles all easter-egg
+            clicks; real button is pure functionality. They share styling at
+            rest; only the hover tint differs (twin gets a faint primary glow). */}
         <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={handleCheckClick}
-            disabled={checking || downloading}
-            className="w-full flex items-center gap-2"
-          >
-            <span
-              key={checking ? 'checking' : 'idle'}
-              className="flex items-center gap-2 animate-in fade-in duration-200"
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              variant="outline"
+              onClick={handleCheckClick}
+              disabled={checking || downloading}
+              className="w-full flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-              {checking ? 'Checking…' : 'Check for Updates'}
-            </span>
-          </Button>
+              <span
+                key={checking ? 'checking' : 'idle'}
+                className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
+              >
+                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                {checking ? 'Checking…' : 'Check for Updates'}
+              </span>
+            </Button>
+            {/* Stealth twin — same shape & label as real Check, but clicking
+                bumps the sass counter and arms the rickroll trap. Hover glow
+                is a faint primary-tinted ring instead of the default border. */}
+            <Button
+              variant="outline"
+              onClick={trapArmed ? handleTrap : handleTwinClick}
+              disabled={checking || downloading}
+              className="w-full flex items-center gap-2 hover:border-primary/40 hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.25)] transition-all"
+              title=""
+            >
+              <span
+                key={checking ? 'twin-checking' : 'twin-idle'}
+                className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
+              >
+                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                {checking ? 'Checking…' : 'Check for Updates'}
+              </span>
+            </Button>
+          </div>
 
-          {/* Single persistent button that morphs in place. The contents are
-              keyed on (label) so changes crossfade subtly instead of popping. */}
+          {/* Right side: the single persistent action button. Contents key on
+              label so transitions crossfade instead of popping (300ms). */}
           <Button
             onClick={action.onClick}
             disabled={action.disabled}
@@ -411,7 +441,7 @@ function DesktopUpdateView() {
           >
             <span
               key={action.label}
-              className="flex items-center gap-2 animate-in fade-in duration-200"
+              className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
             >
               {action.icon}
               {action.label}
