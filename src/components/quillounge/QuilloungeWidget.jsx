@@ -45,7 +45,7 @@ export default function QuilloungeWidget({ id, title, settings, onSettingsChange
 
   return (
     <div
-      className="sticky-note h-full w-full flex flex-col overflow-hidden relative"
+      className="sticky-note h-full w-full flex flex-col relative"
       style={{
         // theme.paper / theme.tack are "var(--name)" strings; the .sticky-note
         // CSS reads --paper / --tack via hsl(var(--paper)) so we just plug them

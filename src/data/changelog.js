@@ -25,6 +25,7 @@ export const CHANGELOG = [
       'Sticky note text adapts to the paper color — dark ink on Manila / Mint / Pink / Lavender / Aged / Blue, no more white-on-pastel washout.',
       'Inner widget content (Greeting, To Do, Today\'s Prompt, Pinned\u00b7Recent\u00b7Stats) re-themed to ink colors so it reads on every swatch.',
       'Stats / Library / Plugins right-rail cards retinted so they sit on the chalkboard instead of painting over it.',
+      'Thumbtacks now pop above the sticky note top edge instead of being clipped flat — with proper gloss highlight and a cast shadow on the paper for that tactile depth.',
     ],
   },
   {
