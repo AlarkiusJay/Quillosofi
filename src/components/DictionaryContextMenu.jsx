@@ -206,7 +206,7 @@ export default function DictionaryContextMenu({ containerRef }) {
               onClick={handleAddPinned}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-[hsl(228,7%,22%)] rounded transition-colors"
             >
-              <Pin className="h-3.5 w-3.5 text-purple-400" />
+              <Pin className="h-3.5 w-3.5" style={{ color: 'hsl(var(--chalk-yellow))' }} />
               <span>Add + Pin to AI context</span>
             </button>
           )}

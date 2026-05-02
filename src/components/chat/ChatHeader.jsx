@@ -88,7 +88,7 @@ export default function ChatHeader({ conversation, spaces, onUpdate, onDelete })
     : {};
 
   return (
-    <div className="flex items-center gap-2 px-4 h-11 border-b border-[hsl(225,9%,13%)] shrink-0" style={{ background: 'hsl(220, 8%, 18%)' }}>
+    <div className="flex items-center gap-2 px-4 h-11 border-b border-[hsl(var(--chalk-white-faint) / 0.3)] shrink-0" style={{ background: 'hsl(var(--chalk-deep) / 0.85)', backdropFilter: 'blur(4px)' }}>
       <Hash className="h-4 w-4 text-[hsl(220,7%,50%)] shrink-0" />
 
       {editing ? (

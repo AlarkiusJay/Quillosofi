@@ -33,7 +33,7 @@ export default function SpreadsheetToolbar({ onFormat, onExport, onImport, onAdd
 
       {/* Text color */}
       <label className="h-6 w-6 rounded flex items-center justify-center cursor-pointer hover:bg-[hsl(228,7%,30%)] transition-colors relative" title="Text Color">
-        <span className="text-[11px] font-bold text-violet-400">A</span>
+        <span className="text-[11px] font-bold text-[hsl(var(--chalk-yellow))]">A</span>
         <input type="color" className="absolute opacity-0 w-0 h-0 pointer-events-none" onChange={e => onFormat?.('color', e.target.value)} tabIndex={-1} />
         <div className="absolute inset-0" onClick={() => {}} />
       </label>

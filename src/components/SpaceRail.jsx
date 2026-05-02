@@ -24,8 +24,8 @@ function GearBrainGlyph({ active = false }) {
       className={cn(
         'relative h-4 w-4 rounded-md flex items-center justify-center bg-gradient-to-br',
         active
-          ? 'from-primary to-purple-500'
-          : 'from-primary/70 to-purple-500/70'
+          ? 'from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))]'
+          : 'from-[hsl(var(--chalk-yellow)/0.7)] to-[hsl(var(--chalk-pink)/0.7)]'
       )}
     >
       <Settings className="absolute h-2.5 w-2.5 text-white" style={{ transform: 'translate(-1px,-1px)' }} />

@@ -47,7 +47,7 @@ export default function UpgradeModal({ onClose }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
         className="relative rounded-2xl shadow-2xl p-6 max-w-md w-full"
-        style={{ background: 'hsl(220, 8%, 18%)', border: '1px solid hsl(225, 9%, 15%)' }}
+        style={{ background: 'hsl(var(--chalk-deep) / 0.85)', backdropFilter: 'blur(4px)', border: '1px solid hsl(var(--chalk-white-faint) / 0.3)' }}
         onClick={e => e.stopPropagation()}
       >
         <button onClick={onClose} className="absolute top-4 right-4 text-[hsl(220,7%,50%)] hover:text-white transition-colors">
@@ -63,8 +63,8 @@ export default function UpgradeModal({ onClose }) {
               key={plan.id}
               className="rounded-xl p-4 border transition-all"
               style={{
-                background: 'hsl(228, 7%, 22%)',
-                border: plan.recommended ? '1px solid hsl(235, 86%, 65%, 0.5)' : '1px solid hsl(225, 9%, 16%)',
+                background: 'hsl(var(--chalk-board-alt) / 0.7)',
+                border: plan.recommended ? '1px solid hsl(235, 86%, 65%, 0.5)' : '1px solid hsl(var(--chalk-white-faint) / 0.25)',
               }}
             >
               {plan.recommended && (

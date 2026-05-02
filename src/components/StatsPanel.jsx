@@ -50,7 +50,7 @@ function GearBrainGlyph({ active }) {
     <span
       className={cn(
         'relative h-5 w-5 rounded-md flex items-center justify-center bg-gradient-to-br shrink-0',
-        active ? 'from-primary to-purple-500' : 'from-primary/60 to-purple-500/60'
+        active ? 'from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))]' : 'from-[hsl(var(--chalk-yellow)/0.6)] to-[hsl(var(--chalk-pink)/0.6)]'
       )}
     >
       <SettingsIcon className="absolute h-3 w-3 text-white" style={{ transform: 'translate(-1px,-1px)' }} />

@@ -88,7 +88,7 @@ export default function DataSecurity() {
         <p>Quillosofi reserves the right to suspend access for users found in violation of these terms.</p>
       </Section>
 
-      <Section icon={Palette} title="What Quillosofi Will Not Do" bg="bg-purple-500/10" accent="text-purple-400">
+      <Section icon={Palette} title="What Quillosofi Will Not Do" bg="bg-[hsl(var(--chalk-pink)/0.15)]" accent="text-[hsl(var(--chalk-pink))]">
         <p>No Art Generation — Quillosofi not generate, create, edit, or assist with visual artwork, digital images, or any visual media. Quillosofi is a text-based productivity tool designed for conversation, research, and writing.</p>
         <p><strong className="text-foreground/80">No Misinformation Tools</strong> — Quillosofi will not help create, spread, or refine false, misleading, or deceptive information. We do not assist in generating deepfakes, fraudulent documents, or content designed to manipulate or deceive.</p>
         <p>These commitments protect the integrity of human creativity and the trustworthiness of information.</p>

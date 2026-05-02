@@ -36,7 +36,7 @@ function WordRow({ word, onDelete, onTogglePin, onUpdate, aiActive }) {
             {word.is_pinned && (
               <span className={cn(
                 "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                aiActive ? "bg-purple-500/15 text-purple-400" : "bg-[hsl(228,7%,30%)] text-[hsl(220,7%,55%)]"
+                aiActive ? "bg-[hsl(var(--chalk-yellow)/0.18)] text-[hsl(var(--chalk-yellow))]" : "bg-[hsl(var(--chalk-board-alt))] chalk-muted"
               )}>
                 {aiActive ? 'AI Context' : 'Pinned (AI off)'}
               </span>
@@ -184,7 +184,7 @@ export default function CustomDictionary() {
       {/* Stats */}
       <div className="px-4 py-2.5 border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,16%)] flex items-center gap-4 flex-wrap">
         <span className="text-[11px] text-[hsl(220,7%,45%)]">{words.length} words total</span>
-        <span className={cn("text-[11px]", aiDictActive ? "text-purple-400" : "text-[hsl(220,7%,45%)]")}>
+        <span className={cn("text-[11px]", aiDictActive ? "text-[hsl(var(--chalk-yellow))]" : "chalk-muted")}>
           <Pin className="h-2.5 w-2.5 inline mr-1" fill="currentColor" />
           {pinnedCount} pinned {aiDictActive ? '· in AI context' : '· AI off'}
         </span>

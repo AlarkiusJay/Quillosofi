@@ -104,7 +104,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
       <>
         <div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm" onClick={onClose} />
         <div className="fixed inset-x-4 top-[10%] bottom-[10%] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[800px] md:max-h-[80vh] z-50 flex flex-col rounded-2xl border border-border shadow-2xl overflow-hidden"
-        style={{ background: 'hsl(220, 8%, 18%)' }}>
+        style={{ background: 'hsl(var(--chalk-deep) / 0.85)', backdropFilter: 'blur(4px)' }}>
           <div className="flex items-center justify-center h-full">
             <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
@@ -116,7 +116,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
     <>
       <div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-x-4 top-[10%] bottom-[10%] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[800px] md:max-h-[80vh] z-50 flex flex-col rounded-2xl border border-border shadow-2xl overflow-hidden"
-      style={{ background: 'hsl(220, 8%, 18%)' }}>
+      style={{ background: 'hsl(var(--chalk-deep) / 0.85)', backdropFilter: 'blur(4px)' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-3 md:px-5 py-3 md:py-4 border-b border-border shrink-0">

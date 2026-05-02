@@ -47,7 +47,7 @@ const gridStyles = `
     transition-property: left, top, width, height;
   }
   .quillounge-grid .react-grid-item.react-grid-placeholder {
-    background: hsl(258, 80%, 70%) !important;
+    background: hsl(var(--chalk-yellow)) !important;
     opacity: 0.18;
     border-radius: 16px;
   }
@@ -70,8 +70,8 @@ const gridStyles = `
     bottom: 5px;
     width: 8px;
     height: 8px;
-    border-right: 2px solid hsl(258, 70%, 65%);
-    border-bottom: 2px solid hsl(258, 70%, 65%);
+    border-right: 2px solid hsl(var(--chalk-yellow));
+    border-bottom: 2px solid hsl(var(--chalk-yellow));
     border-bottom-right-radius: 2px;
     opacity: 0.8;
   }

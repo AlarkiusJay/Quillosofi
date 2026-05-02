@@ -84,7 +84,7 @@ function clearUsage() { try { localStorage.removeItem(USAGE_KEY); } catch { /* i
 // =======================================================================
 const categoryColors = {
   personal: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  preference: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  preference: 'bg-[hsl(var(--chalk-pink)/0.18)] text-[hsl(var(--chalk-pink))] border-[hsl(var(--chalk-pink)/0.3)]',
   context: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   interest: 'bg-green-500/10 text-green-400 border-green-500/20',
 };
@@ -307,12 +307,12 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
       <div className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm" onClick={onClose} />
       <div
         className="fixed inset-x-3 top-[8%] bottom-[8%] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[920px] md:max-w-[92vw] md:max-h-[84vh] z-[101] flex flex-col rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl overflow-hidden"
-        style={{ background: 'hsl(220, 8%, 14%)' }}
+        style={{ background: 'hsl(var(--chalk-deep) / 0.92)', backdropFilter: 'blur(4px)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(225,9%,18%)] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shrink-0">
+            <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))] flex items-center justify-center shrink-0">
               <Sliders className="h-4 w-4 text-white absolute opacity-80" style={{ transform: 'translate(-3px, -3px)' }} />
               <Brain className="h-4 w-4 text-white absolute" style={{ transform: 'translate(3px, 3px)' }} />
             </div>
@@ -329,7 +329,7 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
         {/* Layout: sidebar tabs + content */}
         <div className="flex flex-1 overflow-hidden">
           {/* Tab rail */}
-          <div className="w-44 md:w-52 shrink-0 border-r border-[hsl(225,9%,18%)] py-3 px-2 overflow-y-auto" style={{ background: 'hsl(220, 8%, 12%)' }}>
+          <div className="w-44 md:w-52 shrink-0 border-r border-[hsl(225,9%,18%)] py-3 px-2 overflow-y-auto" style={{ background: 'hsl(var(--chalk-deep))' }}>
             {TABS.map(t => {
               const Icon = t.icon;
               return (
@@ -413,7 +413,7 @@ export default function AiSettingsModal({ onClose, initialTab = 'overview' }) {
                   <div>
                     <label className="text-xs font-medium text-white mb-3 block">Profile Picture</label>
                     <div className="flex items-end gap-4">
-                      <div className="h-20 w-20 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-2xl font-bold text-white overflow-hidden shrink-0">
+                      <div className="h-20 w-20 rounded-xl bg-gradient-to-br from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))] flex items-center justify-center text-2xl font-bold text-white overflow-hidden shrink-0">
                         {tempProfilePicture
                           ? <img src={tempProfilePicture} alt="Profile" className="w-full h-full object-cover" />
                           : profilePicture

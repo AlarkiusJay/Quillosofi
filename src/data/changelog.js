@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.23',
+    date: '2026-05-02',
+    tagline: 'Theme propagation + Chat welcome cards as sticky notes.',
+    changes: [
+      'Welcome cards in Chat (Tell me about yourself / Remember my preferences / Help me brainstorm) are now sticky notes — manila, mint, and pink paper with thumbtacks and natural per-card rotation.',
+      'Purple-to-violet gradients across Space rail icons, stats panel, and AI settings retinted to chalk-yellow → chalk-pink so they belong on the chalkboard.',
+      'Modal backgrounds (Settings, Upgrade, AI Settings, Chat header) now use translucent chalk-deep with backdrop blur — the chalkboard texture bleeds through instead of getting painted over.',
+      'Drag placeholder + resize handles on Quillounge are chalk-yellow now, no more leftover purple.',
+      'Custom Dictionary AI badges, the spreadsheet "A" indicator, and the Data Security accent retuned to the chalk palette.',
+    ],
+  },
+  {
     version: '0.4.22',
     date: '2026-05-02',
     tagline: 'Thumbtacks pop — no more flat-clipped semicircles.',
