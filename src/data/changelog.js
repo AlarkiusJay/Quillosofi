@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.25',
+    date: '2026-05-02',
+    tagline: 'OpenRouter key locks in once — toggle AI off/on without re-pasting.',
+    changes: [
+      'Once you save your OpenRouter API key, it stays in this device\'s local data forever and the input field locks down. Flipping AI off and back on pulls the same key automatically — no more re-pasting every session.',
+      'Replaced the trash button with a small "Replace key" link for the rare case your OpenRouter key actually rotates. The previous key stays active until you confirm the new one.',
+      'Locked input shows a lock icon and masked preview so you can confirm what\'s saved without ever revealing it again.',
+    ],
+  },
+  {
     version: '0.4.24',
     date: '2026-05-02',
     tagline: 'Killed the obnoxious yellow focus border on canvas editors.',
