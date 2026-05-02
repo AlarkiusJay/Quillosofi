@@ -11,8 +11,10 @@ const modules = { toolbar: false };
 
 const editorStyles = `
   .vault-quill-wrapper { width: 100%; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-  .vault-quill-wrapper .ql-container { background: transparent; border: none; font-size: 14px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; }
-  .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; }
+  .vault-quill-wrapper .ql-container { background: transparent; border: none; font-size: 14px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; outline: none !important; box-shadow: none !important; }
+  .vault-quill-wrapper .ql-container:focus, .vault-quill-wrapper .ql-container:focus-visible, .vault-quill-wrapper .ql-container *:focus, .vault-quill-wrapper .ql-container *:focus-visible { outline: none !important; box-shadow: none !important; }
+  .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; }
+  .vault-quill-wrapper .ql-editor:focus, .vault-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
   .vault-quill-wrapper .ql-editor.ql-blank::before { color: hsl(220,7%,40%); font-style: normal; content: 'Start writing...'; }
   .vault-quill-wrapper .ql-editor h1 { font-size: 2em; font-weight: 700; margin: 12px 0 6px; }
   .vault-quill-wrapper .ql-editor h2 { font-size: 1.5em; font-weight: 700; margin: 10px 0 5px; }

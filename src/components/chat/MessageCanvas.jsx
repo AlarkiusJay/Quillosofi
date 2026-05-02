@@ -191,10 +191,12 @@ export default function MessageCanvas({ message, onClose, onSave: onSaveCallback
 
   const editorStyles = `
     .canvas-quill-wrapper { width: 100%; display: flex; flex-direction: column; }
-    .canvas-quill-wrapper .ql-container { background: transparent; border: none; font-size: 13px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; }
+    .canvas-quill-wrapper .ql-container { background: transparent; border: none; font-size: 13px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; outline: none !important; box-shadow: none !important; }
+    .canvas-quill-wrapper .ql-container:focus, .canvas-quill-wrapper .ql-container:focus-visible, .canvas-quill-wrapper .ql-container *:focus, .canvas-quill-wrapper .ql-container *:focus-visible { outline: none !important; box-shadow: none !important; }
     .canvas-quill-wrapper.fullscreen .ql-container { height: 100%; }
     .canvas-quill-wrapper.fullscreen .ql-editor { min-height: 100%; }
-    .canvas-quill-wrapper .ql-editor { padding: 12px; word-break: break-word; overflow-wrap: break-word; min-height: 100px; font-size: 14px; }
+    .canvas-quill-wrapper .ql-editor { padding: 12px; word-break: break-word; overflow-wrap: break-word; min-height: 100px; font-size: 14px; outline: none !important; }
+    .canvas-quill-wrapper .ql-editor:focus, .canvas-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
     .canvas-quill-wrapper .ql-editor.ql-blank::before { color: hsl(220,7%,40%); font-style: normal; }
     .canvas-quill-wrapper .ql-editor h1 { font-size: 1.8em; font-weight: 700; margin: 10px 0 5px; }
     .canvas-quill-wrapper .ql-editor h2 { font-size: 1.4em; font-weight: 700; margin: 8px 0 4px; }

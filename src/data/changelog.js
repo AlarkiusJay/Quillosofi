@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.24',
+    date: '2026-05-02',
+    tagline: 'Killed the obnoxious yellow focus border on canvas editors.',
+    changes: [
+      'Removed the chalk-yellow focus outline that was wrapping the canvas writing area (and following the cursor around when you clicked into different paragraphs). Vault canvas + chat-side canvas both fixed.',
+      'The cursor itself is the focus indicator now — no more highlighter box screaming at you while you write.',
+    ],
+  },
+  {
     version: '0.4.23',
     date: '2026-05-02',
     tagline: 'Theme propagation + Chat welcome cards as sticky notes.',
