@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.22',
+    date: '2026-05-02',
+    tagline: 'Thumbtacks pop — no more flat-clipped semicircles.',
+    changes: [
+      'Thumbtacks now pop above the sticky note top edge instead of being sliced flat against the rounded paper.',
+      'Beefed up the tack itself: bigger glossy dome, top highlight, cast shadow grounding it to the paper for proper tactile depth.',
+    ],
+  },
+  {
     version: '0.4.21',
     date: '2026-05-02',
     tagline: 'Chalkboard everywhere + sticky text that actually reads.',
@@ -25,7 +34,6 @@ export const CHANGELOG = [
       'Sticky note text adapts to the paper color — dark ink on Manila / Mint / Pink / Lavender / Aged / Blue, no more white-on-pastel washout.',
       'Inner widget content (Greeting, To Do, Today\'s Prompt, Pinned\u00b7Recent\u00b7Stats) re-themed to ink colors so it reads on every swatch.',
       'Stats / Library / Plugins right-rail cards retinted so they sit on the chalkboard instead of painting over it.',
-      'Thumbtacks now pop above the sticky note top edge instead of being clipped flat — with proper gloss highlight and a cast shadow on the paper for that tactile depth.',
     ],
   },
   {
