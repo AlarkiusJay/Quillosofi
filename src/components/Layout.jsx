@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { guestStorage } from '../utils/guestStorage';
 
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { app } from '@/api/localClient';
 import { cn } from '@/lib/utils';
 import { Menu, X } from 'lucide-react';
@@ -18,9 +18,27 @@ import { useAiEnabled } from '@/lib/aiState';
 
 import { useGuestMode } from '../hooks/useGuestMode';
 
+// v0.4.18 — routes that only exist while AI is enabled. If AI flips off
+// while the user is parked on one of these, the page goes silently dead
+// (rail buttons disappear but the AI-only Outlet keeps rendering). Bounce
+// back to Quillounge so they land on real writing features.
+const AI_ONLY_PREFIXES = ['/spaces', '/space/', '/research', '/chat'];
+const isAiOnlyPath = (pathname) =>
+  AI_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+
 export default function Layout() {
   const { isExpired, isGuest, loading: guestLoading } = useGuestMode();
   const [aiEnabled] = useAiEnabled();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Bounce off AI-only routes the moment AI is disabled. Replace (don't push)
+  // so Back doesn't drop them right back into a dead view.
+  useEffect(() => {
+    if (!aiEnabled && isAiOnlyPath(location.pathname)) {
+      navigate('/', { replace: true });
+    }
+  }, [aiEnabled, location.pathname, navigate]);
 
   useEffect(() => {
     if (isExpired && isGuest) {
@@ -70,7 +88,8 @@ export default function Layout() {
     if (isRightSwipe && !rightSidebarOpen) setLeftSidebarOpen(true);
   };
 
-  const navigate = useNavigate();
+  // v0.4.18: navigate + location are declared at the top of the component
+  // alongside the AI-route bounce effect. Keep params local.
   const params = useParams();
   const activeId = params.conversationId;
 

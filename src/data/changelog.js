@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.18',
+    date: '2026-05-02',
+    tagline: 'Toggling AI off now bounces you back to writing features.',
+    changes: [
+      'Fixed: turning AI off while parked on Spaces, Research, Chat, or a specific Space left you stranded on a dead view (rail buttons disappeared but the AI-only page kept rendering).',
+      'Now redirects to Quillounge (Home) the moment AI flips off from any AI-only route.',
+      'Uses replace navigation, so Back doesn\u2019t drop you right back into the orphaned page.',
+    ],
+  },
+  {
     version: '0.4.17',
     date: '2026-05-01',
     tagline: 'In-app changelog viewer.',
