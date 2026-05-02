@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.21',
+    date: '2026-05-02',
+    tagline: 'Chalkboard everywhere + sticky text that actually reads.',
+    changes: [
+      'Chalkboard texture now extends to the WHOLE app: sidebars, top bar, rails, and mobile overlays. The opaque dark-gray panels that were blocking the texture are gone.',
+      'Sticky note text adapts to the paper color — dark ink on Manila / Mint / Pink / Lavender / Aged / Blue, no more white-on-pastel washout.',
+      'Inner widget content (Greeting, To Do, Today\'s Prompt, Pinned\u00b7Recent\u00b7Stats) re-themed to ink colors so it reads on every swatch.',
+      'Stats / Library / Plugins right-rail cards retinted so they sit on the chalkboard instead of painting over it.',
+    ],
+  },
+  {
     version: '0.4.20',
     date: '2026-05-02',
     tagline: 'Chalkboard redesign — widgets are sticky notes now.',
@@ -28,8 +39,6 @@ export const CHANGELOG = [
       'Accent color shifted from purple to chalk-yellow across the app.',
       'Two new font choices in the existing font picker: Oldenburg (slab serif, on-theme) and Instrument Serif (editorial).',
       'Lora is still the default — nothing changes for you unless you switch.',
-      'Sticky note text now adapts to the paper color — dark ink on every swatch, no more white-on-pastel washout.',
-      'Chalkboard now extends to the WHOLE app: sidebars, top bar, rails, mobile overlays — the texture bleeds through everywhere instead of stopping at the main content.',
     ],
   },
   {
