@@ -153,20 +153,27 @@ export default function Quillounge() {
   }, [layouts]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[hsl(228,7%,16%)]" style={{ minHeight: 0 }}>
+    // v0.4.20: chalkboard surface. The body's background-image (set in
+    // index.css) shows through because we don't paint over it here.
+    <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, background: 'transparent' }}>
       <style>{gridStyles}</style>
 
-      {/* Header */}
-      <div className="px-5 md:px-8 pt-5 md:pt-6 pb-2 flex items-center justify-between gap-3">
+      {/* Header — chalk-on-board masthead. Oldenburg shows up here when the
+          user picks it from the font selector; falls back to whatever font
+          they've chosen. The QUILLOUNGE label is rendered as if chalked. */}
+      <div className="px-5 md:px-8 pt-6 md:pt-8 pb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[hsl(220,7%,45%)] font-semibold">Quillounge</p>
-          <p className="text-xs text-[hsl(220,7%,55%)] mt-0.5">{editing ? 'Drag headers to reorder · drag the corner to resize' : 'Your home base for writing'}</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] chalk-yellow font-semibold">Quillounge</p>
+          <p className="font-instrument text-[15px] chalk-text mt-1 italic opacity-90">
+            {editing ? 'Drag headers to reorder · drag the corner to resize' : 'Your home base for writing.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {editing && (
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs text-[hsl(220,7%,65%)] hover:text-white border border-[hsl(225,9%,22%)] hover:border-primary/40 transition-colors"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs chalk-muted hover:chalk-text border transition-colors"
+              style={{ borderColor: 'hsl(var(--chalk-white-faint) / 0.5)' }}
               title="Reset layout"
             >
               <RotateCcw className="h-3 w-3" /> Reset
@@ -174,7 +181,15 @@ export default function Quillounge() {
           )}
           <button
             onClick={() => setEditing(v => !v)}
-            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-colors ${editing ? 'bg-primary text-white' : 'bg-[hsl(220,8%,20%)] text-[hsl(220,7%,70%)] hover:text-white border border-[hsl(225,9%,22%)]'}`}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-colors"
+            style={editing ? {
+              background: 'hsl(var(--chalk-yellow))',
+              color: 'hsl(var(--chalk-deep))',
+            } : {
+              background: 'hsl(var(--chalk-board-alt))',
+              color: 'hsl(var(--chalk-white))',
+              border: '1px solid hsl(var(--chalk-white-faint) / 0.5)',
+            }}
           >
             {editing ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
             {editing ? 'Editing' : 'Edit Layout'}

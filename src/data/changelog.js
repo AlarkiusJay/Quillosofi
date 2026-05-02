@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.20',
+    date: '2026-05-02',
+    tagline: 'Chalkboard redesign — widgets are sticky notes now.',
+    changes: [
+      'New look: the whole app sits on a deep-green chalkboard surface.',
+      'Widgets on Quillounge are now pinned sticky notes — thumbtack at the top, soft paper shadow, slight per-widget tilt.',
+      'Per-widget paper colors: Manila, Mint, Pink, Lavender, Aged, Blue. Pick yours from the sticky settings (the slider icon on each note).',
+      'Existing widget themes (glass / rose / teal / etc.) auto-map to the closest sticky color so your customizations carry over.',
+      'Accent color shifted from purple to chalk-yellow across the app.',
+      'Two new font choices in the existing font picker: Oldenburg (slab serif, on-theme) and Instrument Serif (editorial).',
+      'Lora is still the default — nothing changes for you unless you switch.',
+    ],
+  },
+  {
     version: '0.4.18',
     date: '2026-05-02',
     tagline: 'Toggling AI off now bounces you back to writing features.',

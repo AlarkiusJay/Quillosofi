@@ -13,7 +13,9 @@ module.exports = {
   			lora: ['var(--font-lora)'],
   			georgia: ['var(--font-georgia)'],
   			fira: ['var(--font-fira)'],
-  			system: ['var(--font-system)']
+  			system: ['var(--font-system)'],
+  			oldenburg: ['var(--font-oldenburg)'],
+  			instrument: ['var(--font-instrument)']
   		},
   		colors: {
   			background: 'hsl(var(--background))',

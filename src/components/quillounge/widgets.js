@@ -24,23 +24,40 @@ export const DEFAULT_LAYOUT = [
   { i: 'pinnedRecent', x: 0, y: 6, w: 6,  h: 4, minW: 3, minH: 3 },
 ];
 
+// v0.4.20: themes are now sticky-note PAPER colors. The pre-redesign theme
+// keys (glass/rose/lavender/teal) are aliased to the closest sticky color
+// so existing user preferences in localStorage don't break on upgrade.
 export const DEFAULT_WIDGET_STATE = {
-  greeting:     { opacity: 1.00, theme: 'glass' },
-  todaysPrompt: { opacity: 0.96, theme: 'rose' },
-  todo:         { opacity: 0.96, theme: 'lavender' },
-  pinnedRecent: { opacity: 0.96, theme: 'teal' },
+  greeting:     { opacity: 1.00, theme: 'manila' },
+  todaysPrompt: { opacity: 1.00, theme: 'pink' },
+  todo:         { opacity: 1.00, theme: 'lavender' },
+  pinnedRecent: { opacity: 1.00, theme: 'mint' },
 };
 
-// Theme palette — keyed by name, not raw color, so users can pick "rose"
-// without seeing hex codes.
+// Sticky note paper palette. `paper` is the HSL var the .sticky-note CSS
+// reads via --paper. `tack` is the thumbtack color. `label` is the swatch
+// label in the per-widget settings popover.
+// Pre-v0.4.20 theme keys (glass/rose/teal/amber/noir) are aliased below to
+// the closest sticky color so saved settings keep working after upgrade.
 export const WIDGET_THEMES = {
-  glass:     { bg: 'hsl(220, 8%, 16%)',  accent: 'hsl(235, 86%, 75%)', label: 'Glass' },
-  lavender:  { bg: 'hsl(258, 30%, 18%)', accent: 'hsl(258, 80%, 70%)', label: 'Lavender' },
-  rose:      { bg: 'hsl(340, 24%, 18%)', accent: 'hsl(340, 80%, 70%)', label: 'Rose' },
-  teal:      { bg: 'hsl(176, 30%, 14%)', accent: 'hsl(176, 70%, 60%)', label: 'Teal' },
-  amber:     { bg: 'hsl(38,  30%, 14%)', accent: 'hsl(38,  90%, 60%)', label: 'Amber' },
-  noir:      { bg: 'hsl(220, 8%, 10%)',  accent: 'hsl(220, 14%, 75%)', label: 'Noir' },
+  manila:    { paper: 'var(--sticky-manila)',   tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Manila' },
+  mint:      { paper: 'var(--sticky-mint)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Mint' },
+  pink:      { paper: 'var(--sticky-pink)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Pink' },
+  lavender:  { paper: 'var(--sticky-lavender)', tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Lavender' },
+  aged:      { paper: 'var(--sticky-aged)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Aged' },
+  blue:      { paper: 'var(--sticky-blue)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Blue' },
+  // Aliases so old persisted theme values still resolve. Pre-existing
+  // “glass” users get manila, “rose” → pink, “teal” → mint, etc.
+  glass:     { paper: 'var(--sticky-aged)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Aged' },
+  rose:      { paper: 'var(--sticky-pink)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Pink' },
+  teal:      { paper: 'var(--sticky-mint)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Mint' },
+  amber:     { paper: 'var(--sticky-manila)',   tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Manila' },
+  noir:      { paper: 'var(--sticky-aged)',     tack: 'var(--chalk-red)',    ink: 'var(--sticky-ink)', label: 'Aged' },
 };
+
+// User-pickable swatches in the settings popover. Aliases hidden — they
+// only exist for backward-compat resolution.
+export const STICKY_SWATCHES = ['manila', 'mint', 'pink', 'lavender', 'aged', 'blue'];
 
 // Layout is a per-breakpoint object: { lg: [...], md: [...], sm: [...] }.
 //

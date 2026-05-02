@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { app } from '@/api/localClient';
 import { Type } from 'lucide-react';
 
+// v0.4.20: added Oldenburg (slab serif, the chalkboard-themed pick) and
+// Instrument Serif (refined editorial serif). Existing fonts kept; user
+// selection persists in BotConfig.preferred_font as before — nothing breaks.
 const FONTS = [
   { id: 'inter', label: 'Inter', className: 'font-inter' },
+  { id: 'oldenburg', label: 'Oldenburg', className: 'font-oldenburg' },
+  { id: 'instrument', label: 'Instrument Serif', className: 'font-instrument' },
   { id: 'poppins', label: 'Poppins', className: 'font-poppins' },
   { id: 'roboto', label: 'Roboto', className: 'font-roboto' },
   { id: 'playfair', label: 'Playfair Display', className: 'font-playfair' },

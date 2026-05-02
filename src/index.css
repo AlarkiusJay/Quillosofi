@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Playfair+Display:wght@400;500;700&family=Lora:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Playfair+Display:wght@400;500;700&family=Lora:wght@400;500;600&family=Oldenburg&family=Instrument+Serif&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -15,77 +15,195 @@
     --font-georgia: 'Georgia', 'Garamond', serif;
     --font-fira: 'Fira Sans', 'Trebuchet MS', sans-serif;
     --font-system: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-oldenburg: 'Oldenburg', 'Instrument Serif', Georgia, serif;
+    --font-instrument: 'Instrument Serif', Georgia, serif;
 
-    /* Discord dark theme */
-    --background: 228 7% 20%;
-    --foreground: 220 14% 96%;
-    --card: 220 8% 18%;
-    --card-foreground: 220 14% 96%;
-    --popover: 220 8% 18%;
-    --popover-foreground: 220 14% 96%;
-    --primary: 235 86% 65%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 228 7% 23%;
-    --secondary-foreground: 220 14% 96%;
-    --muted: 228 7% 23%;
-    --muted-foreground: 220 7% 61%;
-    --accent: 235 86% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 225 9% 12%;
-    --input: 228 8% 27%;
-    --ring: 235 86% 65%;
-    --radius: 0.375rem;
-    --sidebar-background: 220 8% 18%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 235 86% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 7% 25%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 225 9% 12%;
-    --sidebar-ring: 235 86% 65%;
+    /* Chalkboard theme tokens — v0.4.20.
+     * The chalkboard surface lives behind everything; sticky notes sit on
+     * top of it. These are the *raw* values; the legacy Discord HSL tokens
+     * below are remapped to point at the chalkboard equivalents so the
+     * rest of the app picks up the new look without a full CSS rewrite. */
+    --chalk-deep:        25 18% 11%;   /* outermost frame, almost-black */
+    --chalk-board:       155 14% 19%;  /* main chalkboard surface */
+    --chalk-board-alt:   155 14% 24%;  /* hover / raised panels */
+    --chalk-erased:      155 12% 22%;  /* faintly smudged area */
+    --chalk-white:       40  35% 91%;  /* warm off-white "chalk" */
+    --chalk-white-muted: 40  10% 67%;  /* secondary text */
+    --chalk-white-faint: 40  6%  40%;  /* tertiary, dividers */
+    --chalk-yellow:      48  76% 60%;  /* primary accent ("underline this") */
+    --chalk-pink:        342 60% 78%;  /* secondary accent */
+    --chalk-red:         12  64% 48%;  /* thumbtack / urgent */
+    --chalk-brass:       40  46% 58%;  /* warm brass alt */
 
-    /* Discord panel backgrounds */
-    --discord-servers: 223 7% 15%;
-    --discord-channels: 220 8% 18%;
-    --discord-chat: 228 7% 20%;
-    --discord-members: 220 8% 18%;
+    /* Sticky note paper tones. Each is the FILL color; text on a sticky
+     * is dark ink so users actually read it. */
+    --sticky-manila:     45  55% 70%;
+    --sticky-mint:       125 30% 70%;
+    --sticky-pink:       350 60% 80%;
+    --sticky-lavender:   265 35% 78%;
+    --sticky-aged:       42  30% 80%;
+    --sticky-blue:       205 50% 75%;
+    --sticky-ink:        25  25% 18%;  /* dark ink for sticky body text */
+
+    /* v0.4.20: legacy semantic tokens now point at the chalkboard palette.
+     * Names kept (background/card/primary/etc) so existing components keep
+     * working without a global rewrite. Values retuned to chalkboard. */
+    --background: var(--chalk-board);
+    --foreground: var(--chalk-white);
+    --card: var(--chalk-board-alt);
+    --card-foreground: var(--chalk-white);
+    --popover: var(--chalk-deep);
+    --popover-foreground: var(--chalk-white);
+    --primary: var(--chalk-yellow);
+    --primary-foreground: var(--chalk-deep);
+    --secondary: var(--chalk-board-alt);
+    --secondary-foreground: var(--chalk-white);
+    --muted: var(--chalk-erased);
+    --muted-foreground: var(--chalk-white-muted);
+    --accent: var(--chalk-yellow);
+    --accent-foreground: var(--chalk-deep);
+    --destructive: var(--chalk-red);
+    --destructive-foreground: var(--chalk-white);
+    --border: var(--chalk-white-faint);
+    --input: var(--chalk-board-alt);
+    --ring: var(--chalk-yellow);
+    --radius: 0.5rem;
+    --sidebar-background: var(--chalk-deep);
+    --sidebar-foreground: var(--chalk-white);
+    --sidebar-primary: var(--chalk-yellow);
+    --sidebar-primary-foreground: var(--chalk-deep);
+    --sidebar-accent: var(--chalk-board-alt);
+    --sidebar-accent-foreground: var(--chalk-white);
+    --sidebar-border: var(--chalk-white-faint);
+    --sidebar-ring: var(--chalk-yellow);
+
+    /* Legacy chat panel tokens kept pointing at chalkboard surfaces so the
+     * Discord-era class names don't render bright purple on a green board. */
+    --discord-servers: var(--chalk-deep);
+    --discord-channels: var(--chalk-board-alt);
+    --discord-chat: var(--chalk-board);
+    --discord-members: var(--chalk-board-alt);
   }
 
+  /* The .dark class doesn't toggle anything in Quillosofi (we're dark-only),
+   * but tailwindcss-darkmode probes for it. Mirror :root values so any
+   * darkMode:'class' utility resolves identically. */
   .dark {
-    --background: 228 7% 20%;
-    --foreground: 220 14% 96%;
-    --card: 220 8% 18%;
-    --card-foreground: 220 14% 96%;
-    --popover: 220 8% 18%;
-    --popover-foreground: 220 14% 96%;
-    --primary: 235 86% 65%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 228 7% 23%;
-    --secondary-foreground: 220 14% 96%;
-    --muted: 228 7% 23%;
-    --muted-foreground: 220 7% 61%;
-    --accent: 235 86% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 225 9% 12%;
-    --input: 228 8% 27%;
-    --ring: 235 86% 65%;
-    --sidebar-background: 220 8% 18%;
-    --sidebar-primary: 235 86% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 7% 25%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 225 9% 12%;
-    --sidebar-ring: 235 86% 65%;
+    --background: var(--chalk-board);
+    --foreground: var(--chalk-white);
+    --card: var(--chalk-board-alt);
+    --card-foreground: var(--chalk-white);
+    --popover: var(--chalk-deep);
+    --popover-foreground: var(--chalk-white);
+    --primary: var(--chalk-yellow);
+    --primary-foreground: var(--chalk-deep);
+    --secondary: var(--chalk-board-alt);
+    --secondary-foreground: var(--chalk-white);
+    --muted: var(--chalk-erased);
+    --muted-foreground: var(--chalk-white-muted);
+    --accent: var(--chalk-yellow);
+    --accent-foreground: var(--chalk-deep);
+    --destructive: var(--chalk-red);
+    --destructive-foreground: var(--chalk-white);
+    --border: var(--chalk-white-faint);
+    --input: var(--chalk-board-alt);
+    --ring: var(--chalk-yellow);
+    --sidebar-background: var(--chalk-deep);
+    --sidebar-primary: var(--chalk-yellow);
+    --sidebar-primary-foreground: var(--chalk-deep);
+    --sidebar-accent: var(--chalk-board-alt);
+    --sidebar-accent-foreground: var(--chalk-white);
+    --sidebar-border: var(--chalk-white-faint);
+    --sidebar-ring: var(--chalk-yellow);
   }
 
   body {
     @apply bg-background text-foreground;
+    /* v0.4.20: chalkboard texture is the world. Image lives in /public; the
+     * `fixed` attachment + `cover` size means it scales to viewport once and
+     * stays put while content scrolls over it. The dark overlay improves
+     * readability of chalk-white text against the texture's lighter streaks. */
+    background-image:
+      linear-gradient(hsl(var(--chalk-board) / 0.55), hsl(var(--chalk-board) / 0.72)),
+      url('/chalkboard.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
+
+  /* v0.4.20: Oldenburg + Instrument Serif font classes for FontSelector. */
+  .font-oldenburg { font-family: var(--font-oldenburg); }
+  .font-instrument { font-family: var(--font-instrument); }
 }
+
+/* v0.4.20: sticky-note utility classes. A sticky is just a wrapper with a
+ * pastel paper background, soft shadow, slight rotation, and a thumbtack
+ * absolutely positioned at the top center. The widget content lives inside.
+ * These are component-layer styles — they cooperate with the existing
+ * QuilloungeWidget shell without breaking drag/resize handles. */
+.sticky-note {
+  position: relative;
+  /* Each sticky declares its hue as --paper hex/HSL via inline style.
+   * Falls back to manila if no override is set. */
+  background: hsl(var(--paper, var(--sticky-manila)));
+  color: hsl(var(--sticky-ink));
+  /* Layered shadow: tight inner contact shadow + softer ambient lift. */
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.10) inset,
+    0 8px 16px -6px rgba(0, 0, 0, 0.45),
+    0 3px 6px -1px rgba(0, 0, 0, 0.30);
+  /* Faint paper grain via a CSS gradient — no extra image fetch.
+   * Kept very subtle so the paper color reads true. */
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.03) 100%);
+  border-radius: 6px;
+  /* Slight rotation — subtle. ±1.2° range, set via --rot inline style. */
+  transform: rotate(var(--rot, 0deg));
+  transition: box-shadow 0.18s ease-out;
+}
+
+/* Note: we don't change the transform on hover anymore — react-grid-layout
+ * uses transform for positioning, so layering our own translateY on top
+ * fights with grid placement. The shadow shift is enough "lift". */
+.sticky-note:hover {
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.10) inset,
+    0 12px 22px -8px rgba(0, 0, 0, 0.55),
+    0 5px 10px -2px rgba(0, 0, 0, 0.35);
+}
+
+/* The thumbtack — a small radial-gradient circle absolutely positioned at
+ * the top of the sticky. Pure CSS, no image asset. The metallic look comes
+ * from layered radial gradients (highlight + body + edge shadow). */
+.sticky-tack {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 35%),
+    radial-gradient(circle at 50% 50%, hsl(var(--tack, var(--chalk-red))) 0%, hsl(var(--tack, var(--chalk-red)) / 0.7) 100%);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Chalk text utility — used for labels rendered directly on the board
+ * (clock, masthead, breadcrumbs). Slight text-shadow gives a faintly
+ * dusty, just-written feel without faking handwriting. */
+.chalk-text {
+  color: hsl(var(--chalk-white));
+  text-shadow: 0 0 1px hsl(var(--chalk-white) / 0.3);
+}
+.chalk-yellow { color: hsl(var(--chalk-yellow)); }
+.chalk-pink { color: hsl(var(--chalk-pink)); }
+.chalk-muted { color: hsl(var(--chalk-white-muted)); }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
