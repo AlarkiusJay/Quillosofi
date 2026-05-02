@@ -42,28 +42,28 @@ export default function PinnedRecentWidget() {
   return (
     <div className="h-full flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-black/25 border border-white/5 px-3 py-2">
-          <p className="text-[9px] uppercase tracking-wider text-[hsl(220,7%,55%)] font-semibold">Total words</p>
-          <p className="text-lg font-semibold text-white tabular-nums">{stats.totalWords.toLocaleString()}</p>
+        <div className="rounded-lg bg-ink-softer border border-ink-faint px-3 py-2">
+          <p className="text-[9px] uppercase tracking-wider ink-muted font-semibold">Total words</p>
+          <p className="text-lg font-semibold ink-text tabular-nums">{stats.totalWords.toLocaleString()}</p>
         </div>
-        <div className="rounded-lg bg-black/25 border border-white/5 px-3 py-2">
-          <p className="text-[9px] uppercase tracking-wider text-[hsl(220,7%,55%)] font-semibold">Canvases</p>
-          <p className="text-lg font-semibold text-white tabular-nums">{stats.totalCanvases}</p>
+        <div className="rounded-lg bg-ink-softer border border-ink-faint px-3 py-2">
+          <p className="text-[9px] uppercase tracking-wider ink-muted font-semibold">Canvases</p>
+          <p className="text-lg font-semibold ink-text tabular-nums">{stats.totalCanvases}</p>
         </div>
       </div>
 
       {pinned.length > 0 && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(220,7%,55%)] font-semibold mb-1.5 flex items-center gap-1.5"><Pin className="h-2.5 w-2.5" />Pinned</p>
+          <p className="text-[10px] uppercase tracking-wider ink-muted font-semibold mb-1.5 flex items-center gap-1.5"><Pin className="h-2.5 w-2.5" />Pinned</p>
           <ul className="space-y-0.5">
             {pinned.map(c => (
               <li key={c.id}>
                 <button
                   onClick={() => navigate('/quillibrary')}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-black/30 transition-colors"
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-ink-soft transition-colors"
                 >
-                  <FileText className="h-3 w-3 text-primary shrink-0" />
-                  <span className="text-[11px] text-white truncate">{c.title || 'Untitled'}</span>
+                  <FileText className="h-3 w-3 shrink-0" style={{ color: 'hsl(var(--sticky-ink))' }} />
+                  <span className="text-[11px] ink-text truncate">{c.title || 'Untitled'}</span>
                 </button>
               </li>
             ))}
@@ -72,19 +72,19 @@ export default function PinnedRecentWidget() {
       )}
 
       <div className="flex-1 min-h-0">
-        <p className="text-[10px] uppercase tracking-wider text-[hsl(220,7%,55%)] font-semibold mb-1.5 flex items-center gap-1.5"><Hash className="h-2.5 w-2.5" />Recent</p>
+        <p className="text-[10px] uppercase tracking-wider ink-muted font-semibold mb-1.5 flex items-center gap-1.5"><Hash className="h-2.5 w-2.5" />Recent</p>
         {recent.length === 0 ? (
-          <p className="text-xs text-[hsl(220,7%,50%)]">Nothing yet — start writing.</p>
+          <p className="text-xs ink-muted">Nothing yet — start writing.</p>
         ) : (
           <ul className="space-y-0.5">
             {recent.map(c => (
               <li key={c.id}>
                 <button
                   onClick={() => navigate('/quillibrary')}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-black/30 transition-colors"
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-ink-soft transition-colors"
                 >
-                  <FileText className="h-3 w-3 text-[hsl(220,7%,55%)] shrink-0" />
-                  <span className="text-[11px] text-[hsl(220,14%,80%)] truncate">{c.title || 'Untitled'}</span>
+                  <FileText className="h-3 w-3 ink-muted shrink-0" />
+                  <span className="text-[11px] ink-text truncate">{c.title || 'Untitled'}</span>
                 </button>
               </li>
             ))}

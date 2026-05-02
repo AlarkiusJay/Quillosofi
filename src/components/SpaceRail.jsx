@@ -108,7 +108,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   return (
     <>
       <style>{scrollStyles}</style>
-      <div className="flex flex-row items-center h-[52px] w-full shrink-0 gap-0" style={{ background: 'hsl(223, 7%, 16%)' }}>
+      <div className="flex flex-row items-center h-[52px] w-full shrink-0 gap-0 chalk-shell-board border-b border-[hsl(var(--chalk-white-faint)/0.3)]">
 
         {/* Left fixed buttons: Quillounge -> Canvas -> Sheets -> Quillibrary -> divider -> (AI: Research, Chat) */}
         <div className="flex items-center gap-2 px-3 shrink-0">

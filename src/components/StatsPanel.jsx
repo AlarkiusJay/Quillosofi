@@ -31,7 +31,7 @@ function LiveClock({ onShowHydrationModal }) {
     <div
       onClick={handleClockClick}
       className="rounded-xl p-4 text-center cursor-pointer hover:opacity-80 transition-opacity"
-      style={{ background: 'hsl(228, 7%, 23%)' }}
+      style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}
     >
       <p className="text-2xl font-mono font-bold text-white tracking-widest">
         {format(now, 'HH:mm:ss')}
@@ -74,7 +74,7 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
   }, [aiEnabled, tab]);
 
   return (
-    <div className="h-full flex flex-col w-full md:w-64 shrink-0" style={{ background: 'hsl(220, 8%, 18%)', borderLeft: '1px solid hsl(225, 9%, 12%)' }}>
+    <div className="h-full flex flex-col w-full md:w-64 shrink-0" style={{ background: 'transparent', borderLeft: '1px solid hsl(var(--chalk-white-faint) / 0.3)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-12 border-b border-black/30 shrink-0">
         <div className="flex items-center gap-1">
@@ -115,7 +115,7 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
           {/* AI Quick Row — layout-only toggle for AI + entry point to AI Settings */}
           <div
             className="rounded-xl p-3 border border-[hsl(225,9%,22%)]"
-            style={{ background: 'hsl(228, 7%, 23%)' }}
+            style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}
           >
             <div className="flex items-center gap-2.5">
               <button
@@ -140,12 +140,12 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg p-3" style={{ background: 'hsl(228, 7%, 23%)' }}>
+            <div className="rounded-lg p-3" style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}>
               <MessageSquare className="h-4 w-4 text-primary mb-1" />
               <p className="text-xl font-bold text-white">{totalMessages}</p>
               <p className="text-[10px] text-[hsl(220,7%,50%)] font-medium">Conversations</p>
             </div>
-            <div className="rounded-lg p-3" style={{ background: 'hsl(228, 7%, 23%)' }}>
+            <div className="rounded-lg p-3" style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}>
               <Folder className="h-4 w-4 text-primary mb-1" />
               <p className="text-xl font-bold text-white">{totalSpaces}</p>
               <p className="text-[10px] text-[hsl(220,7%,50%)] font-medium">Spaces</p>

@@ -28,6 +28,8 @@ export const CHANGELOG = [
       'Accent color shifted from purple to chalk-yellow across the app.',
       'Two new font choices in the existing font picker: Oldenburg (slab serif, on-theme) and Instrument Serif (editorial).',
       'Lora is still the default — nothing changes for you unless you switch.',
+      'Sticky note text now adapts to the paper color — dark ink on every swatch, no more white-on-pastel washout.',
+      'Chalkboard now extends to the WHOLE app: sidebars, top bar, rails, mobile overlays — the texture bleeds through everywhere instead of stopping at the main content.',
     ],
   },
   {

@@ -205,6 +205,24 @@
 .chalk-pink { color: hsl(var(--chalk-pink)); }
 .chalk-muted { color: hsl(var(--chalk-white-muted)); }
 
+/* v0.4.20: sticky-note ink helpers. Inner widget content uses these so it
+ * adapts to the dark ink color regardless of which paper color is active.
+ * Three tiers mirror chalk-text/chalk-muted/chalk-faint. */
+.ink-text   { color: hsl(var(--sticky-ink)); }
+.ink-muted  { color: hsl(var(--sticky-ink) / 0.65); }
+.ink-faint  { color: hsl(var(--sticky-ink) / 0.45); }
+.bg-ink-soft   { background: hsl(var(--sticky-ink) / 0.08); }
+.bg-ink-softer { background: hsl(var(--sticky-ink) / 0.05); }
+.border-ink-faint { border-color: hsl(var(--sticky-ink) / 0.15); }
+
+/* v0.4.20: chalkboard-shell helpers — used by Layout.jsx so the chalkboard
+ * texture (set on body) shows through the sidebars/topbars instead of being
+ * blocked by opaque dark gray. The deep tint is for highest-elevation
+ * chrome, the board tint for sidebars, transparent for in-content rails. */
+.chalk-shell-deep  { background: hsl(var(--chalk-deep) / 0.45); backdrop-filter: blur(1px); }
+.chalk-shell-board { background: hsl(var(--chalk-board) / 0.35); backdrop-filter: blur(1px); }
+.chalk-shell-faint { background: hsl(var(--chalk-board) / 0.20); }
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

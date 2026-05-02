@@ -27,9 +27,9 @@ export default function GreetingWidget() {
 
   return (
     <div className="h-full flex flex-col justify-center">
-      <p className="text-[11px] uppercase tracking-wider text-[hsl(220,7%,55%)] font-semibold mb-1">{dateStr}</p>
+      <p className="text-[11px] uppercase tracking-wider ink-muted font-semibold mb-1">{dateStr}</p>
       <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">
+        <h2 className="text-2xl md:text-3xl font-bold ink-text">
           {greeting}{(name || editing) ? ',' : ''}
         </h2>
         {editing ? (
@@ -43,22 +43,22 @@ export default function GreetingWidget() {
                 if (e.key === 'Escape') { setDraft(name); setEditing(false); }
               }}
               placeholder="your name"
-              className="text-2xl md:text-3xl font-bold text-white bg-transparent border-b-2 border-primary/60 outline-none w-44"
+              className="text-2xl md:text-3xl font-bold ink-text bg-transparent border-b-2 border-[hsl(var(--sticky-ink)/0.5)] outline-none w-44"
             />
-            <button onClick={save} className="h-7 w-7 rounded-lg bg-primary text-white flex items-center justify-center"><Check className="h-3.5 w-3.5" /></button>
+            <button onClick={save} className="h-7 w-7 rounded-lg bg-[hsl(var(--sticky-ink))] text-[hsl(var(--paper))] flex items-center justify-center"><Check className="h-3.5 w-3.5" /></button>
           </div>
         ) : (
           <button
             onClick={() => { setDraft(name); setEditing(true); }}
-            className="group inline-flex items-center gap-2 text-2xl md:text-3xl font-bold text-white hover:text-primary transition-colors"
+            className="group inline-flex items-center gap-2 text-2xl md:text-3xl font-bold ink-text hover:opacity-80 transition-opacity"
             title={name ? 'Click to change name' : 'Click to set your name'}
           >
-            {name || <span className="italic text-[hsl(220,7%,50%)]">friend</span>}
+            {name || <span className="italic ink-faint">friend</span>}
             <Edit3 className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
         )}
       </div>
-      <p className="text-xs text-[hsl(220,7%,55%)] mt-2">{periodLabel} — what are you working on?</p>
+      <p className="text-xs ink-muted mt-2">{periodLabel} — what are you working on?</p>
     </div>
   );
 }

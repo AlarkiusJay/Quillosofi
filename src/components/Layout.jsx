@@ -181,7 +181,7 @@ export default function Layout() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
       className="h-screen flex flex-col md:flex-row overflow-hidden"
-      style={{ background: 'hsl(228, 7%, 20%)' }}
+      style={{ background: 'transparent' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -211,7 +211,7 @@ export default function Layout() {
 
       {/* Left: ChatSidebar - Desktop (AI feature — hidden when AI is off) */}
       {aiEnabled && (
-        <div className="hidden md:flex md:w-60 border-r border-border overflow-hidden flex-col" style={{ background: 'hsl(220, 8%, 18%)' }}>
+        <div className="hidden md:flex md:w-60 border-r border-border overflow-hidden flex-col chalk-shell-deep">
           <ChatSidebar
             conversations={conversations}
             spaces={spaces}
@@ -231,7 +231,7 @@ export default function Layout() {
       {aiEnabled && leftSidebarOpen && (
         <>
           <div className={`fixed inset-0 z-40 bg-black/60 md:hidden ${leftSidebarClosing ? 'animate-out fade-out duration-300' : 'animate-in fade-in duration-300'}`} onClick={closeLeftSidebar} />
-          <div className={`fixed left-0 top-0 h-screen w-60 z-50 md:hidden overflow-hidden flex flex-col ${leftSidebarClosing ? 'animate-out slide-out-to-left duration-300' : 'animate-in slide-in-from-left duration-300'}`} style={{ background: 'hsl(220, 8%, 18%)' }}>
+          <div className={`fixed left-0 top-0 h-screen w-60 z-50 md:hidden overflow-hidden flex flex-col chalk-shell-deep ${leftSidebarClosing ? 'animate-out slide-out-to-left duration-300' : 'animate-in slide-in-from-left duration-300'}`}>
             <ChatSidebar
               conversations={conversations}
               spaces={spaces}
@@ -256,7 +256,7 @@ export default function Layout() {
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between h-12 px-3 border-b border-border" style={{ background: 'hsl(220, 8%, 18%)' }}>
+        <div className="md:hidden flex items-center justify-between h-12 px-3 border-b border-border chalk-shell-board">
           {aiEnabled ? (
             <button
               onClick={() => setLeftSidebarOpen(true)}
@@ -288,7 +288,7 @@ export default function Layout() {
       </div>
 
       {/* Right: StatsPanel - Desktop */}
-      <div className="hidden md:flex md:w-64 border-l border-border overflow-hidden flex-col" style={{ background: 'hsl(220, 8%, 18%)' }}>
+      <div className="hidden md:flex md:w-64 border-l border-border overflow-hidden flex-col chalk-shell-deep">
         <StatsPanel
           conversations={conversations}
           spaces={spaces}
@@ -302,7 +302,7 @@ export default function Layout() {
       {rightSidebarOpen && (
         <>
           <div className={`fixed inset-0 z-40 bg-black/60 md:hidden ${rightSidebarClosing ? 'animate-out fade-out duration-300' : 'animate-in fade-in duration-300'}`} onClick={closeRightSidebar} />
-          <div className={`fixed right-0 top-0 h-screen w-64 z-50 md:hidden overflow-hidden flex flex-col ${rightSidebarClosing ? 'animate-out slide-out-to-right duration-300' : 'animate-in slide-in-from-right duration-300'}`} style={{ background: 'hsl(220, 8%, 18%)' }}>
+          <div className={`fixed right-0 top-0 h-screen w-64 z-50 md:hidden overflow-hidden flex flex-col chalk-shell-deep ${rightSidebarClosing ? 'animate-out slide-out-to-right duration-300' : 'animate-in slide-in-from-right duration-300'}`}>
             <div className="flex items-center justify-between h-12 px-3 border-b border-border">
               <span className="font-semibold text-sm">Stats</span>
             </div>
