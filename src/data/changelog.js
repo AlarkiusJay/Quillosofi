@@ -17,6 +17,19 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.26',
+    date: '2026-05-03',
+    tagline: 'Word-style toolbar wins on Canvas — font size, alignment, line spacing, indent, outline.',
+    changes: [
+      'New font-size dropdown on the Canvas toolbar (12 / 14 / 16 / 18 / 20 / 24 / 32 / 48 px) — select text and resize.',
+      'Alignment cluster: Left / Center / Right / Justify, four crisp toolbar buttons.',
+      'Line spacing dropdown: 1.0 / 1.15 / 1.5 / 2.0 / 2.5 / 3.0 — applied per-block, just like Word.',
+      'Indent in / out buttons — plus the Tab key indents and Shift-Tab outdents the current paragraph (max 8 levels). No more Tab jumping out of the editor.',
+      'New collapsible Outline rail (right side of Canvas) auto-lists every H1/H2/H3 in your document. Click any heading to scroll there. Hidden by default — hit the tree icon top-right to show it.',
+      'Toolbar reskinned to chalk palette — translucent panel with chalkboard texture bleeding through, chalk-yellow active state.',
+    ],
+  },
+  {
     version: '0.4.25',
     date: '2026-05-02',
     tagline: 'OpenRouter key locks in once — toggle AI off/on without re-pasting.',

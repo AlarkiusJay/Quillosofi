@@ -1,13 +1,71 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { exportTxt, exportMd, exportDocx, exportPdf } from './canvasExportUtils';
 import ReactQuill from 'react-quill';
+import '@/lib/quillFormats'; // side-effect: registers font-size whitelist + line-height
 import { app } from '@/api/localClient';
-import { X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload, ChevronDown, BookPlus } from 'lucide-react';
+import {
+  X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
+  Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload,
+  ChevronDown, BookPlus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  IndentIncrease, IndentDecrease, Type, MoreVertical,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
 import DictionaryContextMenu from '@/components/DictionaryContextMenu';
+import HeaderNavigator from './HeaderNavigator';
 
-const modules = { toolbar: false };
+// Tab/Shift-Tab keybindings drive the indent format directly so the writing
+// flow matches Word: Tab indents the current block, Shift-Tab outdents.
+const modules = {
+  toolbar: false,
+  keyboard: {
+    bindings: {
+      indentOnTab: {
+        key: 9, // Tab
+        handler(range) {
+          if (!range) return true;
+          const fmt = this.quill.getFormat(range);
+          const current = parseInt(fmt.indent || 0, 10);
+          if (current >= 8) return false;
+          this.quill.format('indent', current + 1, 'user');
+          return false;
+        },
+      },
+      outdentOnShiftTab: {
+        key: 9, // Tab
+        shiftKey: true,
+        handler(range) {
+          if (!range) return true;
+          const fmt = this.quill.getFormat(range);
+          const current = parseInt(fmt.indent || 0, 10);
+          if (current <= 0) return false;
+          this.quill.format('indent', current - 1, 'user');
+          return false;
+        },
+      },
+    },
+  },
+};
+
+// Toolbar helpers (font sizes, alignments, line spacing options).
+const FONT_SIZES = [
+  { value: '12px', label: '12' },
+  { value: '14px', label: '14' },
+  { value: '16px', label: '16' },
+  { value: '18px', label: '18' },
+  { value: '20px', label: '20' },
+  { value: '24px', label: '24' },
+  { value: '32px', label: '32' },
+  { value: '48px', label: '48' },
+];
+const LINE_HEIGHTS = [
+  { value: '1', label: '1.0' },
+  { value: '1.15', label: '1.15' },
+  { value: '1.5', label: '1.5' },
+  { value: '2', label: '2.0' },
+  { value: '2.5', label: '2.5' },
+  { value: '3', label: '3.0' },
+];
 
 const editorStyles = `
   .vault-quill-wrapper { width: 100%; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
@@ -31,10 +89,25 @@ const editorStyles = `
   .vault-quill-wrapper .ql-editor u { text-decoration: underline; }
   .vault-quill-wrapper .ql-editor s { text-decoration: line-through; }
   .vault-quill-wrapper .ql-editor code { background: hsl(220,8%,14%); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+  /* Alignment classes Quill emits when you set 'align' format */
+  .vault-quill-wrapper .ql-editor .ql-align-center { text-align: center; }
+  .vault-quill-wrapper .ql-editor .ql-align-right { text-align: right; }
+  .vault-quill-wrapper .ql-editor .ql-align-justify { text-align: justify; }
+  /* Indent classes (Quill stamps ql-indent-1 .. ql-indent-8) */
+  .vault-quill-wrapper .ql-editor .ql-indent-1 { padding-left: 3em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-2 { padding-left: 6em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-3 { padding-left: 9em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-4 { padding-left: 12em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-5 { padding-left: 15em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-6 { padding-left: 18em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-7 { padding-left: 21em; }
+  .vault-quill-wrapper .ql-editor .ql-indent-8 { padding-left: 24em; }
 `;
 
 function Toolbar({ quillRef }) {
   const [showHeadings, setShowHeadings] = useState(false);
+  const [showFontSize, setShowFontSize] = useState(false);
+  const [showLineHeight, setShowLineHeight] = useState(false);
 
   const fmt = useCallback((format, value) => {
     const q = quillRef.current?.getEditor?.();
@@ -48,27 +121,129 @@ function Toolbar({ quillRef }) {
     }
   }, [quillRef]);
 
-  const Btn = ({ icon: Icon, title, onClick }) => (
+  // Direct format set (no toggle) — used for size, align, line-height, indent.
+  const setFmt = useCallback((format, value) => {
+    const q = quillRef.current?.getEditor?.();
+    if (!q) return;
+    q.focus();
+    q.format(format, value);
+  }, [quillRef]);
+
+  const adjustIndent = useCallback((delta) => {
+    const q = quillRef.current?.getEditor?.();
+    if (!q) return;
+    q.focus();
+    const current = parseInt(q.getFormat?.().indent || 0, 10);
+    const next = Math.max(0, Math.min(8, current + delta));
+    q.format('indent', next || false);
+  }, [quillRef]);
+
+  const Btn = ({ icon: Icon, title, onClick, active = false }) => (
     <button
       type="button"
       title={title}
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
-      className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(228,7%,30%)] transition-colors"
+      className={cn(
+        'h-7 w-7 rounded flex items-center justify-center transition-colors',
+        active
+          ? 'text-[hsl(var(--chalk-yellow))] bg-[hsl(var(--chalk-deep)/0.7)]'
+          : 'text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)]'
+      )}
     >
       <Icon className="h-3.5 w-3.5" />
     </button>
   );
 
-  const Divider = () => <div className="w-px h-4 bg-[hsl(225,9%,22%)] mx-0.5" />;
+  const Divider = () => <div className="w-px h-4 bg-[hsl(var(--chalk-white-faint)/0.2)] mx-0.5" />;
+
+  // Reusable dropdown menu component for font size + line height.
+  const Menu = ({ items, onPick, onClose, label }) => (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="absolute z-50 mt-1 bg-[hsl(var(--chalk-deep)/0.97)] border border-[hsl(var(--chalk-white-faint)/0.25)] rounded-lg shadow-2xl backdrop-blur-md p-1 min-w-[88px]"
+        role="menu"
+        aria-label={label}
+      >
+        {items.map(it => (
+          <button
+            key={it.value}
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); onPick(it.value); onClose(); }}
+            className="w-full text-left px-3 py-1.5 text-xs rounded text-[hsl(220,7%,72%)] hover:bg-[hsl(var(--chalk-deep))] hover:text-[hsl(var(--chalk-yellow))] transition-colors font-mono"
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
 
   return (
-    <div className="border-b border-[hsl(225,9%,15%)] px-4 py-1.5 flex items-center gap-0.5 flex-wrap bg-[hsl(220,8%,14%)]">
+    <div className="border-b border-[hsl(var(--chalk-white-faint)/0.15)] px-4 py-1.5 flex items-center gap-0.5 flex-wrap bg-[hsl(var(--chalk-deep)/0.55)] backdrop-blur-sm">
       <Btn icon={Heading2} title="Headings" onClick={() => setShowHeadings(v => !v)} />
+
+      {/* Font size dropdown */}
+      <div className="relative">
+        <button
+          type="button"
+          title="Font size"
+          onMouseDown={(e) => { e.preventDefault(); setShowFontSize(v => !v); }}
+          className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs font-mono"
+        >
+          <Type className="h-3.5 w-3.5" />
+          <ChevronDown className="h-3 w-3" />
+        </button>
+        {showFontSize && (
+          <Menu
+            label="Font size"
+            items={FONT_SIZES}
+            onPick={(v) => setFmt('size', v)}
+            onClose={() => setShowFontSize(false)}
+          />
+        )}
+      </div>
+
       <Divider />
       <Btn icon={Bold} title="Bold" onClick={() => fmt('bold', true)} />
       <Btn icon={Italic} title="Italic" onClick={() => fmt('italic', true)} />
       <Btn icon={Underline} title="Underline" onClick={() => fmt('underline', true)} />
       <Btn icon={Strikethrough} title="Strikethrough" onClick={() => fmt('strike', true)} />
+
+      <Divider />
+      {/* Alignment cluster */}
+      <Btn icon={AlignLeft} title="Align left" onClick={() => setFmt('align', false)} />
+      <Btn icon={AlignCenter} title="Align center" onClick={() => setFmt('align', 'center')} />
+      <Btn icon={AlignRight} title="Align right" onClick={() => setFmt('align', 'right')} />
+      <Btn icon={AlignJustify} title="Justify" onClick={() => setFmt('align', 'justify')} />
+
+      <Divider />
+      {/* Indent in / out (Tab + Shift-Tab also work in the editor) */}
+      <Btn icon={IndentDecrease} title="Outdent (Shift-Tab)" onClick={() => adjustIndent(-1)} />
+      <Btn icon={IndentIncrease} title="Indent (Tab)" onClick={() => adjustIndent(1)} />
+
+      <Divider />
+      {/* Line height dropdown */}
+      <div className="relative">
+        <button
+          type="button"
+          title="Line spacing"
+          onMouseDown={(e) => { e.preventDefault(); setShowLineHeight(v => !v); }}
+          className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs"
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+          <ChevronDown className="h-3 w-3" />
+        </button>
+        {showLineHeight && (
+          <Menu
+            label="Line spacing"
+            items={LINE_HEIGHTS}
+            onPick={(v) => setFmt('line-height', v)}
+            onClose={() => setShowLineHeight(false)}
+          />
+        )}
+      </div>
+
       <Divider />
       <Btn icon={List} title="Bullet list" onClick={() => fmt('list', 'bullet')} />
       <Btn icon={ListOrdered} title="Numbered list" onClick={() => fmt('list', 'ordered')} />
@@ -88,12 +263,12 @@ function Toolbar({ quillRef }) {
           {[1, 2, 3].map(h => (
             <button key={h} type="button"
               onMouseDown={(e) => { e.preventDefault(); fmt('header', h); setShowHeadings(false); }}
-              className="px-2.5 py-0.5 text-xs rounded border border-[hsl(225,9%,20%)] text-[hsl(220,7%,65%)] hover:text-white hover:bg-[hsl(228,7%,27%)] transition-colors font-medium"
+              className="px-2.5 py-0.5 text-xs rounded border border-[hsl(var(--chalk-white-faint)/0.2)] text-[hsl(220,7%,65%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.7)] transition-colors font-medium"
             >H{h}</button>
           ))}
           <button type="button"
             onMouseDown={(e) => { e.preventDefault(); fmt('header', false); setShowHeadings(false); }}
-            className="px-2.5 py-0.5 text-xs rounded border border-[hsl(225,9%,20%)] text-[hsl(220,7%,65%)] hover:text-white hover:bg-[hsl(228,7%,27%)] transition-colors font-medium"
+            className="px-2.5 py-0.5 text-xs rounded border border-[hsl(var(--chalk-white-faint)/0.2)] text-[hsl(220,7%,65%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.7)] transition-colors font-medium"
           >Normal</button>
         </div>
       )}
@@ -309,15 +484,18 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
         {/* Toolbar */}
         <Toolbar quillRef={quillRef} />
 
-        {/* Editor */}
-        <div className="vault-quill-wrapper flex-1 overflow-hidden">
-          <ReactQuill
-            ref={quillRef}
-            value={content}
-            onChange={handleChange}
-            modules={modules}
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-          />
+        {/* Editor + outline rail */}
+        <div className="flex flex-1 overflow-hidden relative">
+          <div className="vault-quill-wrapper flex-1 overflow-hidden">
+            <ReactQuill
+              ref={quillRef}
+              value={content}
+              onChange={handleChange}
+              modules={modules}
+              style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            />
+          </div>
+          <HeaderNavigator quillRef={quillRef} content={content} />
         </div>
 
         {/* Footer */}
