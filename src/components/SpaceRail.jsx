@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import SpaceModal from './spaces/SpaceModal';
 import Tooltip from './Tooltip';
 import { useAiEnabled } from '@/lib/aiState';
+import useFreshlyUpdated from '@/lib/useFreshlyUpdated';
 
 // NOTE: previous versions polled the local index.html for an etag change as a
 // PWA-style "new build available" signal. Quillosofi is a desktop app — that
@@ -45,6 +46,10 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   const menuRef = useRef(null);
   const scrollRef = useRef(null);
   const [aiEnabled] = useAiEnabled();
+
+  // Freshly-updated dot: lights up after a version bump, until the user opens
+  // the Update tab. Independent from the in-app updater badge below.
+  const { freshlyUpdated, dismiss: dismissFreshlyUpdated } = useFreshlyUpdated();
 
   // Subscribe to the desktop updater so the gear icon shows a dot when an
   // update is downloaded and ready to install. Falls back to 0 on web/dev.
@@ -252,7 +257,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
               style={{ touchAction: 'manipulation' }}
               className="relative w-11 h-11 md:w-9 md:h-9 shrink-0 rounded-[18px] bg-[hsl(228,7%,42%)] hover:bg-primary hover:rounded-[10px] flex items-center justify-center transition-all duration-150 text-[hsl(220,7%,80%)] hover:text-white active:scale-90 active:brightness-75">
               <Settings className="h-4 w-4" />
-              {updateBadge > 0 && (
+              {(updateBadge > 0 || freshlyUpdated) && (
                 <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-green-400 border-2 border-[hsl(223,7%,16%)]" />
               )}
             </button>
@@ -268,7 +273,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           onSave={(s) => { onSpaceCreated(s); setShowSpaceModal(false); setEditingSpace(null); navigate(`/space/${s.id}`); }}
         />
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} updateCount={updateBadge} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} updateCount={updateBadge} freshlyUpdated={freshlyUpdated} onUpdateTabSeen={dismissFreshlyUpdated} />}
       {showAiSettings && <AiSettingsModal onClose={() => setShowAiSettings(false)} />}
 
       {contextMenu && (

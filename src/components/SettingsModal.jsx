@@ -72,8 +72,15 @@ function KeybindRow({ action, binding, onCapture }) {
   );
 }
 
-export default function SettingsModal({ onClose, initialTab = 'general', onDataUpdate, updateCount = 0 }) {
+export default function SettingsModal({ onClose, initialTab = 'general', onDataUpdate, updateCount = 0, freshlyUpdated = false, onUpdateTabSeen }) {
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  // When the user opens the Update tab, dismiss the "freshly updated" dot.
+  useEffect(() => {
+    if (activeTab === 'update' && freshlyUpdated && typeof onUpdateTabSeen === 'function') {
+      onUpdateTabSeen();
+    }
+  }, [activeTab, freshlyUpdated, onUpdateTabSeen]);
   const [isLoading, setIsLoading] = useState(true);
   const [keybinds, setKeybind, resetKeybinds] = useKeybinds();
   const [userName, setUserName] = useUserName();
@@ -149,7 +156,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           { id: 'data', label: 'Data & Security', icon: Shield },
           { id: 'keybinds', label: 'Keybinds', icon: Keyboard },
           { id: 'upgrade', label: '⚡ Upgrade', icon: Sparkles },
-          { id: 'update', label: 'Update', icon: RefreshCw, badge: updateCount > 0 }].
+          { id: 'update', label: 'Update', icon: RefreshCw, badge: updateCount > 0 || freshlyUpdated }].
           map((tab) => {
             const IconComponent = tab.icon;
             return (

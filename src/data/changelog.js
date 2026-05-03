@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.27',
+    date: '2026-05-03',
+    tagline: 'Tiny green dot says hi after every fresh update.',
+    changes: [
+      'After the app restarts on a new version, a tiny green dot pops up on the Settings gear in the rail and on the Update tab inside Settings — so you actually notice you got a new build.',
+      'Open the Update tab once and the dot dismisses itself. Won\'t come back until the next version bump.',
+      'Quiet on first-ever install — only fires when there\'s a real version change to celebrate.',
+    ],
+  },
+  {
     version: '0.4.26',
     date: '2026-05-03',
     tagline: 'Word-style toolbar wins on Canvas — font size, alignment, line spacing, indent, outline.',

@@ -1,6 +1,9 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'))
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,6 +11,9 @@ export default defineConfig({
   // Use relative paths so the bundle works under file:// in Electron prod builds.
   // The web build still works fine with relative paths.
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [react()],
   resolve: {
     alias: {
