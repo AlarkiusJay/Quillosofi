@@ -47,7 +47,7 @@ export default function HeaderNavigator({ quillRef, content }) {
         type="button"
         onClick={() => setOpen(true)}
         title="Show outline"
-        className="absolute right-2 top-2 z-10 h-8 w-8 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors"
+        className="absolute left-2 top-2 z-10 h-8 w-8 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors"
         aria-label="Show document outline"
       >
         <ListTree className="h-4 w-4" />
@@ -56,7 +56,7 @@ export default function HeaderNavigator({ quillRef, content }) {
   }
 
   return (
-    <aside className="w-56 shrink-0 border-l border-[hsl(var(--chalk-white-faint)/0.18)] bg-[hsl(var(--chalk-deep)/0.5)] backdrop-blur-sm flex flex-col">
+    <aside className="w-56 shrink-0 border-r border-[hsl(var(--chalk-white-faint)/0.18)] bg-[hsl(var(--chalk-deep)/0.5)] backdrop-blur-sm flex flex-col">
       <header className="px-3 py-2 flex items-center justify-between border-b border-[hsl(var(--chalk-white-faint)/0.15)]">
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--chalk-yellow))] font-semibold flex items-center gap-1.5">
           <ListTree className="h-3.5 w-3.5" /> Outline
@@ -68,7 +68,7 @@ export default function HeaderNavigator({ quillRef, content }) {
           className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.7)] transition-colors"
           aria-label="Hide outline"
         >
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         </button>
       </header>
       <div className="flex-1 overflow-y-auto py-1">

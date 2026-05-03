@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.28',
+    date: '2026-05-03',
+    tagline: 'Outline rail moved to the left side of Canvas — where navigation belongs.',
+    changes: [
+      'The collapsible Outline / header navigator now lives on the LEFT side of the Canvas, next to the editor — not the right. Reads like every IDE and word processor on earth.',
+      'Toggle button (when collapsed) sits in the top-left corner of the writing area now. Hide chevron points left when the rail is open.',
+    ],
+  },
+  {
     version: '0.4.27',
     date: '2026-05-03',
     tagline: 'Tiny green dot says hi after every fresh update.',

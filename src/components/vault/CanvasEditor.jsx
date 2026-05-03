@@ -484,8 +484,9 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
         {/* Toolbar */}
         <Toolbar quillRef={quillRef} />
 
-        {/* Editor + outline rail */}
+        {/* Editor + outline rail (rail on the LEFT — v0.4.28) */}
         <div className="flex flex-1 overflow-hidden relative">
+          <HeaderNavigator quillRef={quillRef} content={content} />
           <div className="vault-quill-wrapper flex-1 overflow-hidden">
             <ReactQuill
               ref={quillRef}
@@ -495,7 +496,6 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
               style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
             />
           </div>
-          <HeaderNavigator quillRef={quillRef} content={content} />
         </div>
 
         {/* Footer */}
