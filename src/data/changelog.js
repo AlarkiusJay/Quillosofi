@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.34',
+    date: '2026-05-03',
+    tagline: 'Ruler polish — proper Word ⌐ Left Tab glyph, locked indent markers, new Right Indent triangle.',
+    changes: [
+      'Left Tab stop glyph now renders as a proper Word-style ⌐ shape — vertical bar on the left, foot extending right at the bottom (was mirrored before).',
+      'Hourglass indent markers (▽ first-line, △ hanging, ▭ left) are now locked in place. Tab key no longer drags them around.',
+      'Tab key now inserts a literal tab character (just like Word) instead of mutating the paragraph indent. CSS tab-size: 4 makes it render as visible spacing.',
+      'New Right Indent marker (◁) at the right margin — draggable like the left side, snaps to 4px increments. Driven by a new padding-right block-level format.',
+    ],
+  },
+  {
     version: '0.4.33',
     date: '2026-05-03',
     tagline: 'Alt-toggle native menu bar is now sticky — stays open until you press Alt again.',

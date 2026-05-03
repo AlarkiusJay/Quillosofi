@@ -46,6 +46,15 @@ const parseTextIndentEm = (val) => {
   return parseFloat(s) || 0;
 };
 
+// Parse a CSS padding-right value → px number.
+const parsePaddingRightPx = (val) => {
+  if (!val) return 0;
+  const s = String(val).trim();
+  if (s.endsWith('px')) return parseFloat(s) || 0;
+  if (s.endsWith('em')) return (parseFloat(s) || 0) * EM_PX;
+  return parseFloat(s) || 0;
+};
+
 export default function CanvasRuler({ quillRef, canvasId }) {
   const trackRef = useRef(null);
   const [contentLeftPx, setContentLeftPx] = useState(24);
@@ -53,6 +62,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
   // Active paragraph state
   const [indentLevel, setIndentLevel] = useState(0);
   const [textIndentEm, setTextIndentEm] = useState(0);
+  const [paddingRightPx, setPaddingRightPx] = useState(0);
   // Tab stops
   const [tabStops, setTabStops] = useState([]); // [{ id, leftPx }]
   const [drag, setDrag] = useState(null);
@@ -66,6 +76,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
       const fmt = q.getFormat?.() || {};
       setIndentLevel(parseInt(fmt.indent || 0, 10));
       setTextIndentEm(parseTextIndentEm(fmt['text-indent']));
+      setPaddingRightPx(parsePaddingRightPx(fmt['padding-right']));
     };
     q.on('selection-change', onSelection);
     q.on('text-change', onSelection);
@@ -119,6 +130,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
   const middleX = contentLeftPx + leftIndentPx;
   const bottomX = middleX;
   const topX = middleX + firstLineOffsetPx;
+  const rightX = contentLeftPx + contentWidthPx - paddingRightPx;
 
   // ── Drag handlers ────────────────────────────────────────────────────────
   const beginDrag = (type, e, extra = {}) => {
@@ -172,6 +184,15 @@ export default function CanvasRuler({ quillRef, canvasId }) {
           setIndentLevel(newLevel);
           q.format('indent', newLevel || false, 'user');
         }
+      } else if (drag.type === 'right') {
+        // Right indent — driven by padding-right (px) on the active block.
+        const newPaddingPx = Math.max(0, contentLeftPx + contentWidthPx - clampedX);
+        // Snap to nearest 4px for nicer UX.
+        const snapped = Math.round(newPaddingPx / 4) * 4;
+        if (Math.abs(snapped - paddingRightPx) > 0.5) {
+          setPaddingRightPx(snapped);
+          q.format('padding-right', snapped ? `${snapped}px` : false, 'user');
+        }
       } else if (drag.type === 'stop') {
         setTabStops((prev) => prev.map((s) =>
           s.id === drag.id ? { ...s, leftPx: clampedX - contentLeftPx } : s
@@ -185,7 +206,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [drag, contentLeftPx, contentWidthPx, indentLevel, textIndentEm, leftIndentPx, topX, quillRef]);
+  }, [drag, contentLeftPx, contentWidthPx, indentLevel, textIndentEm, paddingRightPx, leftIndentPx, topX, quillRef]);
 
   // ── Click empty ruler bottom-strip → add tab stop ───────────────────────
   const handleTrackClick = (e) => {
@@ -316,8 +337,9 @@ export default function CanvasRuler({ quillRef, canvasId }) {
               touchAction: 'none',
             }}
           >
+            {/* Word-style Left Tab ⌐ — vertical bar on left, foot extending right at bottom */}
             <svg viewBox="0 0 10 10" width="11" height="11" style={{ display: 'block' }}>
-              <path d="M1 1 H8 V2.5 H2.5 V9 H1 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+              <path d="M1 1 H2.5 V7.5 H9 V9 H1 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
             </svg>
           </div>
         );
@@ -360,6 +382,29 @@ export default function CanvasRuler({ quillRef, canvasId }) {
           width: 12,
           height: 7,
           cursor: drag?.type === 'middle' ? 'grabbing' : 'grab',
+          touchAction: 'none',
+        }}
+      >
+        <svg viewBox="0 0 12 7" width="12" height="7" style={{ display: 'block' }}>
+          <path d="M6 0 L0 7 H12 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+        </svg>
+      </div>
+
+      {/* RIGHT marker: Right indent ◁ — triangle pointing left, sits at right
+          content edge. Driven by padding-right (px) block format. */}
+      <div
+        role="slider"
+        aria-label="Right indent"
+        title={`Right indent: ${paddingRightPx}px`}
+        onPointerDown={(e) => beginDrag('right', e)}
+        className="absolute z-30"
+        style={{
+          left: rightX,
+          top: 9,
+          transform: 'translateX(-50%)',
+          width: 12,
+          height: 7,
+          cursor: drag?.type === 'right' ? 'grabbing' : 'grab',
           touchAction: 'none',
         }}
       >

@@ -49,7 +49,7 @@ const editorStyles = `
   .vault-quill-wrapper { width: 100%; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   .vault-quill-wrapper .ql-container { background: transparent; border: none; font-size: 14px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; outline: none !important; box-shadow: none !important; }
   .vault-quill-wrapper .ql-container:focus, .vault-quill-wrapper .ql-container:focus-visible, .vault-quill-wrapper .ql-container *:focus, .vault-quill-wrapper .ql-container *:focus-visible { outline: none !important; box-shadow: none !important; }
-  .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; }
+  .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; tab-size: 4; -moz-tab-size: 4; white-space: pre-wrap; }
   .vault-quill-wrapper .ql-editor:focus, .vault-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
   .vault-quill-wrapper .ql-editor.ql-blank::before { color: hsl(220,7%,40%); font-style: normal; content: 'Start writing...'; }
   .vault-quill-wrapper .ql-editor h1 { font-size: 2em; font-weight: 700; margin: 12px 0 6px; }
@@ -309,11 +309,18 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   const quillRef = useRef(null);
   const autoSaveTimer = useRef(null);
 
-  // Tab / Shift-Tab indent — captured at the DOM level on .ql-editor in the
-  // CAPTURE phase, so we run before Quill's keyboard module sees the event.
-  // This is the only reliable way to override Quill's built-in Tab handlers,
-  // which are wired in keyboard.bindings[9] and pre-empt addBinding() calls
-  // depending on registration order and key normalization quirks.
+  // Tab / Shift-Tab on Canvas — v0.4.34 behavior:
+  //   • Inserts a literal tab character (\t) at the cursor, jumping to the
+  //     next tab stop just like Microsoft Word. The browser handles spacing
+  //     via CSS `tab-size: 4` on .ql-editor.
+  //   • Shift-Tab deletes the tab character immediately preceding the cursor
+  //     if there is one (otherwise no-op). Mirrors Word's Shift-Tab.
+  //   • Indent markers on the ruler are NEVER touched by Tab. Indents are
+  //     drag-only now. The hourglass stays locked unless you grab it.
+  //   • Lists and code-blocks keep their native Tab behavior (Quill nests
+  //     bullets / inserts a literal tab in code).
+  // Captured in the DOM capture phase so Quill's built-in keyboard module
+  // never sees it.
   useEffect(() => {
     let cancelled = false;
     let tries = 0;
@@ -331,21 +338,25 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
         const sel = q.getSelection();
         if (!sel) return;
         const f = q.getFormat(sel);
-        // Leave Tab alone for lists (Quill nests bullets/numbers natively)
-        // and code blocks (where Tab is a literal indent character).
         if (f.list || f['code-block']) return;
         e.preventDefault();
         e.stopPropagation();
-        const current = parseInt(f.indent || 0, 10);
         if (e.shiftKey) {
-          if (current <= 0) return;
-          q.format('indent', current - 1, 'user');
+          // Delete preceding tab character, if any.
+          if (sel.index > 0) {
+            const prev = q.getText(sel.index - 1, 1);
+            if (prev === '\t') {
+              q.deleteText(sel.index - 1, 1, 'user');
+            }
+          }
         } else {
-          if (current >= 8) return;
-          q.format('indent', current + 1, 'user');
+          // Insert literal tab. Replace any current selection first.
+          if (sel.length > 0) q.deleteText(sel.index, sel.length, 'user');
+          q.insertText(sel.index, '\t', 'user');
+          q.setSelection(sel.index + 1, 0, 'user');
         }
       };
-      root.addEventListener('keydown', handler, true); // capture phase
+      root.addEventListener('keydown', handler, true);
       cleanupFn = () => root.removeEventListener('keydown', handler, true);
     };
     install();

@@ -38,6 +38,14 @@ const TextIndentStyle = new Parchment.Attributor.Style('text-indent', 'text-inde
 });
 Quill.register(TextIndentStyle, true);
 
+// ---- Right indent (Word-style) -------------------------------------------
+// Right ruler wedge drives this. Stored as `padding-right: <px>px` on the
+// block, so it shrinks the paragraph's right edge. Persists in HTML output.
+const PaddingRightStyle = new Parchment.Attributor.Style('padding-right', 'padding-right', {
+  scope: Parchment.Scope.BLOCK,
+});
+Quill.register(PaddingRightStyle, true);
+
 // Re-export the Quill instance so callers can be sure they've awaited
 // registration before mounting <ReactQuill />.
 export default Quill;
