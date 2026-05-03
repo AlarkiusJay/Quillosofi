@@ -17,6 +17,19 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.31',
+    date: '2026-05-03',
+    tagline: 'Tab key REALLY indents now (DOM capture) + Word-style monochrome ruler with draggable tab stops.',
+    changes: [
+      'Tab / Shift-Tab indent finally works for real. Earlier attempts via Quill\'s keyboard module kept losing to built-in Tab handlers; switched to a DOM-level keydown listener on .ql-editor in the capture phase, which fires before Quill ever sees the keystroke. Cap 8 levels, lists + code-blocks excluded.',
+      'Ruler restyled to match Word: monochrome light-gray inset strip, smaller graduated ticks (1/8” / 1/4” / 1/2” / 1”), white digit labels, dimmed margin shading. No more pink and yellow.',
+      'Indent marker is now a Word-style hourglass (top wedge + bottom wedge) instead of a single triangle. Drag the bottom wedge to set the active paragraph\'s indent.',
+      'Tab stops: click the bottom strip of the ruler to drop a stop, then DRAG it to wherever you want — just like Word. Right-click or double-click any stop to remove it.',
+      'Click sensitivity fixed — stops only spawn in the bottom 60% of the ruler height, never within 8px of an existing marker, never on accidental tick-area clicks.',
+      'Tab stop glyphs are the Word L-shape in white, with a dark hairline stroke for legibility on any background.',
+    ],
+  },
+  {
     version: '0.4.30',
     date: '2026-05-03',
     tagline: 'Outline rail glow-up + Word-style ruler bar with draggable indent and tab stops.',

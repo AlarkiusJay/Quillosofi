@@ -2,36 +2,39 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 // CanvasRuler — Word-style ruler bar that sits above the editor.
 //
-// What it shows:
-//  • A horizontal scale marked in inches (or em equivalents). One inch ≈ 96px
-//    at 100% zoom; we render relative to the editor's content width so it
-//    stays visually accurate.
-//  • Major ticks every 1in with numeric labels.
-//  • Minor ticks every 0.25in.
-//  • A draggable LEFT-INDENT marker (▲ at the bottom) — drives Quill's
-//    `indent` block format on the active paragraph. Each unit ≈ 0.5in to
-//    match our existing 3em-per-step CSS.
-//  • A draggable FIRST-LINE marker (▽ at the top) — purely cosmetic for now;
-//    drops a tab stop at the position you release.
-//  • Click empty ruler space → drop a custom tab-stop marker (visual only,
-//    persisted to localStorage per-canvas). Click an existing stop to remove.
+// Visual language matches Word 2024:
+//   • Monochrome (no pink/yellow accents). Light gray ticks, white digit
+//     labels, dimmed margin shading.
+//   • Hourglass left-indent marker (top wedge ▽ + bottom wedge △) — drag the
+//     bottom wedge to set the active paragraph's left indent. Top wedge is
+//     visual sibling (first-line indent placeholder; lands with Tiptap v0.5).
+//   • L-shaped tab-stop glyphs in white. Click empty bottom-half of the ruler
+//     to drop a stop; drag any existing stop to move it; right-click (or
+//     drag-off) to remove.
 //
-// Real Quill tab-stop support requires a Parchment attributor + custom blot;
-// that lands with the v0.5 Tiptap migration. Today the ruler delivers the
-// visual metaphor + draggable indent control, which is the part that
-// actually drives writing flow.
+// Implementation notes:
+//   • Add-on-click is gated to the bottom 60% of the ruler height AND skips
+//     if the click landed within 8px of an existing marker. This eliminates
+//     the v0.4.30 "way too sensitive" problem where every accidental click
+//     spawned a stop.
+//   • Tab stops are persisted to localStorage per canvas id.
+//   • Hooking Tab to actually JUMP to these stops requires a Parchment custom
+//     blot; that lands in the v0.5 Tiptap migration. Today the ruler is the
+//     visual layout metaphor + indent slider + stop manager.
 
 const PX_PER_INCH = 96;
-const INDENT_STEP_INCHES = 0.5; // matches the 3em-per-step CSS in CanvasEditor
+const INDENT_STEP_INCHES = 0.5;
+const MARKER_HIT_RADIUS = 8; // px — clicks this close to an existing marker won't spawn a new stop
+const RULER_HEIGHT = 28;
 
 export default function CanvasRuler({ quillRef, canvasId }) {
   const trackRef = useRef(null);
   const [trackWidth, setTrackWidth] = useState(0);
-  const [contentLeftPx, setContentLeftPx] = useState(24); // editor's left padding
+  const [contentLeftPx, setContentLeftPx] = useState(24);
   const [contentWidthPx, setContentWidthPx] = useState(0);
-  const [indentLevel, setIndentLevel] = useState(0); // current paragraph's indent
-  const [tabStops, setTabStops] = useState([]); // array of { id, leftPx }
-  const [dragging, setDragging] = useState(null); // 'indent' | 'first' | null
+  const [indentLevel, setIndentLevel] = useState(0);
+  const [tabStops, setTabStops] = useState([]); // [{ id, leftPx }]
+  const [drag, setDrag] = useState(null); // { type: 'indent' | 'stop', id?, startX, startLeft }
 
   // Track the active paragraph's indent so the marker reflects reality.
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     };
   }, [quillRef]);
 
-  // Measure the editor's actual content geometry so ruler ticks line up.
+  // Measure the editor's actual content geometry so ticks line up with text.
   useEffect(() => {
     const measure = () => {
       const q = quillRef.current?.getEditor?.();
@@ -88,141 +91,242 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     try { localStorage.setItem(`quillosofi:tabstops:${canvasId}`, JSON.stringify(tabStops)); } catch { /* ignore */ }
   }, [tabStops, canvasId]);
 
-  // ── Indent marker drag → set Quill `indent` on active paragraph.
-  const onIndentPointerDown = (e) => {
+  const indentMarkerLeftPx = contentLeftPx + indentLevel * INDENT_STEP_INCHES * PX_PER_INCH;
+
+  // ── Drag logic, shared between indent marker and tab stops ─────────────────
+  const beginDragIndent = (e) => {
     e.preventDefault();
-    setDragging('indent');
+    e.stopPropagation();
     const q = quillRef.current?.getEditor?.();
     if (q) q.focus();
+    setDrag({ type: 'indent', startX: e.clientX, startLeft: indentMarkerLeftPx });
+  };
+
+  const beginDragStop = (e, stop) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDrag({ type: 'stop', id: stop.id, startX: e.clientX, startLeft: contentLeftPx + stop.leftPx });
   };
 
   useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e) => {
-      if (dragging !== 'indent') return;
+    if (!drag) return;
+    const onMove = (ev) => {
       const track = trackRef.current;
-      const q = quillRef.current?.getEditor?.();
-      if (!track || !q) return;
+      if (!track) return;
       const rect = track.getBoundingClientRect();
-      const x = e.clientX - rect.left - contentLeftPx;
-      const inches = Math.max(0, x / PX_PER_INCH);
-      const level = Math.max(0, Math.min(8, Math.round(inches / INDENT_STEP_INCHES)));
-      if (level !== indentLevel) {
-        setIndentLevel(level);
-        q.format('indent', level || false, 'user');
+      const x = ev.clientX - rect.left;
+      const clampedX = Math.max(contentLeftPx, Math.min(contentLeftPx + contentWidthPx, x));
+      if (drag.type === 'indent') {
+        const q = quillRef.current?.getEditor?.();
+        if (!q) return;
+        const inches = (clampedX - contentLeftPx) / PX_PER_INCH;
+        const level = Math.max(0, Math.min(8, Math.round(inches / INDENT_STEP_INCHES)));
+        if (level !== indentLevel) {
+          setIndentLevel(level);
+          q.format('indent', level || false, 'user');
+        }
+      } else if (drag.type === 'stop') {
+        setTabStops((prev) => prev.map((s) =>
+          s.id === drag.id ? { ...s, leftPx: clampedX - contentLeftPx } : s
+        ));
       }
     };
-    const onUp = () => setDragging(null);
+    const onUp = () => setDrag(null);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragging, contentLeftPx, indentLevel, quillRef]);
+  }, [drag, contentLeftPx, contentWidthPx, indentLevel, quillRef]);
 
-  // ── Click empty ruler space → drop a tab stop. Click an existing stop → remove.
+  // ── Click-to-add tab stop, with sensitivity guards ────────────────────────
   const handleTrackClick = (e) => {
-    if (dragging) return;
-    // Only drop if the click landed on the track itself, not a child marker.
-    if (e.target !== trackRef.current && !e.target.dataset?.rulerEmpty) return;
-    const rect = trackRef.current.getBoundingClientRect();
+    if (drag) return;
+    const track = trackRef.current;
+    if (!track) return;
+    // Only honor clicks that landed on the track itself (or its tick layer),
+    // not on any marker buttons.
+    const target = e.target;
+    if (!(target === track || target?.dataset?.rulerEmpty === '1')) return;
+    const rect = track.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    // Only the bottom 60% of the ruler is the "tab stop strip" — top portion
+    // is reserved for the digit labels and feels mis-clicky to spawn stops in.
+    if (y < RULER_HEIGHT * 0.4) return;
+    // Inside the content area only.
     if (x < contentLeftPx || x > contentLeftPx + contentWidthPx) return;
+    // Skip if the click is too close to the indent marker.
+    if (Math.abs(x - indentMarkerLeftPx) < MARKER_HIT_RADIUS) return;
+    // Skip if the click is too close to any existing stop.
+    if (tabStops.some((s) => Math.abs((contentLeftPx + s.leftPx) - x) < MARKER_HIT_RADIUS)) return;
     const id = `ts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setTabStops((prev) => [...prev, { id, leftPx: x - contentLeftPx }]);
   };
 
   const removeStop = (id) => setTabStops((prev) => prev.filter((s) => s.id !== id));
 
-  // ── Render ticks across the content area only.
+  // ── Ticks: every 1/8 inch, label every full inch ──────────────────────────
   const inches = contentWidthPx > 0 ? Math.floor(contentWidthPx / PX_PER_INCH) : 0;
   const ticks = [];
-  for (let i = 0; i <= inches * 4; i++) {
-    const major = i % 4 === 0;
-    const half = i % 2 === 0;
-    const xPx = contentLeftPx + (i / 4) * PX_PER_INCH;
-    ticks.push({ xPx, major, half, label: major ? String(i / 4) : null });
+  for (let i = 0; i <= inches * 8; i++) {
+    const major = i % 8 === 0;       // every 1.0 in
+    const half = !major && i % 4 === 0; // every 0.5 in
+    const quarter = !major && !half && i % 2 === 0; // every 0.25 in
+    const xPx = contentLeftPx + (i / 8) * PX_PER_INCH;
+    const label = major ? String(i / 8) : null;
+    ticks.push({ xPx, major, half, quarter, label });
   }
-
-  const indentMarkerLeftPx = contentLeftPx + indentLevel * INDENT_STEP_INCHES * PX_PER_INCH;
 
   return (
     <div
       ref={trackRef}
       onClick={handleTrackClick}
-      className="relative h-6 select-none border-b border-[hsl(var(--chalk-white-faint)/0.12)] bg-[hsl(var(--chalk-deep)/0.45)] backdrop-blur-sm cursor-crosshair"
+      className="relative select-none cursor-default"
+      style={{
+        height: RULER_HEIGHT,
+        background: 'hsl(220, 8%, 22%)',
+        borderBottom: '1px solid hsl(220, 8%, 14%)',
+        borderTop: '1px solid hsl(220, 8%, 14%)',
+      }}
       data-ruler-empty="1"
-      title="Click to drop a tab stop · drag the ▲ to set paragraph indent"
+      title="Click below the digits to drop a tab stop · drag the indent marker to adjust paragraph indent"
     >
-      {/* Margin shading: dim the area outside the content width to mimic Word's gray margin */}
+      {/* Margin shading: dim the area outside the content width, like Word */}
       <div
-        className="absolute inset-y-0 left-0 bg-[hsl(var(--chalk-deep)/0.7)]"
-        style={{ width: contentLeftPx }}
+        className="absolute inset-y-0 left-0 pointer-events-none"
+        style={{ width: contentLeftPx, background: 'hsl(220, 8%, 16%)' }}
       />
       <div
-        className="absolute inset-y-0 bg-[hsl(var(--chalk-deep)/0.7)]"
-        style={{ left: contentLeftPx + contentWidthPx, right: 0 }}
+        className="absolute inset-y-0 pointer-events-none"
+        style={{ left: contentLeftPx + contentWidthPx, right: 0, background: 'hsl(220, 8%, 16%)' }}
       />
 
-      {/* Ticks */}
-      {ticks.map((t, i) => (
-        <div
-          key={i}
-          className="absolute top-0 bottom-0 pointer-events-none"
-          style={{ left: t.xPx }}
-        >
+      {/* Inner content strip with subtle inset bevel like Word */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: contentLeftPx,
+          width: contentWidthPx,
+          top: 6,
+          bottom: 6,
+          background: 'hsl(220, 7%, 30%)',
+          borderTop: '1px solid hsl(220, 7%, 38%)',
+          borderBottom: '1px solid hsl(220, 7%, 18%)',
+        }}
+      />
+
+      {/* Ticks (rendered above the inner strip) */}
+      {ticks.map((t, i) => {
+        const tickHeight = t.major ? 10 : t.half ? 6 : t.quarter ? 4 : 3;
+        const tickColor = t.major ? 'hsl(220, 14%, 88%)' : 'hsl(220, 9%, 70%)';
+        return (
           <div
-            className={
-              t.major
-                ? 'absolute bottom-0 left-0 w-px h-3 bg-[hsl(220,14%,75%)]'
-                : t.half
-                ? 'absolute bottom-0 left-0 w-px h-2 bg-[hsl(220,7%,55%)]'
-                : 'absolute bottom-0 left-0 w-px h-1.5 bg-[hsl(220,7%,40%)]'
-            }
-          />
-          {t.label !== null && (
-            <span className="absolute top-0.5 -translate-x-1/2 text-[9px] font-mono text-[hsl(220,14%,80%)] leading-none">
-              {t.label}
-            </span>
-          )}
-        </div>
-      ))}
+            key={i}
+            className="absolute pointer-events-none"
+            style={{ left: t.xPx, top: '50%' }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: -tickHeight / 2,
+                left: 0,
+                width: 1,
+                height: tickHeight,
+                background: tickColor,
+              }}
+            />
+            {t.label !== null && (
+              <span
+                className="absolute font-mono leading-none"
+                style={{
+                  top: -RULER_HEIGHT / 2 + 4,
+                  transform: 'translateX(-50%)',
+                  fontSize: 9,
+                  color: 'hsl(220, 14%, 92%)',
+                }}
+              >
+                {t.label}
+              </span>
+            )}
+          </div>
+        );
+      })}
 
-      {/* Tab stops (clickable to remove) */}
-      {tabStops.map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          onClick={(e) => { e.stopPropagation(); removeStop(s.id); }}
-          title="Click to remove this tab stop"
-          className="absolute bottom-0 -translate-x-1/2 h-2.5 w-2.5 flex items-center justify-center text-[hsl(var(--chalk-pink))] hover:text-red-400 z-10"
-          style={{ left: contentLeftPx + s.leftPx }}
-          aria-label="Remove tab stop"
-        >
-          {/* L-shaped tab marker */}
-          <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 fill-current">
-            <path d="M0 0 H6 V1 H1 V8 H0 Z" />
-          </svg>
-        </button>
-      ))}
+      {/* Tab stops (draggable, right-click to remove) */}
+      {tabStops.map((s) => {
+        const left = contentLeftPx + s.leftPx;
+        const isDragging = drag?.type === 'stop' && drag.id === s.id;
+        return (
+          <div
+            key={s.id}
+            onPointerDown={(e) => beginDragStop(e, s)}
+            onContextMenu={(e) => { e.preventDefault(); removeStop(s.id); }}
+            onDoubleClick={(e) => { e.stopPropagation(); removeStop(s.id); }}
+            title="Drag to move · right-click or double-click to remove"
+            className="absolute z-10"
+            style={{
+              left,
+              bottom: 2,
+              transform: 'translateX(-50%)',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              touchAction: 'none',
+            }}
+          >
+            <svg viewBox="0 0 10 10" width="11" height="11" style={{ display: 'block' }}>
+              {/* Word-style L-shaped left-tab glyph */}
+              <path d="M1 1 H8 V2.5 H2.5 V9 H1 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+            </svg>
+          </div>
+        );
+      })}
 
-      {/* Indent marker (draggable) */}
+      {/* Hourglass left-indent marker: top wedge (first-line) + bottom wedge (left margin) */}
       <div
-        role="slider"
-        aria-label="Left indent"
-        aria-valuenow={indentLevel}
-        aria-valuemin={0}
-        aria-valuemax={8}
-        onPointerDown={onIndentPointerDown}
-        onClick={(e) => e.stopPropagation()}
-        className={`absolute bottom-0 -translate-x-1/2 cursor-ew-resize z-20 ${dragging === 'indent' ? 'text-[hsl(var(--chalk-yellow))]' : 'text-[hsl(var(--chalk-yellow)/0.85)] hover:text-[hsl(var(--chalk-yellow))]'}`}
-        style={{ left: indentMarkerLeftPx }}
-        title={`Indent level ${indentLevel} · drag to adjust`}
+        className="absolute z-20"
+        style={{
+          left: indentMarkerLeftPx,
+          top: 0,
+          bottom: 0,
+          transform: 'translateX(-50%)',
+          width: 12,
+          pointerEvents: 'none',
+        }}
       >
-        <svg viewBox="0 0 10 8" className="h-2 w-2.5 fill-current drop-shadow">
-          <path d="M5 8 L0 0 L10 0 Z" />
+        {/* Top wedge — placeholder for first-line indent (drag handler comes with v0.5) */}
+        <svg
+          viewBox="0 0 12 7"
+          width="12"
+          height="7"
+          style={{ position: 'absolute', top: 1, left: 0, display: 'block' }}
+        >
+          <path d="M0 0 H12 L6 7 Z" fill="hsl(220, 14%, 88%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
         </svg>
+        {/* Bottom wedge — interactive (drives the actual indent) */}
+        <div
+          role="slider"
+          aria-label="Left indent"
+          aria-valuenow={indentLevel}
+          aria-valuemin={0}
+          aria-valuemax={8}
+          onPointerDown={beginDragIndent}
+          title={`Left indent: level ${indentLevel} · drag to adjust`}
+          style={{
+            position: 'absolute',
+            bottom: 1,
+            left: 0,
+            width: 12,
+            height: 7,
+            cursor: drag?.type === 'indent' ? 'grabbing' : 'grab',
+            touchAction: 'none',
+            pointerEvents: 'auto',
+          }}
+        >
+          <svg viewBox="0 0 12 7" width="12" height="7" style={{ display: 'block' }}>
+            <path d="M6 0 L0 7 H12 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+          </svg>
+        </div>
       </div>
     </div>
   );

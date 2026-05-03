@@ -309,45 +309,47 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   const quillRef = useRef(null);
   const autoSaveTimer = useRef(null);
 
-  // Tab / Shift-Tab indent bindings — registered imperatively so they win over
-  // Quill's built-in Tab handlers. Tries on mount and retries until the editor
-  // instance is actually available (ReactQuill mounts async).
+  // Tab / Shift-Tab indent — captured at the DOM level on .ql-editor in the
+  // CAPTURE phase, so we run before Quill's keyboard module sees the event.
+  // This is the only reliable way to override Quill's built-in Tab handlers,
+  // which are wired in keyboard.bindings[9] and pre-empt addBinding() calls
+  // depending on registration order and key normalization quirks.
   useEffect(() => {
     let cancelled = false;
     let tries = 0;
+    let cleanupFn = null;
     const install = () => {
       if (cancelled) return;
       const q = quillRef.current?.getEditor?.();
-      if (!q || !q.keyboard) {
-        if (tries++ < 20) setTimeout(install, 50);
+      if (!q?.root) {
+        if (tries++ < 30) setTimeout(install, 50);
         return;
       }
-      // Tab → indent (cap 8). Returning false tells Quill to stop the chain
-      // and prevent the default focus-jump.
-      q.keyboard.addBinding({ key: 'Tab' }, function (range) {
-        if (!range) return true;
-        const f = this.quill.getFormat(range);
-        // Don't steal Tab from list items — Quill’s list handler nests bullets
-        // and our writing-flow expectation matches that.
-        if (f.list) return true;
+      const root = q.root;
+      const handler = (e) => {
+        if (e.key !== 'Tab') return;
+        const sel = q.getSelection();
+        if (!sel) return;
+        const f = q.getFormat(sel);
+        // Leave Tab alone for lists (Quill nests bullets/numbers natively)
+        // and code blocks (where Tab is a literal indent character).
+        if (f.list || f['code-block']) return;
+        e.preventDefault();
+        e.stopPropagation();
         const current = parseInt(f.indent || 0, 10);
-        if (current >= 8) return false;
-        this.quill.format('indent', current + 1, 'user');
-        return false;
-      });
-      // Shift-Tab → outdent (floor 0).
-      q.keyboard.addBinding({ key: 'Tab', shiftKey: true }, function (range) {
-        if (!range) return true;
-        const f = this.quill.getFormat(range);
-        if (f.list) return true;
-        const current = parseInt(f.indent || 0, 10);
-        if (current <= 0) return false;
-        this.quill.format('indent', current - 1, 'user');
-        return false;
-      });
+        if (e.shiftKey) {
+          if (current <= 0) return;
+          q.format('indent', current - 1, 'user');
+        } else {
+          if (current >= 8) return;
+          q.format('indent', current + 1, 'user');
+        }
+      };
+      root.addEventListener('keydown', handler, true); // capture phase
+      cleanupFn = () => root.removeEventListener('keydown', handler, true);
     };
     install();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; cleanupFn?.(); };
   }, []);
 
   const save = async (val, extraFields = {}) => {
