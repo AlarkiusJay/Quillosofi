@@ -14,37 +14,14 @@ import { addCustomWord } from '@/lib/customDict';
 import DictionaryContextMenu from '@/components/DictionaryContextMenu';
 import HeaderNavigator from './HeaderNavigator';
 
-// Tab/Shift-Tab keybindings drive the indent format directly so the writing
-// flow matches Word: Tab indents the current block, Shift-Tab outdents.
+// Tab/Shift-Tab indent bindings are registered IMPERATIVELY in a useEffect
+// below — not via modules.keyboard.bindings here. Quill's keyboard module
+// initializes built-in Tab handlers (lists/code-blocks) BEFORE module-config
+// bindings, so static bindings get pre-empted. Calling quill.keyboard.
+// addBinding() at runtime PREPENDS to the binding chain, guaranteeing our
+// Tab handler fires first.
 const modules = {
   toolbar: false,
-  keyboard: {
-    bindings: {
-      indentOnTab: {
-        key: 9, // Tab
-        handler(range) {
-          if (!range) return true;
-          const fmt = this.quill.getFormat(range);
-          const current = parseInt(fmt.indent || 0, 10);
-          if (current >= 8) return false;
-          this.quill.format('indent', current + 1, 'user');
-          return false;
-        },
-      },
-      outdentOnShiftTab: {
-        key: 9, // Tab
-        shiftKey: true,
-        handler(range) {
-          if (!range) return true;
-          const fmt = this.quill.getFormat(range);
-          const current = parseInt(fmt.indent || 0, 10);
-          if (current <= 0) return false;
-          this.quill.format('indent', current - 1, 'user');
-          return false;
-        },
-      },
-    },
-  },
 };
 
 // Toolbar helpers (font sizes, alignments, line spacing options).
@@ -330,6 +307,47 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   const [isFavorite, setIsFavorite] = useState(canvas.is_favorite || false);
   const quillRef = useRef(null);
   const autoSaveTimer = useRef(null);
+
+  // Tab / Shift-Tab indent bindings — registered imperatively so they win over
+  // Quill's built-in Tab handlers. Tries on mount and retries until the editor
+  // instance is actually available (ReactQuill mounts async).
+  useEffect(() => {
+    let cancelled = false;
+    let tries = 0;
+    const install = () => {
+      if (cancelled) return;
+      const q = quillRef.current?.getEditor?.();
+      if (!q || !q.keyboard) {
+        if (tries++ < 20) setTimeout(install, 50);
+        return;
+      }
+      // Tab → indent (cap 8). Returning false tells Quill to stop the chain
+      // and prevent the default focus-jump.
+      q.keyboard.addBinding({ key: 'Tab' }, function (range) {
+        if (!range) return true;
+        const f = this.quill.getFormat(range);
+        // Don't steal Tab from list items — Quill’s list handler nests bullets
+        // and our writing-flow expectation matches that.
+        if (f.list) return true;
+        const current = parseInt(f.indent || 0, 10);
+        if (current >= 8) return false;
+        this.quill.format('indent', current + 1, 'user');
+        return false;
+      });
+      // Shift-Tab → outdent (floor 0).
+      q.keyboard.addBinding({ key: 'Tab', shiftKey: true }, function (range) {
+        if (!range) return true;
+        const f = this.quill.getFormat(range);
+        if (f.list) return true;
+        const current = parseInt(f.indent || 0, 10);
+        if (current <= 0) return false;
+        this.quill.format('indent', current - 1, 'user');
+        return false;
+      });
+    };
+    install();
+    return () => { cancelled = true; };
+  }, []);
 
   const save = async (val, extraFields = {}) => {
     const toSave = val !== undefined ? val : content;

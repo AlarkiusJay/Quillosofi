@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.29',
+    date: '2026-05-03',
+    tagline: 'Tab key actually indents now — v0.4.26 binding finally wins the keyboard race.',
+    changes: [
+      'Tab → indent / Shift-Tab → outdent on Canvas paragraphs now actually fires. Previous static binding was getting pre-empted by Quill\'s built-in Tab handler. Bindings now register imperatively after the editor mounts so they jump to the front of the keyboard chain.',
+      'Lists keep their Tab nesting behavior — we only intercept Tab on plain paragraphs, so bulleted/numbered lists still indent like Word.',
+      'Indent caps at 8 levels, outdent floors at 0, same as the toolbar buttons.',
+    ],
+  },
+  {
     version: '0.4.28',
     date: '2026-05-03',
     tagline: 'Outline rail moved to the left side of Canvas — where navigation belongs.',
