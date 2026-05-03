@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.32',
+    date: '2026-05-03',
+    tagline: 'Three independent ruler markers — first-line, hanging, and left indent — just like Word. Tab no longer drags the whole stack.',
+    changes: [
+      'Ruler now has THREE separately-draggable markers: ▽ top wedge = first-line indent, △ middle wedge = hanging indent, ▭ bottom slab = left indent. Mirrors Microsoft Word\'s behavior exactly.',
+      'Drag TOP → only the first line moves (sets text-indent in em). Drag MIDDLE → lines 2+ shift while the first-line marker holds its absolute position. Drag BOTTOM → entire paragraph slides; top + middle travel together.',
+      'Bug fix: Tab key no longer drags the top marker around. Tab only updates the left indent now, so the first-line wedge stays put unless you drag it yourself.',
+      'New Quill block format `text-indent` registered globally so first-line indents persist across save/load and export.',
+      'Marker drag handlers snap text-indent to the nearest 0.25em for cleaner increments.',
+    ],
+  },
+  {
     version: '0.4.31',
     date: '2026-05-03',
     tagline: 'Tab key REALLY indents now (DOM capture) + Word-style monochrome ruler with draggable tab stops.',

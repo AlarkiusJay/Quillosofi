@@ -1,48 +1,71 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-// CanvasRuler — Word-style ruler bar that sits above the editor.
+// CanvasRuler — Word-style ruler with three independent indent markers.
 //
-// Visual language matches Word 2024:
-//   • Monochrome (no pink/yellow accents). Light gray ticks, white digit
-//     labels, dimmed margin shading.
-//   • Hourglass left-indent marker (top wedge ▽ + bottom wedge △) — drag the
-//     bottom wedge to set the active paragraph's left indent. Top wedge is
-//     visual sibling (first-line indent placeholder; lands with Tiptap v0.5).
-//   • L-shaped tab-stop glyphs in white. Click empty bottom-half of the ruler
-//     to drop a stop; drag any existing stop to move it; right-click (or
-//     drag-off) to remove.
+// Marker stack (matches Word 2024):
+//   ▽  Top wedge       = First-line indent  (CSS text-indent on the block)
+//   △  Middle wedge    = Hanging indent     (left-edge of lines 2+)
+//   ▭  Bottom slab     = Left indent        (whole-paragraph left margin)
 //
-// Implementation notes:
-//   • Add-on-click is gated to the bottom 60% of the ruler height AND skips
-//     if the click landed within 8px of an existing marker. This eliminates
-//     the v0.4.30 "way too sensitive" problem where every accidental click
-//     spawned a stop.
-//   • Tab stops are persisted to localStorage per canvas id.
-//   • Hooking Tab to actually JUMP to these stops requires a Parchment custom
-//     blot; that lands in the v0.5 Tiptap migration. Today the ruler is the
-//     visual layout metaphor + indent slider + stop manager.
+// Drag semantics (mirrors Word):
+//   • Drag TOP      → updates text-indent only. Middle / bottom stay put.
+//   • Drag MIDDLE   → updates Quill `indent` (which moves the left edge of
+//                     lines 2+) AND adjusts text-indent inversely so the TOP
+//                     wedge stays visually in the same absolute position.
+//   • Drag BOTTOM   → updates Quill `indent`. Text-indent stays the same
+//                     (relative to the new left edge), so the TOP wedge moves
+//                     in lockstep with the bottom — i.e. the whole paragraph
+//                     shifts left/right.
+//
+// The Tab key only updates Quill `indent`, so it slides middle+bottom but
+// leaves top alone — fixing the v0.4.31 bug where the whole marker group
+// drifted with every Tab.
+//
+// Tab stops: click empty bottom strip to drop, drag to move, right/double
+// click to remove. Persisted per canvas in localStorage.
 
 const PX_PER_INCH = 96;
 const INDENT_STEP_INCHES = 0.5;
-const MARKER_HIT_RADIUS = 8; // px — clicks this close to an existing marker won't spawn a new stop
+const FONT_SIZE_PX = 14;            // matches .ql-container font-size
+const EM_PX = FONT_SIZE_PX;
+const MARKER_HIT_RADIUS = 8;
 const RULER_HEIGHT = 28;
+
+// Convert Quill's `indent` level (0..8) → pixels off content-left edge.
+const indentLevelToPx = (level) => level * INDENT_STEP_INCHES * PX_PER_INCH;
+// Convert pixels → nearest Quill indent level.
+const pxToIndentLevel = (px) =>
+  Math.max(0, Math.min(8, Math.round(px / (INDENT_STEP_INCHES * PX_PER_INCH))));
+
+// Parse a CSS text-indent value (e.g. "1.5em", "24px", "0", "") → em number.
+const parseTextIndentEm = (val) => {
+  if (!val) return 0;
+  const s = String(val).trim();
+  if (s.endsWith('em')) return parseFloat(s) || 0;
+  if (s.endsWith('px')) return (parseFloat(s) || 0) / EM_PX;
+  return parseFloat(s) || 0;
+};
 
 export default function CanvasRuler({ quillRef, canvasId }) {
   const trackRef = useRef(null);
-  const [trackWidth, setTrackWidth] = useState(0);
   const [contentLeftPx, setContentLeftPx] = useState(24);
   const [contentWidthPx, setContentWidthPx] = useState(0);
+  // Active paragraph state
   const [indentLevel, setIndentLevel] = useState(0);
+  const [textIndentEm, setTextIndentEm] = useState(0);
+  // Tab stops
   const [tabStops, setTabStops] = useState([]); // [{ id, leftPx }]
-  const [drag, setDrag] = useState(null); // { type: 'indent' | 'stop', id?, startX, startLeft }
+  const [drag, setDrag] = useState(null);
+  // ^ { type: 'top' | 'middle' | 'bottom' | 'stop', id?, anchorTopPx? }
 
-  // Track the active paragraph's indent so the marker reflects reality.
+  // ── Sync marker positions with the active paragraph ─────────────────────
   useEffect(() => {
     const q = quillRef.current?.getEditor?.();
     if (!q) return;
     const onSelection = () => {
       const fmt = q.getFormat?.() || {};
       setIndentLevel(parseInt(fmt.indent || 0, 10));
+      setTextIndentEm(parseTextIndentEm(fmt['text-indent']));
     };
     q.on('selection-change', onSelection);
     q.on('text-change', onSelection);
@@ -53,7 +76,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     };
   }, [quillRef]);
 
-  // Measure the editor's actual content geometry so ticks line up with text.
+  // ── Measure editor geometry so ticks line up with text ─────────────────
   useEffect(() => {
     const measure = () => {
       const q = quillRef.current?.getEditor?.();
@@ -65,7 +88,6 @@ export default function CanvasRuler({ quillRef, canvasId }) {
       const cs = window.getComputedStyle(editor);
       const padL = parseFloat(cs.paddingLeft) || 0;
       const padR = parseFloat(cs.paddingRight) || 0;
-      setTrackWidth(trackRect.width);
       setContentLeftPx(editorRect.left - trackRect.left + padL);
       setContentWidthPx(editorRect.width - padL - padR);
     };
@@ -78,7 +100,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [quillRef]);
 
-  // Persist tab stops per canvas.
+  // ── Persist tab stops per canvas ────────────────────────────────────────
   useEffect(() => {
     if (!canvasId) return;
     try {
@@ -91,39 +113,64 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     try { localStorage.setItem(`quillosofi:tabstops:${canvasId}`, JSON.stringify(tabStops)); } catch { /* ignore */ }
   }, [tabStops, canvasId]);
 
-  const indentMarkerLeftPx = contentLeftPx + indentLevel * INDENT_STEP_INCHES * PX_PER_INCH;
+  // ── Marker absolute positions ────────────────────────────────────────────
+  const leftIndentPx = indentLevelToPx(indentLevel);                    // middle + bottom
+  const firstLineOffsetPx = textIndentEm * EM_PX;                       // top relative to middle
+  const middleX = contentLeftPx + leftIndentPx;
+  const bottomX = middleX;
+  const topX = middleX + firstLineOffsetPx;
 
-  // ── Drag logic, shared between indent marker and tab stops ─────────────────
-  const beginDragIndent = (e) => {
+  // ── Drag handlers ────────────────────────────────────────────────────────
+  const beginDrag = (type, e, extra = {}) => {
     e.preventDefault();
     e.stopPropagation();
     const q = quillRef.current?.getEditor?.();
     if (q) q.focus();
-    setDrag({ type: 'indent', startX: e.clientX, startLeft: indentMarkerLeftPx });
-  };
-
-  const beginDragStop = (e, stop) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDrag({ type: 'stop', id: stop.id, startX: e.clientX, startLeft: contentLeftPx + stop.leftPx });
+    setDrag({ type, ...extra });
   };
 
   useEffect(() => {
     if (!drag) return;
     const onMove = (ev) => {
       const track = trackRef.current;
-      if (!track) return;
+      const q = quillRef.current?.getEditor?.();
+      if (!track || !q) return;
       const rect = track.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const clampedX = Math.max(contentLeftPx, Math.min(contentLeftPx + contentWidthPx, x));
-      if (drag.type === 'indent') {
-        const q = quillRef.current?.getEditor?.();
-        if (!q) return;
-        const inches = (clampedX - contentLeftPx) / PX_PER_INCH;
-        const level = Math.max(0, Math.min(8, Math.round(inches / INDENT_STEP_INCHES)));
-        if (level !== indentLevel) {
-          setIndentLevel(level);
-          q.format('indent', level || false, 'user');
+
+      if (drag.type === 'top') {
+        // text-indent in em, relative to current left indent.
+        const offsetPx = clampedX - (contentLeftPx + leftIndentPx);
+        // Snap to nearest 0.25em for nicer UX.
+        const em = Math.round((offsetPx / EM_PX) * 4) / 4;
+        if (Math.abs(em - textIndentEm) > 0.01) {
+          setTextIndentEm(em);
+          q.format('text-indent', em ? `${em}em` : false, 'user');
+        }
+      } else if (drag.type === 'middle') {
+        // New left indent level from cursor X. Then preserve TOP's absolute
+        // position by adjusting text-indent inversely.
+        const newLevel = pxToIndentLevel(clampedX - contentLeftPx);
+        const newLeftIndentPx = indentLevelToPx(newLevel);
+        // We want topX (the previous absolute first-line X) to stay constant.
+        const desiredTopAbsPx = drag.anchorTopPx ?? topX;
+        const newOffsetPx = desiredTopAbsPx - (contentLeftPx + newLeftIndentPx);
+        const newEm = Math.round((newOffsetPx / EM_PX) * 4) / 4;
+        if (newLevel !== indentLevel) {
+          setIndentLevel(newLevel);
+          q.format('indent', newLevel || false, 'user');
+        }
+        if (Math.abs(newEm - textIndentEm) > 0.01) {
+          setTextIndentEm(newEm);
+          q.format('text-indent', newEm ? `${newEm}em` : false, 'user');
+        }
+      } else if (drag.type === 'bottom') {
+        // Moves left indent only — top travels with it (text-indent unchanged).
+        const newLevel = pxToIndentLevel(clampedX - contentLeftPx);
+        if (newLevel !== indentLevel) {
+          setIndentLevel(newLevel);
+          q.format('indent', newLevel || false, 'user');
         }
       } else if (drag.type === 'stop') {
         setTabStops((prev) => prev.map((s) =>
@@ -138,47 +185,42 @@ export default function CanvasRuler({ quillRef, canvasId }) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [drag, contentLeftPx, contentWidthPx, indentLevel, quillRef]);
+  }, [drag, contentLeftPx, contentWidthPx, indentLevel, textIndentEm, leftIndentPx, topX, quillRef]);
 
-  // ── Click-to-add tab stop, with sensitivity guards ────────────────────────
+  // ── Click empty ruler bottom-strip → add tab stop ───────────────────────
   const handleTrackClick = (e) => {
     if (drag) return;
     const track = trackRef.current;
     if (!track) return;
-    // Only honor clicks that landed on the track itself (or its tick layer),
-    // not on any marker buttons.
     const target = e.target;
     if (!(target === track || target?.dataset?.rulerEmpty === '1')) return;
     const rect = track.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    // Only the bottom 60% of the ruler is the "tab stop strip" — top portion
-    // is reserved for the digit labels and feels mis-clicky to spawn stops in.
     if (y < RULER_HEIGHT * 0.4) return;
-    // Inside the content area only.
     if (x < contentLeftPx || x > contentLeftPx + contentWidthPx) return;
-    // Skip if the click is too close to the indent marker.
-    if (Math.abs(x - indentMarkerLeftPx) < MARKER_HIT_RADIUS) return;
-    // Skip if the click is too close to any existing stop.
-    if (tabStops.some((s) => Math.abs((contentLeftPx + s.leftPx) - x) < MARKER_HIT_RADIUS)) return;
+    // Skip if too close to any marker.
+    const markerXs = [topX, middleX, bottomX, ...tabStops.map((s) => contentLeftPx + s.leftPx)];
+    if (markerXs.some((mx) => Math.abs(mx - x) < MARKER_HIT_RADIUS)) return;
     const id = `ts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setTabStops((prev) => [...prev, { id, leftPx: x - contentLeftPx }]);
   };
 
   const removeStop = (id) => setTabStops((prev) => prev.filter((s) => s.id !== id));
 
-  // ── Ticks: every 1/8 inch, label every full inch ──────────────────────────
+  // ── Ticks: every 1/8 inch, label every full inch ──────────────────────
   const inches = contentWidthPx > 0 ? Math.floor(contentWidthPx / PX_PER_INCH) : 0;
   const ticks = [];
   for (let i = 0; i <= inches * 8; i++) {
-    const major = i % 8 === 0;       // every 1.0 in
-    const half = !major && i % 4 === 0; // every 0.5 in
-    const quarter = !major && !half && i % 2 === 0; // every 0.25 in
+    const major = i % 8 === 0;
+    const half = !major && i % 4 === 0;
+    const quarter = !major && !half && i % 2 === 0;
     const xPx = contentLeftPx + (i / 8) * PX_PER_INCH;
     const label = major ? String(i / 8) : null;
     ticks.push({ xPx, major, half, quarter, label });
   }
 
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div
       ref={trackRef}
@@ -187,13 +229,13 @@ export default function CanvasRuler({ quillRef, canvasId }) {
       style={{
         height: RULER_HEIGHT,
         background: 'hsl(220, 8%, 22%)',
-        borderBottom: '1px solid hsl(220, 8%, 14%)',
         borderTop: '1px solid hsl(220, 8%, 14%)',
+        borderBottom: '1px solid hsl(220, 8%, 14%)',
       }}
       data-ruler-empty="1"
-      title="Click below the digits to drop a tab stop · drag the indent marker to adjust paragraph indent"
+      title="Drag the markers to set indents · click the bottom strip to drop a tab stop"
     >
-      {/* Margin shading: dim the area outside the content width, like Word */}
+      {/* Margin shading flanking the content area, like Word */}
       <div
         className="absolute inset-y-0 left-0 pointer-events-none"
         style={{ width: contentLeftPx, background: 'hsl(220, 8%, 16%)' }}
@@ -203,7 +245,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
         style={{ left: contentLeftPx + contentWidthPx, right: 0, background: 'hsl(220, 8%, 16%)' }}
       />
 
-      {/* Inner content strip with subtle inset bevel like Word */}
+      {/* Inner inset strip */}
       <div
         className="absolute pointer-events-none"
         style={{
@@ -217,7 +259,7 @@ export default function CanvasRuler({ quillRef, canvasId }) {
         }}
       />
 
-      {/* Ticks (rendered above the inner strip) */}
+      {/* Ticks */}
       {ticks.map((t, i) => {
         const tickHeight = t.major ? 10 : t.half ? 6 : t.quarter ? 4 : 3;
         const tickColor = t.major ? 'hsl(220, 14%, 88%)' : 'hsl(220, 9%, 70%)';
@@ -254,14 +296,14 @@ export default function CanvasRuler({ quillRef, canvasId }) {
         );
       })}
 
-      {/* Tab stops (draggable, right-click to remove) */}
+      {/* Tab stops (draggable, right/double-click to remove) */}
       {tabStops.map((s) => {
         const left = contentLeftPx + s.leftPx;
         const isDragging = drag?.type === 'stop' && drag.id === s.id;
         return (
           <div
             key={s.id}
-            onPointerDown={(e) => beginDragStop(e, s)}
+            onPointerDown={(e) => beginDrag('stop', e, { id: s.id })}
             onContextMenu={(e) => { e.preventDefault(); removeStop(s.id); }}
             onDoubleClick={(e) => { e.stopPropagation(); removeStop(s.id); }}
             title="Drag to move · right-click or double-click to remove"
@@ -275,58 +317,78 @@ export default function CanvasRuler({ quillRef, canvasId }) {
             }}
           >
             <svg viewBox="0 0 10 10" width="11" height="11" style={{ display: 'block' }}>
-              {/* Word-style L-shaped left-tab glyph */}
               <path d="M1 1 H8 V2.5 H2.5 V9 H1 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
             </svg>
           </div>
         );
       })}
 
-      {/* Hourglass left-indent marker: top wedge (first-line) + bottom wedge (left margin) */}
+      {/* TOP wedge: First-line indent ▽ — independent */}
       <div
-        className="absolute z-20"
+        role="slider"
+        aria-label="First-line indent"
+        title={`First-line indent: ${textIndentEm.toFixed(2)}em`}
+        onPointerDown={(e) => beginDrag('top', e)}
+        className="absolute z-30"
         style={{
-          left: indentMarkerLeftPx,
-          top: 0,
-          bottom: 0,
+          left: topX,
+          top: 1,
           transform: 'translateX(-50%)',
           width: 12,
-          pointerEvents: 'none',
+          height: 7,
+          cursor: drag?.type === 'top' ? 'grabbing' : 'grab',
+          touchAction: 'none',
         }}
       >
-        {/* Top wedge — placeholder for first-line indent (drag handler comes with v0.5) */}
-        <svg
-          viewBox="0 0 12 7"
-          width="12"
-          height="7"
-          style={{ position: 'absolute', top: 1, left: 0, display: 'block' }}
-        >
-          <path d="M0 0 H12 L6 7 Z" fill="hsl(220, 14%, 88%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+        <svg viewBox="0 0 12 7" width="12" height="7" style={{ display: 'block' }}>
+          <path d="M0 0 H12 L6 7 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
         </svg>
-        {/* Bottom wedge — interactive (drives the actual indent) */}
-        <div
-          role="slider"
-          aria-label="Left indent"
-          aria-valuenow={indentLevel}
-          aria-valuemin={0}
-          aria-valuemax={8}
-          onPointerDown={beginDragIndent}
-          title={`Left indent: level ${indentLevel} · drag to adjust`}
-          style={{
-            position: 'absolute',
-            bottom: 1,
-            left: 0,
-            width: 12,
-            height: 7,
-            cursor: drag?.type === 'indent' ? 'grabbing' : 'grab',
-            touchAction: 'none',
-            pointerEvents: 'auto',
-          }}
-        >
-          <svg viewBox="0 0 12 7" width="12" height="7" style={{ display: 'block' }}>
-            <path d="M6 0 L0 7 H12 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
-          </svg>
-        </div>
+      </div>
+
+      {/* MIDDLE wedge: Hanging indent △ — adjusts left edge of lines 2+ while
+          preserving the absolute X of the TOP wedge. */}
+      <div
+        role="slider"
+        aria-label="Hanging indent"
+        title={`Hanging indent: level ${indentLevel}`}
+        onPointerDown={(e) => beginDrag('middle', e, { anchorTopPx: topX })}
+        className="absolute z-30"
+        style={{
+          left: middleX,
+          top: 9,
+          transform: 'translateX(-50%)',
+          width: 12,
+          height: 7,
+          cursor: drag?.type === 'middle' ? 'grabbing' : 'grab',
+          touchAction: 'none',
+        }}
+      >
+        <svg viewBox="0 0 12 7" width="12" height="7" style={{ display: 'block' }}>
+          <path d="M6 0 L0 7 H12 Z" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+        </svg>
+      </div>
+
+      {/* BOTTOM slab: Left indent ▭ — moves the whole paragraph (top + middle
+          travel together because text-indent stays constant). */}
+      <div
+        role="slider"
+        aria-label="Left indent"
+        title={`Left indent: level ${indentLevel}`}
+        onPointerDown={(e) => beginDrag('bottom', e)}
+        className="absolute z-30"
+        style={{
+          left: bottomX,
+          bottom: 1,
+          transform: 'translateX(-50%)',
+          width: 12,
+          height: 5,
+          cursor: drag?.type === 'bottom' ? 'grabbing' : 'grab',
+          touchAction: 'none',
+        }}
+      >
+        <svg viewBox="0 0 12 5" width="12" height="5" style={{ display: 'block' }}>
+          <rect x="0" y="0" width="12" height="5" rx="1" fill="hsl(220, 14%, 92%)" stroke="hsl(220, 8%, 14%)" strokeWidth="0.5" />
+        </svg>
       </div>
     </div>
   );

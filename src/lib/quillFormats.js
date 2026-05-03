@@ -29,6 +29,15 @@ const lineHeightConfig = {
 const LineHeightStyle = new Parchment.Attributor.Style('line-height', 'line-height', lineHeightConfig);
 Quill.register(LineHeightStyle, true);
 
+// ---- First-line indent (Word-style) --------------------------------------
+// Top ruler wedge drives this. Stored as `text-indent: <em>em` on the block.
+// Positive = first line indented further than rest (default Word behavior).
+// Negative = hanging indent (first line outdented from the rest).
+const TextIndentStyle = new Parchment.Attributor.Style('text-indent', 'text-indent', {
+  scope: Parchment.Scope.BLOCK,
+});
+Quill.register(TextIndentStyle, true);
+
 // Re-export the Quill instance so callers can be sure they've awaited
 // registration before mounting <ReactQuill />.
 export default Quill;
