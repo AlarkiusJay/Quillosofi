@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.33',
+    date: '2026-05-03',
+    tagline: 'Alt-toggle native menu bar is now sticky — stays open until you press Alt again.',
+    changes: [
+      'The hidden File / Edit / View / Window / Help menu bar (yes, that one Alaria found by accident) is now a deliberate toggle instead of a flicker. Press Alt to reveal it, press Alt again to dismiss it. Clicking elsewhere no longer closes it.',
+      'Implementation: intercepts bare Alt keydown via Electron\'s before-input-event in the main process and drives setMenuBarVisible() ourselves — bypassing Electron\'s default “auto-hide on blur” behavior.',
+    ],
+  },
+  {
     version: '0.4.32',
     date: '2026-05-03',
     tagline: 'Three independent ruler markers — first-line, hanging, and left indent — just like Word. Tab no longer drags the whole stack.',

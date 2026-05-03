@@ -230,6 +230,10 @@ function createWindow() {
     backgroundColor: '#0b0b10',
     title: 'Quillosofi',
     icon: path.join(__dirname, '..', 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
+    // Menu bar starts hidden, BUT we drive its visibility ourselves so Alt
+    // toggles it as a sticky overlay (open until Alt is hit again, instead
+    // of Electron's default "close on focus loss"). See the before-input-event
+    // listener below — v0.4.33 easter-egg polish.
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -259,6 +263,33 @@ function createWindow() {
   // v0.4.14: closing the window now actually quits (no tray to hide into).
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // v0.4.33 — sticky Alt-toggle for the native menu bar.
+  // Default Electron behavior on Windows: Alt momentarily shows the bar, but
+  // it auto-hides the moment focus leaves it. Alaria wants it to behave like
+  // a deliberate toggle: Alt shows, click-anywhere does NOT close, Alt again
+  // closes. We achieve this by:
+  //   1. Listening for Alt keydown via before-input-event (fires before the
+  //      renderer sees it).
+  //   2. Toggling our own menuBarVisible flag and calling setMenuBarVisible.
+  //   3. Suppressing the original event so Electron's default "momentary
+  //      reveal" handler doesn't run and re-hide the bar on blur.
+  let menuBarStuck = false;
+  mainWindow.setMenuBarVisible(false);
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Bare Alt press (no modifiers besides alt itself, no character).
+    const isBareAlt =
+      input.type === 'keyDown' &&
+      input.key === 'Alt' &&
+      input.alt &&
+      !input.control &&
+      !input.shift &&
+      !input.meta;
+    if (!isBareAlt) return;
+    menuBarStuck = !menuBarStuck;
+    mainWindow.setMenuBarVisible(menuBarStuck);
+    event.preventDefault();
   });
 }
 
