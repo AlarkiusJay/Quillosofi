@@ -17,6 +17,19 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.30',
+    date: '2026-05-03',
+    tagline: 'Outline rail glow-up + Word-style ruler bar with draggable indent and tab stops.',
+    changes: [
+      'Outline navigator no longer floats over your text. Lives in a persistent 36px gutter on the left edge of the Canvas — hover-tooltip toggle, expands to the full panel when opened.',
+      'When collapsed, the gutter shows a subtle vertical “N headings” label so you know how many anchors are waiting on the other side.',
+      'NEW: Ruler bar above every Canvas editor. Word-style numbered scale with major + minor tick marks, dimmed margin shading, and live measurement that follows your editor width.',
+      'Drag the ▲ marker on the ruler to set the active paragraph’s left indent — maps to the same 0.5in / 3em steps as the toolbar Indent buttons (cap 8 levels). The marker tracks selection in real time.',
+      'Click empty ruler space to drop a tab-stop marker (Word-style L glyph). Click an existing stop to remove it. Stops persist per-canvas in local storage.',
+      'Custom Quill tab-jumping to those stops lands with the v0.5 Tiptap rewrite — today the ruler delivers the visual layout metaphor + the indent control.',
+    ],
+  },
+  {
     version: '0.4.29',
     date: '2026-05-03',
     tagline: 'Tab key actually indents now — v0.4.26 binding finally wins the keyboard race.',

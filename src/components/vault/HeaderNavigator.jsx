@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ListTree, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ListTree, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// HeaderNavigator — collapsible side rail listing every H1/H2/H3 in the
-// canvas, click-to-scroll. Lives inside the CanvasEditor flex column so it
-// works in both modal and embedded modes.
+// HeaderNavigator — persistent left rail listing every H1/H2/H3 in the
+// canvas, click-to-scroll. Two states:
+//   collapsed → a 36px gutter with a centered toggle button (no longer floats
+//               over the editor's writing area).
+//   open      → expands to a 224px panel with the headings list.
 //
 // Reads from the contenteditable DOM (.ql-editor) directly because Quill's
 // delta doesn't tag headings with stable ids. We index headings on every
@@ -16,11 +18,9 @@ export default function HeaderNavigator({ quillRef, content }) {
   useEffect(() => {
     const q = quillRef.current?.getEditor?.();
     if (!q) return;
-    // The .ql-editor element holds the rendered DOM.
     const root = q.root;
     const nodes = Array.from(root.querySelectorAll('h1, h2, h3'));
     const collected = nodes.map((el, i) => {
-      // Stamp a stable id we can scroll to.
       if (!el.id) el.id = `qfo-h-${i}-${(el.textContent || '').slice(0, 24).replace(/\s+/g, '-')}`;
       return {
         id: el.id,
@@ -41,22 +41,38 @@ export default function HeaderNavigator({ quillRef, content }) {
     }
   };
 
+  // ── Collapsed state: persistent 36px gutter on the left, no floating overlay.
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Show outline"
-        className="absolute left-2 top-2 z-10 h-8 w-8 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors"
-        aria-label="Show document outline"
-      >
-        <ListTree className="h-4 w-4" />
-      </button>
+      <aside className="w-9 shrink-0 border-r border-[hsl(var(--chalk-white-faint)/0.15)] bg-[hsl(var(--chalk-deep)/0.55)] backdrop-blur-sm flex flex-col items-center pt-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title="Show outline"
+          aria-label="Show document outline"
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-[hsl(220,7%,60%)] hover:text-[hsl(var(--chalk-yellow))] hover:bg-[hsl(var(--chalk-deep)/0.85)] transition-colors group relative"
+        >
+          <ListTree className="h-4 w-4" />
+          <span className="absolute left-full ml-2 px-2 py-1 rounded bg-[hsl(var(--chalk-deep))] border border-[hsl(var(--chalk-white-faint)/0.2)] text-[10px] text-[hsl(220,14%,90%)] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+            Outline
+          </span>
+        </button>
+        {/* Vertical 'OUTLINE' label, decorative, only when there are headings */}
+        {headings.length > 0 && (
+          <span
+            className="mt-3 text-[9px] uppercase tracking-[0.18em] text-[hsl(220,7%,42%)] font-semibold select-none"
+            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+          >
+            {headings.length} heading{headings.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </aside>
     );
   }
 
+  // ── Open state: 224px panel.
   return (
-    <aside className="w-56 shrink-0 border-r border-[hsl(var(--chalk-white-faint)/0.18)] bg-[hsl(var(--chalk-deep)/0.5)] backdrop-blur-sm flex flex-col">
+    <aside className="w-56 shrink-0 border-r border-[hsl(var(--chalk-white-faint)/0.18)] bg-[hsl(var(--chalk-deep)/0.55)] backdrop-blur-sm flex flex-col">
       <header className="px-3 py-2 flex items-center justify-between border-b border-[hsl(var(--chalk-white-faint)/0.15)]">
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--chalk-yellow))] font-semibold flex items-center gap-1.5">
           <ListTree className="h-3.5 w-3.5" /> Outline
@@ -65,8 +81,8 @@ export default function HeaderNavigator({ quillRef, content }) {
           type="button"
           onClick={() => setOpen(false)}
           title="Hide outline"
-          className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.7)] transition-colors"
           aria-label="Hide outline"
+          className="h-6 w-6 rounded flex items-center justify-center text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.7)] transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>

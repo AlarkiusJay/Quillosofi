@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
 import DictionaryContextMenu from '@/components/DictionaryContextMenu';
 import HeaderNavigator from './HeaderNavigator';
+import CanvasRuler from './CanvasRuler';
 
 // Tab/Shift-Tab indent bindings are registered IMPERATIVELY in a useEffect
 // below — not via modules.keyboard.bindings here. Quill's keyboard module
@@ -502,17 +503,20 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
         {/* Toolbar */}
         <Toolbar quillRef={quillRef} />
 
-        {/* Editor + outline rail (rail on the LEFT — v0.4.28) */}
+        {/* Editor + outline rail (rail on the LEFT, ruler bar above editor — v0.4.30) */}
         <div className="flex flex-1 overflow-hidden relative">
           <HeaderNavigator quillRef={quillRef} content={content} />
-          <div className="vault-quill-wrapper flex-1 overflow-hidden">
-            <ReactQuill
-              ref={quillRef}
-              value={content}
-              onChange={handleChange}
-              modules={modules}
-              style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
+            <div className="vault-quill-wrapper flex-1 overflow-hidden">
+              <ReactQuill
+                ref={quillRef}
+                value={content}
+                onChange={handleChange}
+                modules={modules}
+                style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              />
+            </div>
           </div>
         </div>
 
