@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.42',
+    date: '2026-05-04',
+    tagline: 'No more stealth updates — post-update toast surfaces version jumps, plus a heads-up chip on the auto-install toggle.',
+    changes: [
+      'New post-update toast (bottom-right): on first launch after an auto-install, Quillosofi tells you which version you came from and which one you’re on, with a “See what’s new” link straight to the Update tab.',
+      'Settings → Update → Auto-download & install now shows a small amber heads-up chip when enabled, so you know future updates will apply silently on next launch.',
+      'The toast and the existing green dot on the Settings gear share the same one-shot signal — dismissing either clears both.',
+    ],
+  },
+  {
     version: '0.4.40',
     date: '2026-05-04',
     tagline: 'Side-to-Side polish — pages fit the viewport, mouse wheel flips spreads, and Letter trims breathe.',

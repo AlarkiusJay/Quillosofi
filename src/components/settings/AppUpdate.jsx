@@ -403,12 +403,22 @@ function DesktopUpdateView() {
 
         <div className="border-t border-border" />
 
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium">Auto-download &amp; install</p>
-            <p className="text-xs text-muted-foreground">Downloads in the background and installs on next quit.</p>
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Auto-download &amp; install</p>
+              <p className="text-xs text-muted-foreground">Downloads in the background and installs on next quit.</p>
+            </div>
+            <Switch checked={!!settings.autoInstall} onCheckedChange={toggleAutoInstall} />
           </div>
-          <Switch checked={!!settings.autoInstall} onCheckedChange={toggleAutoInstall} />
+          {settings.autoInstall && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              <span className="text-amber-400 text-xs leading-tight" aria-hidden="true">⚠</span>
+              <p className="text-xs text-amber-200/90 leading-snug">
+                Heads-up: updates will apply silently on next launch. You'll see a small toast afterward letting you know what changed.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

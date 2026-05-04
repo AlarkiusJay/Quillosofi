@@ -8,6 +8,7 @@ import SpaceModal from './spaces/SpaceModal';
 import Tooltip from './Tooltip';
 import { useAiEnabled } from '@/lib/aiState';
 import useFreshlyUpdated from '@/lib/useFreshlyUpdated';
+import PostUpdateToast from './PostUpdateToast';
 
 // NOTE: previous versions polled the local index.html for an etag change as a
 // PWA-style "new build available" signal. Quillosofi is a desktop app — that
@@ -40,6 +41,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   const navigate = useNavigate();
   const [showSpaceModal, setShowSpaceModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('general');
   const [showAiSettings, setShowAiSettings] = useState(false);
   const [editingSpace, setEditingSpace] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -49,7 +51,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
 
   // Freshly-updated dot: lights up after a version bump, until the user opens
   // the Update tab. Independent from the in-app updater badge below.
-  const { freshlyUpdated, dismiss: dismissFreshlyUpdated } = useFreshlyUpdated();
+  const { freshlyUpdated, fromVersion, toVersion, dismiss: dismissFreshlyUpdated } = useFreshlyUpdated();
 
   // Subscribe to the desktop updater so the gear icon shows a dot when an
   // update is downloaded and ready to install. Falls back to 0 on web/dev.
@@ -273,7 +275,20 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           onSave={(s) => { onSpaceCreated(s); setShowSpaceModal(false); setEditingSpace(null); navigate(`/space/${s.id}`); }}
         />
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} updateCount={updateBadge} freshlyUpdated={freshlyUpdated} onUpdateTabSeen={dismissFreshlyUpdated} />}
+      {showSettings && <SettingsModal onClose={() => { setShowSettings(false); setSettingsInitialTab('general'); }} initialTab={settingsInitialTab} updateCount={updateBadge} freshlyUpdated={freshlyUpdated} onUpdateTabSeen={dismissFreshlyUpdated} />}
+
+      {freshlyUpdated && toVersion && (
+        <PostUpdateToast
+          fromVersion={fromVersion}
+          toVersion={toVersion}
+          onDismiss={dismissFreshlyUpdated}
+          onOpenChangelog={() => {
+            setSettingsInitialTab('update');
+            setShowSettings(true);
+            dismissFreshlyUpdated();
+          }}
+        />
+      )}
       {showAiSettings && <AiSettingsModal onClose={() => setShowAiSettings(false)} />}
 
       {contextMenu && (
