@@ -16,7 +16,7 @@ import { effectiveDimensions, resolvedMargins, inchToPx } from '@/lib/pageSetup'
 //   number      page number to display in the corner (1-based)
 
 const PageFrame = forwardRef(function PageFrame(
-  { setup, pageIndex = 0, live = false, children, number },
+  { setup, pageIndex = 0, live = false, children, number, fixedHeight = null },
   ref
 ) {
   const dims = effectiveDimensions(setup);
@@ -29,6 +29,12 @@ const PageFrame = forwardRef(function PageFrame(
   const padLeft = inchToPx(margins.left);
   const padRight = inchToPx(margins.right);
 
+  // When fixedHeight is provided (side-to-side mode), the page itself never
+  // grows past one paper height — the editor inside scrolls instead.
+  const heightStyle = fixedHeight != null
+    ? { height: fixedHeight, minHeight: fixedHeight, maxHeight: fixedHeight }
+    : { minHeight: pageHeightPx, height: live ? 'auto' : pageHeightPx };
+
   return (
     <div
       ref={ref}
@@ -37,12 +43,11 @@ const PageFrame = forwardRef(function PageFrame(
       className="page-frame relative shrink-0 mx-auto"
       style={{
         width: pageWidthPx,
-        // Live page grows to fit content (phantom pages keep fixed height).
-        minHeight: pageHeightPx,
-        height: live ? 'auto' : pageHeightPx,
+        ...heightStyle,
         background: 'hsl(0, 0%, 96%)',
         boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3)',
         borderRadius: 2,
+        overflow: fixedHeight != null ? 'hidden' : 'visible',
       }}
     >
       {/* Margin guides — corner brackets, like Word's "Show Margins" */}
@@ -73,8 +78,12 @@ const PageFrame = forwardRef(function PageFrame(
           paddingBottom: padBottom,
           paddingLeft: padLeft,
           paddingRight: padRight,
-          minHeight: live ? pageHeightPx : '100%',
-          height: live ? 'auto' : '100%',
+          minHeight: fixedHeight != null ? '100%' : (live ? pageHeightPx : '100%'),
+          height: fixedHeight != null ? '100%' : (live ? 'auto' : '100%'),
+          // When the page height is capped (side-to-side), let the editor
+          // scroll internally instead of overflowing the sheet.
+          overflowY: fixedHeight != null && live ? 'auto' : 'visible',
+          boxSizing: 'border-box',
         }}
       >
         {live ? (

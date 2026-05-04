@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import PageFrame from './PageFrame';
 import { effectiveDimensions, inchToPx } from '@/lib/pageSetup';
@@ -10,30 +10,54 @@ import { cn } from '@/lib/utils';
 // Modes:
 //   • vertical + one        → single column, just page 1 (live)
 //   • vertical + multiple   → page 1 (live) + N phantom pages stacked below
-//   • side-to-side          → horizontal book spread; arrows page through
-//                             pairs. Page 1 is always shown live in spread 0.
+//   • side-to-side          → horizontal book spread; wheel/arrows page through
+//                             pairs, auto-fits viewport height like Word.
 //
 // In v0.4.38 phantom pages are visual-only; v0.4.50 (Tiptap) flows real
 // content into them.
-//
-// Props:
-//   setup          PageSetup
-//   children       the live editor element (rendered inside page 1)
 
 const PHANTOM_COUNT = 3; // how many phantom pages to show in 'multiple' view
+const SIDE_VPAD = 64;    // total vertical padding inside side-to-side viewport
+const SIDE_WHEEL_THRESHOLD = 60; // wheel delta to count as one spread step
 
 export default function PageView({ setup, children }) {
+  // ── Hooks (always declared at top level, hook order must stay stable
+  //          across all branches of the JSX below) ─────────────────────────
   const containerRef = useRef(null);
+  const wheelAccumRef = useRef(0);
+  const wheelTimerRef = useRef(null);
   const [spreadIndex, setSpreadIndex] = useState(0);
+  const [fitZoom, setFitZoom] = useState(1);
+
+  const { width: pw, height: ph } = effectiveDimensions(setup);
+  const pageWidthPx = inchToPx(pw);
+  const pageHeightPx = inchToPx(ph);
 
   // When swapping into side-to-side, snap to spread 0 (live page).
   useEffect(() => {
     if (setup.pageMovement === 'side-to-side') setSpreadIndex(0);
   }, [setup.pageMovement]);
 
-  const { width: pw } = effectiveDimensions(setup);
-  const pageWidthPx = inchToPx(pw);
-  const zoomedWidth = Math.round(pageWidthPx * setup.zoom);
+  // Auto-fit zoom: pick the largest scale that lets a full page fit
+  // vertically inside the viewport. Only meaningful in side-to-side, but
+  // declared unconditionally so hook order is stable.
+  useLayoutEffect(() => {
+    if (setup.pageMovement !== 'side-to-side') return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const recompute = () => {
+      const avail = el.clientHeight - SIDE_VPAD;
+      if (avail <= 0 || pageHeightPx <= 0) return;
+      const fit = avail / pageHeightPx;
+      setFitZoom(Math.max(0.25, Math.min(fit, 1.6)));
+    };
+    recompute();
+
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [setup.pageMovement, pageHeightPx]);
 
   // ── Vertical mode ────────────────────────────────────────────────────────
   if (setup.pageMovement === 'vertical') {
@@ -46,12 +70,15 @@ export default function PageView({ setup, children }) {
         style={{ background: 'hsl(220, 12%, 9%)' }}
       >
         <div
-          className="flex flex-col items-center gap-6 py-8 px-4"
+          className="flex flex-col items-center gap-6 py-8 px-12"
           style={{
             transform: `scale(${setup.zoom})`,
             transformOrigin: 'top center',
             // Compensate the container width so scrollbar tracks scaled content
             width: setup.zoom !== 1 ? `${100 / setup.zoom}%` : '100%',
+            // Keep the page centred with chalkboard breathing room on letter
+            // and other large trims.
+            minWidth: 0,
           }}
         >
           {/* Live page (always page 1) */}
@@ -84,17 +111,22 @@ export default function PageView({ setup, children }) {
   // Spread 0 = [verso (blank/phantom), recto (live page 1)]   ← like a book cover
   // Spread N = [verso phantom 2N, recto phantom 2N+1]
   //
-  // We treat the live page as the right (recto) page of spread 0 so the
-  // book opens to "page 1 on the right" like a printed book. If the user
-  // wants the live page on the left, they can flip with the arrow keys.
+  // Pages are auto-fitted to viewport height (like Word) so vertical
+  // scrolling stays minimal. Mouse wheel maps to spread navigation, so it
+  // feels like flipping pages horizontally.
 
   const renderSpread = (idx) => {
     if (idx === 0) {
-      // Verso phantom (or empty), recto live
       return (
         <>
-          <PageFrame setup={setup} pageIndex={1} live={false} number={null} />
-          <PageFrame setup={setup} pageIndex={0} live number={1}>
+          <PageFrame
+            setup={setup} pageIndex={1} live={false} number={null}
+            fixedHeight={pageHeightPx}
+          />
+          <PageFrame
+            setup={setup} pageIndex={0} live number={1}
+            fixedHeight={pageHeightPx}
+          >
             {children}
           </PageFrame>
         </>
@@ -102,8 +134,14 @@ export default function PageView({ setup, children }) {
     }
     return (
       <>
-        <PageFrame setup={setup} pageIndex={(idx * 2) - 1} live={false} number={idx * 2} />
-        <PageFrame setup={setup} pageIndex={(idx * 2)}     live={false} number={idx * 2 + 1} />
+        <PageFrame
+          setup={setup} pageIndex={(idx * 2) - 1} live={false}
+          number={idx * 2} fixedHeight={pageHeightPx}
+        />
+        <PageFrame
+          setup={setup} pageIndex={(idx * 2)} live={false}
+          number={idx * 2 + 1} fixedHeight={pageHeightPx}
+        />
       </>
     );
   };
@@ -111,14 +149,44 @@ export default function PageView({ setup, children }) {
   const canPrev = spreadIndex > 0;
   const canNext = spreadIndex < PHANTOM_COUNT;
 
+  const onWheel = (e) => {
+    // Don't hijack wheel inside the live editor — that would steal text-area
+    // scroll. Only navigate when the wheel happens over chalkboard / phantoms.
+    const target = e.target;
+    if (target && target.closest && target.closest('.ql-editor')) return;
+
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.sign(delta) !== Math.sign(wheelAccumRef.current)) {
+      wheelAccumRef.current = 0;
+    }
+    wheelAccumRef.current += delta;
+
+    if (wheelAccumRef.current >= SIDE_WHEEL_THRESHOLD && canNext) {
+      setSpreadIndex((s) => Math.min(s + 1, PHANTOM_COUNT));
+      wheelAccumRef.current = 0;
+      e.preventDefault();
+    } else if (wheelAccumRef.current <= -SIDE_WHEEL_THRESHOLD && canPrev) {
+      setSpreadIndex((s) => Math.max(s - 1, 0));
+      wheelAccumRef.current = 0;
+      e.preventDefault();
+    }
+
+    clearTimeout(wheelTimerRef.current);
+    wheelTimerRef.current = setTimeout(() => { wheelAccumRef.current = 0; }, 200);
+  };
+
+  const finalZoom = fitZoom * setup.zoom;
+
   return (
     <div
-      className="flex-1 overflow-auto relative"
+      ref={containerRef}
+      className="flex-1 overflow-hidden relative"
       style={{ background: 'hsl(220, 12%, 9%)' }}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft' && canPrev) setSpreadIndex(spreadIndex - 1);
         if (e.key === 'ArrowRight' && canNext) setSpreadIndex(spreadIndex + 1);
       }}
+      onWheel={onWheel}
       tabIndex={0}
     >
       {/* Spine seam — subtle gradient down the middle */}
@@ -133,18 +201,20 @@ export default function PageView({ setup, children }) {
       />
 
       <div
-        className="flex items-start justify-center gap-1 py-8 px-4 relative"
-        style={{
-          transform: `scale(${setup.zoom})`,
-          transformOrigin: 'top center',
-          width: setup.zoom !== 1 ? `${100 / setup.zoom}%` : '100%',
-          zIndex: 2,
-        }}
+        className="absolute inset-0 flex items-center justify-center px-16"
+        style={{ zIndex: 2 }}
       >
-        {renderSpread(spreadIndex)}
+        <div
+          className="flex items-start justify-center gap-1"
+          style={{
+            transform: `scale(${finalZoom})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          {renderSpread(spreadIndex)}
+        </div>
       </div>
 
-      {/* Page nav arrows */}
       <button
         onClick={() => canPrev && setSpreadIndex(spreadIndex - 1)}
         disabled={!canPrev}
@@ -155,7 +225,7 @@ export default function PageView({ setup, children }) {
             ? 'text-white hover:bg-[hsl(var(--chalk-deep))] cursor-pointer'
             : 'text-[hsl(220,7%,30%)] cursor-not-allowed opacity-40'
         )}
-        title="Previous spread (←)"
+        title="Previous spread (← / scroll up)"
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
@@ -169,12 +239,11 @@ export default function PageView({ setup, children }) {
             ? 'text-white hover:bg-[hsl(var(--chalk-deep))] cursor-pointer'
             : 'text-[hsl(220,7%,30%)] cursor-not-allowed opacity-40'
         )}
-        title="Next spread (→)"
+        title="Next spread (→ / scroll down)"
       >
         <ChevronRight className="h-5 w-5" />
       </button>
 
-      {/* Spread indicator */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 text-[10px] font-mono rounded-full bg-[hsl(var(--chalk-deep)/0.85)] border border-[hsl(var(--chalk-white-faint)/0.2)] text-[hsl(220,7%,65%)] z-10">
         Spread {spreadIndex + 1} / {PHANTOM_COUNT + 1} · phantom flow lands in v0.4.50
       </div>

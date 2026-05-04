@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.40',
+    date: '2026-05-04',
+    tagline: 'Side-to-Side polish — pages fit the viewport, mouse wheel flips spreads, and Letter trims breathe.',
+    changes: [
+      'Side to Side now auto-fits the spread to the viewport height (Word-style) so vertical scrolling is gone — no more pages running off the bottom.',
+      'Mouse wheel over the chalkboard or phantom pages now flips spreads horizontally, just like Word’s Side to Side mode. (Wheel inside the live editor still scrolls text normally.)',
+      'Letter, Legal, and other large trims now have proper chalkboard breathing room on the left and right edges in Vertical view — page edges no longer kiss the sidebar.',
+      'Live page in Side to Side is height-capped to one paper sheet; the editor scrolls internally instead of stretching the page off-screen.',
+    ],
+  },
+  {
     version: '0.4.38',
     date: '2026-05-04',
     tagline: 'Visual page-frame pagination + Page Setup — Canvas finally looks like a real page (or a real book spread).',
