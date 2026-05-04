@@ -66,6 +66,21 @@ export default function CanvasEditorHub() {
     openTab(id);
   };
 
+  // Close a tab AND keep the URL in sync. Without this the route-precedence
+  // sync effect would reopen the just-closed tab because the URL still
+  // references its id. (Bug surfaced after v0.4.35: closing the active or
+  // only tab made it pop right back.)
+  const handleCloseTab = useCallback((id) => {
+    const idx = tabs.indexOf(id);
+    const next = tabs.filter(t => t !== id);
+    closeTab(id);
+    // If we closed the tab whose id is in the URL, hop the URL.
+    if (id === routeId) {
+      const fallback = next[idx] || next[idx - 1] || null;
+      navigate(fallback ? `/canvas/${fallback}` : '/canvas', { replace: true });
+    }
+  }, [tabs, routeId, closeTab, navigate]);
+
   const handleUpdateCanvas = (updated) => {
     if (!updated?.id) return;
     setAllCanvases(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
@@ -96,7 +111,7 @@ export default function CanvasEditorHub() {
         tabs={tabDescriptors}
         activeId={activeId}
         onSelect={setActiveId}
-        onClose={closeTab}
+        onClose={handleCloseTab}
         onNew={handleNew}
         placeholder="No canvases open — pick one below or hit + to start fresh"
       />

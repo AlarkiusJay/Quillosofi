@@ -33,12 +33,13 @@ export default function TabStrip({ tabs = [], activeId, onSelect, onClose, onNew
               {t.icon && <span className="text-xs shrink-0">{t.icon}</span>}
               <span className="truncate">{t.title || 'Untitled'}</span>
               <button
-                onClick={(e) => { e.stopPropagation(); onClose?.(t.id); }}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose?.(t.id); }}
+                onClick={(e) => { e.stopPropagation(); }}
                 className={cn(
                   'h-4 w-4 rounded flex items-center justify-center transition-colors shrink-0',
                   active
                     ? 'text-primary/80 hover:bg-primary/25 hover:text-white'
-                    : 'opacity-0 group-hover:opacity-100 text-[hsl(220,7%,55%)] hover:bg-[hsl(228,7%,30%)] hover:text-white'
+                    : 'text-[hsl(220,7%,45%)] hover:bg-[hsl(228,7%,30%)] hover:text-white'
                 )}
                 aria-label="Close tab"
                 title="Close tab"

@@ -67,6 +67,17 @@ export default function SheetsEditorHub() {
 
   const handleOpen = (id) => openTab(id);
 
+  // Close + URL sync (mirrors CanvasEditorHub fix — prevents reopen loop).
+  const handleCloseTab = useCallback((id) => {
+    const idx = tabs.indexOf(id);
+    const next = tabs.filter(t => t !== id);
+    closeTab(id);
+    if (id === routeId) {
+      const fallback = next[idx] || next[idx - 1] || null;
+      navigate(fallback ? `/sheets/${fallback}` : '/sheets', { replace: true });
+    }
+  }, [tabs, routeId, closeTab, navigate]);
+
   // Refresh title in tabs after the user renames inside the editor.
   const handleSheetSaved = useCallback(async (idOrMsgId) => {
     // The save callback receives an id — could be sheet id (hub) or message id (chat).
@@ -103,7 +114,7 @@ export default function SheetsEditorHub() {
         tabs={tabDescriptors}
         activeId={activeId}
         onSelect={setActiveId}
-        onClose={closeTab}
+        onClose={handleCloseTab}
         onNew={handleNew}
         placeholder="No sheets open — pick one below or hit + to start fresh"
       />

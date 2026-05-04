@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.36',
+    date: '2026-05-04',
+    tagline: 'Tab-close fix — the X button on editor tabs actually closes them now.',
+    changes: [
+      'Fixed: clicking the X on an inactive tab did nothing, and closing the only/active tab popped it right back open. Both were aftershocks of the v0.4.35 route-precedence sync — the URL still pointed at the closed tab so the effect reopened it. Hub now hops the URL to a fallback tab (or the /canvas landing page when the last tab closes).',
+      'Inactive-tab X is now always visible instead of fading in on hover — less guesswork, easier to aim at.',
+      'Close button switched to onMouseDown so it can\'t lose a focus race with the row\'s click-to-activate handler.',
+      'Same fixes applied to the Sheets editor hub.',
+    ],
+  },
+  {
     version: '0.4.35',
     date: '2026-05-04',
     tagline: 'Bugfix — Canvas (and Sheets) editor no longer ping-pongs when swapping documents.',
