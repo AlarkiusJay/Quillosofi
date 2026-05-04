@@ -17,6 +17,14 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.43',
+    date: '2026-05-04',
+    tagline: 'Tiny polish — dropped the “Start writing…” placeholder on Canvas. Blank pages stay blank.',
+    changes: [
+      'Removed the “Start writing…” ghost text from empty Canvas editors. The blank-state pseudo-element is gone, so a fresh page is just a clean page.',
+    ],
+  },
+  {
     version: '0.4.42',
     date: '2026-05-04',
     tagline: 'No more stealth updates — post-update toast surfaces version jumps, plus a heads-up chip on the auto-install toggle.',

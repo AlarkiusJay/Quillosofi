@@ -55,7 +55,7 @@ const editorStyles = `
   .vault-quill-wrapper .ql-container:focus, .vault-quill-wrapper .ql-container:focus-visible, .vault-quill-wrapper .ql-container *:focus, .vault-quill-wrapper .ql-container *:focus-visible { outline: none !important; box-shadow: none !important; }
   .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; tab-size: 4; -moz-tab-size: 4; white-space: pre-wrap; }
   .vault-quill-wrapper .ql-editor:focus, .vault-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
-  .vault-quill-wrapper .ql-editor.ql-blank::before { color: hsl(220,7%,40%); font-style: normal; content: 'Start writing...'; }
+  .vault-quill-wrapper .ql-editor.ql-blank::before { content: none; }
 
   /* Page-mode: when wrapped inside a PageFrame, the editor lives ON the
      paper sheet. Drop the dark background and our own padding (the page
