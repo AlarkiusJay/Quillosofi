@@ -238,12 +238,24 @@ function DesktopUpdateView() {
       </div>
     );
   } else if (status === 'error') {
+    // Soften the wall-of-text electron-updater error into something
+    // friendlier. The raw payload is still available in Diagnostic below
+    // for support tickets. Most common cause: CI hasn't published
+    // latest.yml for a freshly-pushed tag yet (404 on the manifest).
+    const looksLikeFreshTag404 = typeof error === 'string' && /404/.test(error) && /latest\.yml/i.test(error);
     statusBlock = (
-      <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">
-        <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-        <div className="text-xs text-red-400 break-all">
-          <p className="font-medium">Update check failed.</p>
-          <p className="mt-0.5 font-mono text-[10px] opacity-80">{error || 'Unknown error.'}</p>
+      <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5">
+        <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+        <div className="text-xs text-amber-100/90 leading-relaxed">
+          <p className="font-medium text-amber-200">
+            Never gonna give you, never gonna let you down—wait actually—try checking for an update later lol. In like ~10 minutes.
+          </p>
+          {looksLikeFreshTag404 && (
+            <p className="mt-1 text-[11px] opacity-75">
+              (Looks like a release was just tagged but its installer manifest hasn’t been published yet. CI is probably still building.)
+            </p>
+          )}
+          <p className="mt-1 text-[11px] opacity-60">Full error details are in the Diagnostic panel below.</p>
         </div>
       </div>
     );

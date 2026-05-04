@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.44',
+    date: '2026-05-04',
+    tagline: 'Friendlier update-check error — the wall of red electron-updater stack traces is gone.',
+    changes: [
+      'The “Update check failed” red panel is now a soft amber notice with a Rick Astley-flavoured nudge to try again in ~10 minutes (the most common cause is CI still building a freshly-pushed release).',
+      'When the underlying error looks like a fresh-tag 404 on latest.yml, the notice adds a one-line explanation. Otherwise it just says try again later.',
+      'Full raw error payload still lives in the Diagnostic panel below — nothing was thrown away, just hidden behind a click for support-ticket use.',
+    ],
+  },
+  {
     version: '0.4.43',
     date: '2026-05-04',
     tagline: 'Tiny polish — dropped the “Start writing…” placeholder on Canvas. Blank pages stay blank.',
