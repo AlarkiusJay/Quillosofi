@@ -2,7 +2,7 @@
   "name": "quillosofi",
   "productName": "Quillosofi",
   "private": true,
-  "version": "0.4.36",
+  "version": "0.4.37",
   "description": "Quillosofi \u2014 All-in-one AI writing & thinking studio. By Alarkius Elvya Jay.",
   "author": {
     "name": "Alarkius Elvya Jay",
@@ -12,6 +12,7 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
+    "postinstall": "node scripts/patch-nsis-crccheck.cjs",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --quiet",
@@ -108,7 +109,7 @@
     "baseline-browser-mapping": "^2.8.32",
     "concurrently": "^9.1.2",
     "electron": "^31.0.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.0.20",
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
@@ -168,7 +169,7 @@
       "artifactName": "Quillosofi-Setup-${version}.${ext}",
       "allowElevation": true,
       "deleteAppDataOnUninstall": false,
-      "differentialPackage": true,
+      "differentialPackage": false,
       "runAfterFinish": true
     },
     "mac": {

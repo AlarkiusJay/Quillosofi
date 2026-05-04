@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.37',
+    date: '2026-05-04',
+    tagline: 'Auto-update fix — the Windows installer no longer chokes on \'Failed to uninstall old application files\'.',
+    changes: [
+      'Bumped electron-builder 24.13.3 → 26.0.20 to pick up the fix for the regression in 24.13.2 that mis-detected the app as running and aborted the uninstall step with error code 2.',
+      'Disabled differentialPackage — the patch-based update path was contributing to the same uninstaller failure. Each update is now a clean full install.',
+      'Added a postinstall step that appends `CRCCheck off` to electron-builder\'s NSIS template, defusing the integrity check that fired the error in the first place.',
+      'CI Node version bumped 20 → 22 (required by the new electron-builder).',
+    ],
+  },
+  {
     version: '0.4.36',
     date: '2026-05-04',
     tagline: 'Tab-close fix — the X button on editor tabs actually closes them now.',
