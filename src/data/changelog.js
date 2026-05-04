@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.35',
+    date: '2026-05-04',
+    tagline: 'Bugfix — Canvas (and Sheets) editor no longer ping-pongs when swapping documents.',
+    changes: [
+      'Fixed an infinite render loop when opening a different canvas from Quillibrary while one was already open. The hub had two URL-sync effects that fought each other when the route id and the persisted lastOpen id disagreed — effect 1 set active=B, effect 2 immediately yanked the URL back to A, repeat forever. Merged them into a single effect with the route as the source of truth.',
+      'Same fix applied preemptively to the Sheets editor hub (same pattern, same latent bug).',
+    ],
+  },
+  {
     version: '0.4.34',
     date: '2026-05-03',
     tagline: 'Ruler polish — proper Word ⌐ Left Tab glyph, locked indent markers, new Right Indent triangle.',

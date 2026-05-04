@@ -35,26 +35,25 @@ export default function CanvasEditorHub() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  // Sync the URL with the active tab.
+  // Sync URL ↔ active tab. Single effect with explicit precedence:
+  //   1) URL is the source of truth. If the route has an :id, that id wins
+  //      and we open it as a tab (making it active). This handles both
+  //      Quillibrary "Open in Editor" navigations AND mounting at /canvas/:id
+  //      with a stale lastOpen value in localStorage.
+  //   2) If the URL is /canvas (no id) but a tab is active, hop the URL to
+  //      match — this preserves "resume last tab" on landing.
+  // Previously this was split into two effects (one per dep) which created a
+  // ping-pong when mounting at /canvas/B with localStorage lastOpen=A:
+  // effect-1 set active=B, effect-2 navigated URL back to A, repeat forever.
   useEffect(() => {
-    if (routeId && routeId !== activeId) {
-      // Route says open this id — make sure it's a tab.
-      openTab(routeId);
-    } else if (!routeId && activeId) {
-      // Route is /canvas but a tab is active — hop to it.
+    if (routeId) {
+      if (routeId !== activeId) openTab(routeId);
+      // routeId === activeId → already in sync, do nothing.
+    } else if (activeId) {
       navigate(`/canvas/${activeId}`, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeId]);
-
-  useEffect(() => {
-    if (activeId && activeId !== routeId) {
-      navigate(`/canvas/${activeId}`, { replace: true });
-    } else if (!activeId && routeId) {
-      navigate('/canvas', { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [routeId, activeId]);
 
   const handleNew = async () => {
     const c = await app.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });

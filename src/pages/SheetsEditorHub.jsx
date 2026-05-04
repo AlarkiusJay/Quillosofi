@@ -40,18 +40,17 @@ export default function SheetsEditorHub() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  // URL ↔ active tab sync.
+  // URL ↔ active tab sync. Single effect, route is source of truth.
+  // (Splitting into two effects caused a ping-pong loop when mounting at
+  // /sheets/:id with a stale lastOpen in localStorage — see CanvasEditorHub.)
   useEffect(() => {
-    if (routeId && routeId !== activeId) openTab(routeId);
-    else if (!routeId && activeId) navigate(`/sheets/${activeId}`, { replace: true });
+    if (routeId) {
+      if (routeId !== activeId) openTab(routeId);
+    } else if (activeId) {
+      navigate(`/sheets/${activeId}`, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeId]);
-
-  useEffect(() => {
-    if (activeId && activeId !== routeId) navigate(`/sheets/${activeId}`, { replace: true });
-    else if (!activeId && routeId) navigate('/sheets', { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [routeId, activeId]);
 
   const handleNew = async () => {
     const s = await app.entities.Spreadsheet.create({
