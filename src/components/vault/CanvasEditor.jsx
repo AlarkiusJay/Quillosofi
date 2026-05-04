@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { exportTxt, exportMd, exportDocx, exportPdf } from './canvasExportUtils';
 import ReactQuill from 'react-quill';
 import '@/lib/quillFormats'; // side-effect: registers font-size whitelist + line-height
@@ -14,6 +14,10 @@ import { addCustomWord } from '@/lib/customDict';
 import DictionaryContextMenu from '@/components/DictionaryContextMenu';
 import HeaderNavigator from './HeaderNavigator';
 import CanvasRuler from './CanvasRuler';
+import ViewMenu from './ViewMenu';
+import PageSetupDialog from './PageSetupDialog';
+import PageView from './PageView';
+import { loadPageSetup, savePageSetup, saveAsDefaultPageSetup, effectiveDimensions, inchToPx } from '@/lib/pageSetup';
 
 // Tab/Shift-Tab indent bindings are registered IMPERATIVELY in a useEffect
 // below — not via modules.keyboard.bindings here. Quill's keyboard module
@@ -52,6 +56,20 @@ const editorStyles = `
   .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; tab-size: 4; -moz-tab-size: 4; white-space: pre-wrap; }
   .vault-quill-wrapper .ql-editor:focus, .vault-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
   .vault-quill-wrapper .ql-editor.ql-blank::before { color: hsl(220,7%,40%); font-style: normal; content: 'Start writing...'; }
+
+  /* Page-mode: when wrapped inside a PageFrame, the editor lives ON the
+     paper sheet. Drop the dark background and our own padding (the page
+     frame supplies margins via padding) and switch text colour to dark so it
+     reads against the white sheet. */
+  .vault-quill-wrapper.page-mode { overflow: visible; }
+  .vault-quill-wrapper.page-mode .ql-container { color: hsl(220, 30%, 12%); overflow: visible; }
+  .vault-quill-wrapper.page-mode .ql-editor { padding: 0; min-height: 100%; color: hsl(220, 30%, 12%); }
+  .vault-quill-wrapper.page-mode .ql-editor.ql-blank::before { color: hsl(220, 8%, 55%); }
+  .vault-quill-wrapper.page-mode .ql-editor blockquote { color: hsl(220, 12%, 30%); }
+  .vault-quill-wrapper.page-mode .ql-editor a { color: hsl(235, 80%, 45%); }
+  .vault-quill-wrapper.page-mode .ql-editor hr { border-top-color: hsl(220, 8%, 70%); }
+  .vault-quill-wrapper.page-mode .ql-editor pre.ql-syntax { background: hsl(220, 8%, 92%); color: hsl(220, 30%, 12%); }
+  .vault-quill-wrapper.page-mode .ql-editor code { background: hsl(220, 8%, 92%); color: hsl(220, 30%, 12%); }
   .vault-quill-wrapper .ql-editor h1 { font-size: 2em; font-weight: 700; margin: 12px 0 6px; }
   .vault-quill-wrapper .ql-editor h2 { font-size: 1.5em; font-weight: 700; margin: 10px 0 5px; }
   .vault-quill-wrapper .ql-editor h3 { font-size: 1.2em; font-weight: 700; margin: 8px 0 4px; }
@@ -82,7 +100,7 @@ const editorStyles = `
   .vault-quill-wrapper .ql-editor .ql-indent-8 { padding-left: 24em; }
 `;
 
-function Toolbar({ quillRef }) {
+function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog }) {
   const [showHeadings, setShowHeadings] = useState(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showLineHeight, setShowLineHeight] = useState(false);
@@ -250,6 +268,33 @@ function Toolbar({ quillRef }) {
           >Normal</button>
         </div>
       )}
+
+      {/* View menu — pushed to the far right */}
+      <div className="ml-auto">
+        <ViewMenu
+          setup={pageSetup}
+          onChange={onPageSetupChange}
+          onOpenPageSetup={onOpenPageSetupDialog}
+        />
+      </div>
+    </div>
+  );
+}
+
+// PageRulerSlot — frames the ruler so its track width matches the current
+// page width and the ticks line up with the page sheet below. Centers the
+// ruler horizontally just like the page frame is centered.
+function PageRulerSlot({ setup, children }) {
+  const dims = effectiveDimensions(setup);
+  const widthPx = Math.round(inchToPx(dims.width) * setup.zoom);
+  return (
+    <div
+      className="shrink-0 flex justify-center"
+      style={{ background: 'hsl(220, 12%, 9%)', paddingTop: 6 }}
+    >
+      <div style={{ width: widthPx }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -308,6 +353,34 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   const [isFavorite, setIsFavorite] = useState(canvas.is_favorite || false);
   const quillRef = useRef(null);
   const autoSaveTimer = useRef(null);
+
+  // ── Page Setup state ───────────────────────────────────────────────────
+  // Loaded from localStorage on mount (per-canvas, falling back to global
+  // default). Changes auto-persist per canvas. "Set As Default" in the
+  // dialog also saves to the global default key.
+  const [pageSetup, setPageSetup] = useState(() => loadPageSetup(canvas.id));
+  const [showPageSetupDialog, setShowPageSetupDialog] = useState(false);
+
+  useEffect(() => {
+    // Reload page setup if a different canvas mounts.
+    setPageSetup(loadPageSetup(canvas.id));
+  }, [canvas.id]);
+
+  useEffect(() => {
+    savePageSetup(canvas.id, pageSetup);
+  }, [pageSetup, canvas.id]);
+
+  const updatePageSetup = useCallback((partial) => {
+    setPageSetup((prev) => ({ ...prev, ...partial }));
+  }, []);
+
+  const applyPageSetup = useCallback((next) => {
+    setPageSetup(next);
+  }, []);
+
+  const setAsDefaultPageSetup = useCallback((next) => {
+    saveAsDefaultPageSetup(next);
+  }, []);
 
   // Tab / Shift-Tab on Canvas — v0.4.34 behavior:
   //   • Inserts a literal tab character (\t) at the cursor, jumping to the
@@ -514,24 +587,44 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
         </div>
 
         {/* Toolbar */}
-        <Toolbar quillRef={quillRef} />
+        <Toolbar
+          quillRef={quillRef}
+          pageSetup={pageSetup}
+          onPageSetupChange={updatePageSetup}
+          onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
+        />
 
         {/* Editor + outline rail (rail on the LEFT, ruler bar above editor — v0.4.30) */}
         <div className="flex flex-1 overflow-hidden relative">
           <HeaderNavigator quillRef={quillRef} content={content} />
           <div className="flex-1 flex flex-col overflow-hidden">
-            <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
-            <div className="vault-quill-wrapper flex-1 overflow-hidden">
-              <ReactQuill
-                ref={quillRef}
-                value={content}
-                onChange={handleChange}
-                modules={modules}
-                style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-              />
-            </div>
+            {/* Ruler is constrained to the page width so its ticks/markers
+                line up with the actual page content, not the full window. */}
+            <PageRulerSlot setup={pageSetup}>
+              <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
+            </PageRulerSlot>
+            <PageView setup={pageSetup}>
+              <div className="vault-quill-wrapper page-mode">
+                <ReactQuill
+                  ref={quillRef}
+                  value={content}
+                  onChange={handleChange}
+                  modules={modules}
+                  style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                />
+              </div>
+            </PageView>
           </div>
         </div>
+
+        {/* Page Setup dialog */}
+        <PageSetupDialog
+          open={showPageSetupDialog}
+          setup={pageSetup}
+          onApply={applyPageSetup}
+          onSetDefault={setAsDefaultPageSetup}
+          onClose={() => setShowPageSetupDialog(false)}
+        />
 
         {/* Footer */}
         <div className="px-5 py-2 border-t border-[hsl(225,9%,18%)] bg-[hsl(220,8%,15%)] flex items-center justify-between shrink-0">

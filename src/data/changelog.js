@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.38',
+    date: '2026-05-04',
+    tagline: 'Visual page-frame pagination + Page Setup — Canvas finally looks like a real page (or a real book spread).',
+    changes: [
+      'New View button in the Canvas toolbar (top-right) — popover with Page Movement (Vertical / Side to Side), Show (One Page / Multiple Pages), Zoom (50–200%), and Page Setup….',
+      'Vertical / One Page: the editor now sits on a real white paper sheet with corner-bracket margin guides and a page-number badge.',
+      'Vertical / Multiple Pages: phantom pages stack below page 1 (visual only — real text flow lands in v0.4.50 with the Tiptap migration).',
+      'Side to Side: book-spread layout with a verso phantom page on the left and the live recto on the right. Spine seam, nav arrows, and a spread indicator at the bottom.',
+      'New Page Setup dialog (Word-style) — Margins tab (top/bottom/left/right/gutter, Portrait/Landscape, Mirror Margins for binding), Paper tab (Letter, Legal, A4, A5, B5, Tabloid, Executive, KDP trim sizes 5×8 / 5.25×8 / 5.5×8.5 / 6×9 / 6.14×9.21 / 7×10, plus Custom). Mini live preview, Reset to defaults, Set As Default.',
+      'Per-canvas page setup persists to localStorage; Set As Default seeds new canvases with your preferred trim + margins.',
+      'Ruler now snaps to the active page width and respects the chosen left/right margins (and inside/outside flips when Mirror Margins is on for verso pages).',
+    ],
+  },
+  {
     version: '0.4.37',
     date: '2026-05-04',
     tagline: 'Auto-update fix — the Windows installer no longer chokes on \'Failed to uninstall old application files\'.',
