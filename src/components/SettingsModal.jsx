@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { app } from '@/api/localClient';
-import { Sparkles, Sliders, Shield, Palette, RefreshCw, Keyboard, MessageSquare, BookOpen, Grid3x3, Table2, Search, Zap, Brain, X } from 'lucide-react';
+import { Heart, Sliders, Shield, Palette, RefreshCw, Keyboard, MessageSquare, BookOpen, Grid3x3, Table2, Search, Zap, Brain, X } from 'lucide-react';
 import AppUpdate from './settings/AppUpdate';
 import ImportExport from './settings/ImportExport';
 import DataSecurity from './settings/DataSecurity';
 import ThemeCustomizer from './settings/ThemeCustomizer';
-import UpgradeTab from './settings/UpgradeTab';
+import DonateTab from './settings/DonateTab';
 import { cn } from "@/lib/utils";
 import { useKeybinds, KEYBIND_LABELS, formatBinding, bindingFromEvent, DEFAULT_KEYBINDS } from '@/lib/keybinds';
 import { useUserName } from '@/lib/userProfile';
@@ -155,7 +155,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           { id: 'customize', label: 'Customize', icon: Palette },
           { id: 'data', label: 'Data & Security', icon: Shield },
           { id: 'keybinds', label: 'Keybinds', icon: Keyboard },
-          { id: 'upgrade', label: '⚡ Upgrade', icon: Sparkles },
+          { id: 'donate', label: 'Donate', icon: Heart },
           { id: 'update', label: 'Update', icon: RefreshCw, badge: updateCount > 0 || freshlyUpdated }].
           map((tab) => {
             const IconComponent = tab.icon;
@@ -253,7 +253,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
             </div>
           }
 
-          {activeTab === 'upgrade' && <UpgradeTab />}
+          {activeTab === 'donate' && <DonateTab />}
           {activeTab === 'update' && <AppUpdate updateCount={updateCount} />}
         </div>
       </div>

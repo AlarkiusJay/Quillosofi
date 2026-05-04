@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.45',
+    date: '2026-05-04',
+    tagline: 'Settings → Upgrade is now Settings → Donate. Real Ko-Fi link, no fake pricing tiers.',
+    changes: [
+      'Replaced the placeholder “Free / Pro / Ultra” Upgrade tab with a proper Donate tab. Quillosofi is free and stays free — no paywalls, no subscriptions.',
+      'New Donate tab explains exactly where support goes: keeping quillosofi.com on Spaceship (domain + hosting renewal) and buying time to ship features. No vague “support this app” nonsense.',
+      'Direct Ko-Fi button (ko-fi.com/alarkiusej) opens via shell.openExternal so the desktop window doesn’t navigate away.',
+      'Tab icon swapped from ⚡ lightning to 🤍 heart, label is now just “Donate”.',
+    ],
+  },
+  {
     version: '0.4.44',
     date: '2026-05-04',
     tagline: 'Friendlier update-check error — the wall of red electron-updater stack traces is gone.',
