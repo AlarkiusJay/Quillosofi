@@ -41,26 +41,9 @@ Write, format, and save rich-text canvases as full-fledged documents.
 - Same multi-doc tab + Resume Last UX as Canvas via the Sheets Editor Hub.
 - Lives next to your other writing inside any Space.
 
-### Project Spaces
-- Organise work into dedicated Spaces with their own reference links and shared notes.
-- Per-space conversations, canvases, sheets, and uploaded files.
-- Dark-green chalkboard surface throughout, with widgets styled as **sticky notes** held up by thumbtacks.
-
 ### Custom Dictionary
 - Build your own personal vocabulary: words, definitions, categories.
 - **Pin** words to passively inject them into the writing context — perfect for character names, lore terms, made-up languages, or specialised vocabulary.
-
-### Research & Cite
-- Dedicated Research mode with Perplexity-style numbered citations.
-- A **Sources Vault** to save anything worth keeping.
-- **Quick** and **Deep** depth modes for fast lookups vs. real digs.
-- One-click bibliography export — every claim is cited; every source is one tap away.
-
-### Web Search
-Live internet context for news, research, facts, and real-time information — invokable via slash command or directly from the search bar.
-
-### Slash Commands
-Trigger tools instantly without leaving the keyboard — `/canvas`, `/spreadsheet`, `/search`, and more.
 
 ### Customisation
 - **Themes** with full theme propagation across the app.
@@ -92,9 +75,27 @@ Quillosofi includes a lightweight, opt-in AI layer for writers who want help wit
 
 What that means in practice: AI is here to assist with your existing draft — phrasing, clarity, grammar, consistency checks against your Custom Dictionary — not to invent your story for you.
 
+### Project Spaces
+- Organise AI-assisted work into dedicated Spaces with their own system prompt, reference links, and shared memory.
+- Per-space conversations, plus the canvases, sheets, and uploaded files attached to that Space.
+- Dark-green chalkboard surface throughout, with widgets styled as **sticky notes** held up by thumbtacks.
+
+### Research & Cite
+- Dedicated Research mode with Perplexity-style numbered citations.
+- A **Sources Vault** to save anything worth keeping.
+- **Quick** and **Deep** depth modes for fast lookups vs. real digs.
+- One-click bibliography export — every claim is cited; every source is one tap away.
+
+### Web Search
+Live internet context for news, research, facts, and real-time information — routed through the AI layer so results land with proper citations.
+
+### Slash Commands
+Trigger AI-backed tools instantly without leaving the keyboard — `/canvas`, `/spreadsheet`, `/search`, and more.
+
+### Setup & toggles
 - Bring your own **OpenRouter** API key — locks in once, no re-pasting when you toggle AI off and back on.
 - **Persistent memory** — remembers the facts and preferences you've explicitly saved.
-- Toggle AI **off entirely** at any time. When off, AI-only routes bounce straight back to the writing features. Quillosofi is fully usable without an LLM in the loop.
+- Toggle AI **off entirely** at any time. When off, AI-only routes (chat, research, web search, slash commands, Spaces' AI features) bounce straight back to the writing features. Quillosofi is fully usable without an LLM in the loop.
 
 ---
 
