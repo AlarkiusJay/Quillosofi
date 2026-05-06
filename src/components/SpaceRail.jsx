@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Settings, Home, Grid3x3, Pencil, BookOpen, FileText, Table2 } from 'lucide-react';
+import { Settings, Home, Pencil, BookOpen, FileText, Table2 } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -78,7 +78,6 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   };
 
   const isHome = location.pathname === '/';
-  const isSpacesHome = location.pathname === '/spaces';
   const isQuillibrary = location.pathname === '/quillibrary' || location.pathname === '/canvas-vault';
   // Canvas + Sheets get full editor hubs in v0.4.7 — dedicated routes with
   // multi-doc tabs and Resume Last. Quillibrary remains pure storage.
@@ -126,25 +125,13 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             </button>
           </Tooltip>
 
-          <Tooltip text="Quillibrary — your canvases & sheets">
+          <Tooltip text="Quillibrary — canvases, sheets, and spaces">
             <button
               onClick={() => navigate('/quillibrary')}
               style={{ touchAction: 'manipulation' }}
               className={railBtn(isQuillibrary)}
             >
               <BookOpen className="h-4 w-4 text-white" />
-            </button>
-          </Tooltip>
-
-          <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
-
-          <Tooltip text="Spaces — organise canvases, sheets, and notes">
-            <button
-              onClick={() => navigate('/spaces')}
-              style={{ touchAction: 'manipulation' }}
-              className={railBtn(isSpacesHome)}
-            >
-              <Grid3x3 className="h-4 w-4 text-white" />
             </button>
           </Tooltip>
 

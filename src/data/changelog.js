@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.48',
+    date: '2026-05-06',
+    tagline: 'Spaces moved into Quillibrary. The rail Spaces button is gone, and Spaces can now be pinned and favorited just like canvases.',
+    changes: [
+      'Spaces are now a Quillibrary feature, not a top-level rail tab. Open Quillibrary, find Spaces in the left sidebar.',
+      'New + button next to the SPACES header in Quillibrary opens the New Space dialog.',
+      'Spaces can be pinned and favorited — right-click any space in the sidebar (or hover the row in Pinned/Favorites view) to toggle.',
+      'Pinned spaces float to the top of the SPACES section in the Quillibrary sidebar.',
+      'The Pinned and Favorites filters now show matching Spaces alongside canvases and sheets.',
+      'Removed the Grid icon Spaces button from the SpaceRail. Old /spaces URLs redirect to /quillibrary, so nothing breaks.',
+      'Removed the orphaned SpacesGrid component now that the dedicated /spaces page is gone.',
+    ],
+  },
+  {
     version: '0.4.47',
     date: '2026-05-06',
     tagline: 'Hotfix — v0.4.46 shipped with a missing Menu icon import that crashed the whole render. Sorry. Fixed.',

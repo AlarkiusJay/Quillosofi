@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter, HashRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes, Navigate } from 'react-router-dom';
 
 // In the Electron desktop build the app is loaded from a file:// URL, which
 // breaks BrowserRouter (it tries to match the full file path as a route and
@@ -15,7 +15,6 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
 import Space from './pages/Space';
-import SpacesGrid from './components/SpacesGrid';
 import AuthCallback from './pages/AuthCallback';
 import CanvasVault from './pages/CanvasVault';
 import CanvasEditorHub from './pages/CanvasEditorHub';
@@ -50,7 +49,8 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Quillounge />} />
-        <Route path="/spaces" element={<SpacesGrid />} /> {/* loads its own data */}
+        {/* v0.4.48 — Spaces are now organised inside Quillibrary, not a top-level page. Old /spaces links redirect there. */}
+        <Route path="/spaces" element={<Navigate to="/quillibrary" replace />} />
         <Route path="/space/:spaceId" element={<Space />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
         {/* Quillibrary — renamed from Canvas Vault in v0.4. Old path kept for back-compat. */}

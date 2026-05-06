@@ -1,39 +1,158 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { app } from '@/api/localClient';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Plus, Pin, Star, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CanvasList from '../components/vault/CanvasList';
 import SpreadsheetList from '../components/vault/SpreadsheetList';
 import CustomDictionary from '../components/vault/CustomDictionary';
+import SpaceModal from '../components/spaces/SpaceModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-// filter can be: 'pinned' | 'favorites' | 'all_canvases' | 'all_spreadsheets' | 'space:<id>'
+// filter can be: 'pinned' | 'favorites' | 'all_canvases' | 'all_spreadsheets' | 'dictionary' | 'space:<id>'
+//
+// v0.4.48 — Spaces are now a Quillibrary feature, not a top-level rail tab.
+//   • The +/star/pin live on the SPACES section header & each space row.
+//   • Spaces can be pinned and favorited just like canvases.
+//   • Pinned spaces float to the top of the Spaces section in the sidebar.
+//   • Pinned/Favorites top filters now show spaces alongside canvases & sheets.
 export default function CanvasVault() {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filter, setFilter] = useState('all_canvases');
   const [spaces, setSpaces] = useState([]);
+  const [showSpaceModal, setShowSpaceModal] = useState(false);
+  const [editingSpace, setEditingSpace] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
-  useEffect(() => {
-    app.entities.ProjectSpace.list('-created_date', 50).then(setSpaces);
+  const loadSpaces = useCallback(async () => {
+    const data = await app.entities.ProjectSpace.list('-created_date', 100);
+    setSpaces(data || []);
   }, []);
+
+  useEffect(() => { loadSpaces(); }, [loadSpaces]);
 
   const handleFilterClick = (id) => {
     setFilter(id);
     setSidebarOpen(false);
   };
 
+  const handleSpaceContextMenu = (e, space) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ space, x: e.clientX, y: e.clientY });
+  };
+
+  const handleSpaceSaved = (s) => {
+    setShowSpaceModal(false);
+    setEditingSpace(null);
+    loadSpaces();
+  };
+
+  const handleEditSpace = (space) => {
+    setEditingSpace(space);
+    setShowSpaceModal(true);
+    setContextMenu(null);
+  };
+
+  const handleToggleSpacePin = async (space) => {
+    const next = !space.is_pinned;
+    setSpaces(prev => prev.map(s => s.id === space.id ? { ...s, is_pinned: next } : s));
+    try { await app.entities.ProjectSpace.update(space.id, { is_pinned: next }); } catch {}
+    setContextMenu(null);
+  };
+
+  const handleToggleSpaceFavorite = async (space) => {
+    const next = !space.is_favorite;
+    setSpaces(prev => prev.map(s => s.id === space.id ? { ...s, is_favorite: next } : s));
+    try { await app.entities.ProjectSpace.update(space.id, { is_favorite: next }); } catch {}
+    setContextMenu(null);
+  };
+
+  const handleDeleteSpace = (space) => {
+    setContextMenu(null);
+    setPendingDelete(space);
+  };
+
+  const doDeleteSpace = async () => {
+    const space = pendingDelete;
+    setPendingDelete(null);
+    try { await app.entities.ProjectSpace.delete(space.id); } catch {}
+    if (filter === `space:${space.id}`) setFilter('all_canvases');
+    loadSpaces();
+  };
+
   const topFilters = [
-    { id: 'pinned',         label: 'Pinned',              icon: '📌' },
-    { id: 'favorites',      label: 'Favorites',           icon: '⭐' },
-    { id: 'all_canvases',   label: 'All Canvases',        icon: '📄' },
-    { id: 'all_spreadsheets', label: 'All Spreadsheets', icon: '📊' },
-    { id: 'dictionary',     label: 'Custom Dictionary',   icon: '📖' },
+    { id: 'pinned',           label: 'Pinned',            icon: '📌' },
+    { id: 'favorites',        label: 'Favorites',         icon: '⭐' },
+    { id: 'all_canvases',     label: 'All Canvases',      icon: '📄' },
+    { id: 'all_spreadsheets', label: 'All Spreadsheets',  icon: '📊' },
+    { id: 'dictionary',       label: 'Custom Dictionary', icon: '📖' },
   ];
 
   const isCombined = filter === 'pinned' || filter === 'favorites';
   const isSpreadsheets = filter === 'all_spreadsheets';
   const isDictionary = filter === 'dictionary';
 
+  // Sort spaces in the sidebar: pinned first, then by created_date desc.
+  const sortedSpaces = [...spaces].sort((a, b) => {
+    if (!!b.is_pinned !== !!a.is_pinned) return (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
+    return new Date(b.created_date || 0) - new Date(a.created_date || 0);
+  });
+
+  // For Pinned/Favorites combined views, show matching spaces in their own section.
+  const matchingSpaces = filter === 'pinned'
+    ? spaces.filter(s => s.is_pinned)
+    : filter === 'favorites'
+      ? spaces.filter(s => s.is_favorite)
+      : [];
+
   const sectionLabel = topFilters.find(f => f.id === filter)?.label || 'Library';
+  const isImg = (emoji) => emoji && (emoji.startsWith('http') || emoji.startsWith('/'));
+
+  const SpaceCardRow = ({ space }) => (
+    <div
+      onClick={() => navigate(`/space/${space.id}`)}
+      onContextMenu={(e) => handleSpaceContextMenu(e, space)}
+      className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-[hsl(220,8%,17%)] border border-[hsl(225,9%,14%)] hover:border-primary/40 hover:bg-[hsl(228,7%,20%)] transition-all cursor-pointer"
+    >
+      <div className="text-2xl shrink-0">
+        {isImg(space.emoji)
+          ? <img src={space.emoji} alt={space.name} className="w-8 h-8 rounded object-cover" />
+          : (space.emoji || '📁')
+        }
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-white truncate">{space.name}</p>
+          {space.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" fill="currentColor" />}
+          {space.is_favorite && <Star className="h-3 w-3 text-yellow-400 shrink-0" fill="currentColor" />}
+        </div>
+        {space.description && <p className="text-xs text-muted-foreground truncate">{space.description}</p>}
+      </div>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleSpacePin(space); }}
+          title={space.is_pinned ? 'Unpin' : 'Pin'}
+          className={cn("h-7 w-7 rounded-md flex items-center justify-center transition-colors",
+            space.is_pinned ? "text-primary" : "text-[hsl(220,7%,55%)] hover:text-primary"
+          )}
+        >
+          <Pin className="h-3.5 w-3.5" fill={space.is_pinned ? 'currentColor' : 'none'} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleSpaceFavorite(space); }}
+          title={space.is_favorite ? 'Unfavorite' : 'Favorite'}
+          className={cn("h-7 w-7 rounded-md flex items-center justify-center transition-colors",
+            space.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,55%)] hover:text-yellow-400"
+          )}
+        >
+          <Star className="h-3.5 w-3.5" fill={space.is_favorite ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex-1 flex overflow-hidden relative">
@@ -68,22 +187,47 @@ export default function CanvasVault() {
           </button>
         ))}
 
-        {spaces.length > 0 && (
-          <>
-            <div className="h-px bg-[hsl(225,9%,14%)] my-2 mx-1" />
-            <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-2 mb-1">Spaces</p>
-            {spaces.map(s => (
-              <button key={s.id} onClick={() => handleFilterClick(`space:${s.id}`)}
-                className={cn('flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-left truncate',
-                  filter === `space:${s.id}`
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-[hsl(220,7%,60%)] hover:bg-[hsl(228,7%,22%)] hover:text-white'
-                )}>
-                <span className="shrink-0">{s.emoji || '📁'}</span>
-                <span className="truncate">{s.name}</span>
-              </button>
-            ))}
-          </>
+        {/* SPACES section — header has a + to add a new space */}
+        <div className="h-px bg-[hsl(225,9%,14%)] my-2 mx-1" />
+        <div className="flex items-center justify-between px-2 mb-1">
+          <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest">Spaces</p>
+          <button
+            onClick={() => { setEditingSpace(null); setShowSpaceModal(true); }}
+            title="New space"
+            className="h-5 w-5 rounded flex items-center justify-center text-[hsl(220,7%,50%)] hover:bg-[hsl(228,7%,22%)] hover:text-primary transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {sortedSpaces.length === 0 ? (
+          <p className="text-[10px] text-[hsl(220,7%,35%)] px-2 py-1.5 italic">
+            No spaces yet. Tap + to add one.
+          </p>
+        ) : (
+          sortedSpaces.map(s => (
+            <button
+              key={s.id}
+              onClick={() => handleFilterClick(`space:${s.id}`)}
+              onContextMenu={(e) => handleSpaceContextMenu(e, s)}
+              className={cn(
+                'group/space flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-left',
+                filter === `space:${s.id}`
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-[hsl(220,7%,60%)] hover:bg-[hsl(228,7%,22%)] hover:text-white'
+              )}
+            >
+              <span className="shrink-0">
+                {isImg(s.emoji)
+                  ? <img src={s.emoji} alt={s.name} className="w-3.5 h-3.5 rounded object-cover" />
+                  : (s.emoji || '📁')
+                }
+              </span>
+              <span className="truncate flex-1">{s.name}</span>
+              {s.is_pinned && <Pin className="h-2.5 w-2.5 text-primary shrink-0" fill="currentColor" />}
+              {s.is_favorite && <Star className="h-2.5 w-2.5 text-yellow-400 shrink-0" fill="currentColor" />}
+            </button>
+          ))
         )}
       </div>
 
@@ -101,8 +245,15 @@ export default function CanvasVault() {
         </div>
 
         {isCombined ? (
-          // Show both canvases and spreadsheets for Pinned / Favorites
           <div className="flex-1 overflow-y-auto">
+            {matchingSpaces.length > 0 && (
+              <div className="border-b border-[hsl(225,9%,14%)]">
+                <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-2">📁 Spaces</p>
+                <div className="px-5 pb-3 space-y-2">
+                  {matchingSpaces.map(s => <SpaceCardRow key={s.id} space={s} />)}
+                </div>
+              </div>
+            )}
             <div className="border-b border-[hsl(225,9%,14%)]">
               <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-1">📄 Canvases</p>
               <CanvasList filter={filter} spaces={spaces} compact />
@@ -120,6 +271,64 @@ export default function CanvasVault() {
           <CanvasList filter={filter === 'all_canvases' ? 'all' : filter} spaces={spaces} />
         )}
       </div>
+
+      {showSpaceModal && (
+        <SpaceModal
+          initialSpace={editingSpace}
+          onClose={() => { setShowSpaceModal(false); setEditingSpace(null); }}
+          onSave={handleSpaceSaved}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`Delete "${pendingDelete.name}"? Canvases inside it won't be deleted, but they'll lose their space.`}
+          onConfirm={doDeleteSpace}
+          onCancel={() => setPendingDelete(null)}
+          confirmLabel="Delete"
+        />
+      )}
+
+      {/* Space context menu (right-click) */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-[70] bg-[hsl(220,8%,15%)] border border-[hsl(225,9%,12%)] rounded-lg shadow-2xl p-1.5 min-w-44"
+            style={{ top: contextMenu.y + 4, left: contextMenu.x }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => handleToggleSpacePin(contextMenu.space)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs text-[hsl(220,7%,80%)] hover:bg-[hsl(228,7%,27%)] hover:text-white transition-colors text-left"
+            >
+              <Pin className="h-3.5 w-3.5 text-primary" fill={contextMenu.space.is_pinned ? 'currentColor' : 'none'} />
+              {contextMenu.space.is_pinned ? 'Unpin space' : 'Pin space'}
+            </button>
+            <button
+              onClick={() => handleToggleSpaceFavorite(contextMenu.space)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs text-[hsl(220,7%,80%)] hover:bg-[hsl(228,7%,27%)] hover:text-white transition-colors text-left"
+            >
+              <Star className="h-3.5 w-3.5 text-yellow-400" fill={contextMenu.space.is_favorite ? 'currentColor' : 'none'} />
+              {contextMenu.space.is_favorite ? 'Unfavorite' : 'Favorite'}
+            </button>
+            <div className="my-1 border-t border-[hsl(225,9%,15%)]" />
+            <button
+              onClick={() => handleEditSpace(contextMenu.space)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs text-[hsl(220,7%,80%)] hover:bg-[hsl(228,7%,27%)] hover:text-white transition-colors text-left"
+            >
+              <Pencil className="h-3.5 w-3.5 text-primary" /> Edit space
+            </button>
+            <div className="my-1 border-t border-[hsl(225,9%,15%)]" />
+            <button
+              onClick={() => handleDeleteSpace(contextMenu.space)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs text-red-400 hover:bg-[hsl(228,7%,27%)] transition-colors text-left"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete space
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
