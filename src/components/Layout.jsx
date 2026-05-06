@@ -6,6 +6,7 @@ import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { app } from '@/api/localClient';
 import { cn } from '@/lib/utils';
 
+import { Menu } from 'lucide-react';
 import StatsPanel from './StatsPanel.jsx';
 import SpaceRail from './SpaceRail.jsx';
 import GuestExpiredScreen from './guest/GuestExpiredScreen';

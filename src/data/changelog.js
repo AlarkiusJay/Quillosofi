@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.47',
+    date: '2026-05-06',
+    tagline: 'Hotfix — v0.4.46 shipped with a missing Menu icon import that crashed the whole render. Sorry. Fixed.',
+    changes: [
+      'Re-imported the Menu icon in Layout.jsx. v0.4.46 had it accidentally removed during the AI rip cleanup, which threw `ReferenceError: Menu is not defined` on first render — leaving the window as a blank chalkboard with no UI on top.',
+      'No other behavior changes. If v0.4.46 worked for you somehow, v0.4.47 is functionally identical.',
+    ],
+  },
+  {
     version: '0.4.46',
     date: '2026-05-06',
     tagline: 'The Pure Writing Refactor — the entire AI/chat layer is gone, Spaces revamped as pure writing organisation.',
