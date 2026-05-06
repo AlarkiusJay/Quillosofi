@@ -113,7 +113,8 @@ function CanvasCard({ canvas, view, onOpen, onOpenInEditor, onTogglePin, onToggl
   );
 }
 
-export default function CanvasList({ filter, spaces }) {
+// compact: hides topbar, forces grid view (used in combined Pinned/Favorites view)
+export default function CanvasList({ filter, spaces, compact = false }) {
   const navigate = useNavigate();
   const [canvases, setCanvases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,6 +200,47 @@ export default function CanvasList({ filter, spaces }) {
     : view === 'list'
     ? 'flex flex-col gap-0.5'
     : '';
+
+  // In compact mode (Pinned/Favorites combined view), force a clean grid —
+  // no toolbar, no scrolling container, no separate Pinned section header.
+  if (compact) {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-10">
+          <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      );
+    }
+    if (filtered.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <span className="text-3xl mb-2">📄</span>
+          <p className="text-xs text-[hsl(220,7%,45%)]">
+            {filter === 'pinned' ? 'No pinned canvases' : filter === 'favorites' ? 'No favorite canvases' : 'No canvases yet'}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="px-4 py-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {filtered.map(c => (
+            <CanvasCard
+              key={c.id}
+              canvas={c}
+              view="grid"
+              onOpen={handleOpenInEditor}
+              onOpenInEditor={handleOpenInEditor}
+              onTogglePin={handleTogglePin}
+              onToggleFavorite={handleToggleFavorite}
+              onDelete={handleDelete}
+              pinnedCount={pinnedCount}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

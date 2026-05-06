@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.50',
+    date: '2026-05-06',
+    tagline: 'Pinned/Favorites view is now a proper card grid — Spaces look like canvases & sheets, and Canvases finally show up in the Canvases section.',
+    changes: [
+      'Pinned spaces now render as cards in a grid, matching the canvas and spreadsheet cards. No more wide thin row stuck in the middle of the page.',
+      'The Canvases section in the Pinned/Favorites view now actually shows your pinned and favorite canvases — the search bar / sort / view-switcher toolbar that was hijacking the section is hidden in this view.',
+      'Hover a space card to favorite/unpin/pin it inline (mirrors the hover actions on canvas and sheet cards).',
+    ],
+  },
+  {
     version: '0.4.49',
     date: '2026-05-06',
     tagline: 'Spaces settings simplified — Instructions/Sources/Files/Memory tabs removed (they were AI leftovers). Pinned view now shows Canvases first, then Spaces, then Spreadsheets.',

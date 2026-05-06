@@ -111,44 +111,52 @@ export default function CanvasVault() {
   const sectionLabel = topFilters.find(f => f.id === filter)?.label || 'Library';
   const isImg = (emoji) => emoji && (emoji.startsWith('http') || emoji.startsWith('/'));
 
-  const SpaceCardRow = ({ space }) => (
+  // Space card — mirrors the canvas/sheet grid card so Pinned/Favorites view
+  // reads as a uniform grid of cards, not a mix of cards + thin rows.
+  const SpaceCard = ({ space }) => (
     <div
       onClick={() => navigate(`/space/${space.id}`)}
       onContextMenu={(e) => handleSpaceContextMenu(e, space)}
-      className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-[hsl(220,8%,17%)] border border-[hsl(225,9%,14%)] hover:border-primary/40 hover:bg-[hsl(228,7%,20%)] transition-all cursor-pointer"
+      className="group relative rounded-xl border border-[hsl(225,9%,18%)] bg-[hsl(220,8%,16%)] hover:border-primary/40 hover:bg-[hsl(228,7%,20%)] cursor-pointer transition-all overflow-hidden"
     >
-      <div className="text-2xl shrink-0">
-        {isImg(space.emoji)
-          ? <img src={space.emoji} alt={space.name} className="w-8 h-8 rounded object-cover" />
-          : (space.emoji || '📁')
-        }
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-white truncate">{space.name}</p>
-          {space.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" fill="currentColor" />}
-          {space.is_favorite && <Star className="h-3 w-3 text-yellow-400 shrink-0" fill="currentColor" />}
+      <div className="p-4 min-h-[80px] flex items-center justify-center">
+        <div className="text-5xl">
+          {isImg(space.emoji)
+            ? <img src={space.emoji} alt={space.name} className="w-14 h-14 rounded object-cover" />
+            : (space.emoji || '📁')
+          }
         </div>
-        {space.description && <p className="text-xs text-muted-foreground truncate">{space.description}</p>}
       </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); handleToggleSpacePin(space); }}
-          title={space.is_pinned ? 'Unpin' : 'Pin'}
-          className={cn("h-7 w-7 rounded-md flex items-center justify-center transition-colors",
-            space.is_pinned ? "text-primary" : "text-[hsl(220,7%,55%)] hover:text-primary"
+      <div className="px-4 py-2.5 border-t border-[hsl(225,9%,15%)] flex items-center justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white truncate">{space.name}</p>
+          {space.description && (
+            <p className="text-[10px] text-[hsl(220,7%,45%)] truncate mt-0.5">{space.description}</p>
           )}
-        >
-          <Pin className="h-3.5 w-3.5" fill={space.is_pinned ? 'currentColor' : 'none'} />
-        </button>
+        </div>
+        <div className="flex items-center gap-0.5 ml-2">
+          {space.is_favorite && <Star className="h-3 w-3 text-yellow-400 shrink-0" fill="currentColor" />}
+          {space.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" fill="currentColor" />}
+        </div>
+      </div>
+      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => { e.stopPropagation(); handleToggleSpaceFavorite(space); }}
           title={space.is_favorite ? 'Unfavorite' : 'Favorite'}
-          className={cn("h-7 w-7 rounded-md flex items-center justify-center transition-colors",
+          className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors",
             space.is_favorite ? "text-yellow-400" : "text-[hsl(220,7%,55%)] hover:text-yellow-400"
           )}
         >
-          <Star className="h-3.5 w-3.5" fill={space.is_favorite ? 'currentColor' : 'none'} />
+          <Star className="h-3 w-3" fill={space.is_favorite ? 'currentColor' : 'none'} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleSpacePin(space); }}
+          title={space.is_pinned ? 'Unpin' : 'Pin'}
+          className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-[hsl(220,8%,20%)]/80 backdrop-blur-sm border border-[hsl(225,9%,20%)] transition-colors",
+            space.is_pinned ? "text-primary" : "text-[hsl(220,7%,55%)] hover:text-primary"
+          )}
+        >
+          <Pin className="h-3 w-3" fill={space.is_pinned ? 'currentColor' : 'none'} />
         </button>
       </div>
     </div>
@@ -253,8 +261,10 @@ export default function CanvasVault() {
             {matchingSpaces.length > 0 && (
               <div className="border-b border-[hsl(225,9%,14%)]">
                 <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-2">📁 Spaces</p>
-                <div className="px-5 pb-3 space-y-2">
-                  {matchingSpaces.map(s => <SpaceCardRow key={s.id} space={s} />)}
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {matchingSpaces.map(s => <SpaceCard key={s.id} space={s} />)}
+                  </div>
                 </div>
               </div>
             )}
