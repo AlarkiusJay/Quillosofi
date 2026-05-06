@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { app } from '@/api/localClient';
-import { Heart, Sliders, Shield, Palette, RefreshCw, Keyboard, MessageSquare, BookOpen, Grid3x3, Table2, Search, Zap, Brain, X } from 'lucide-react';
+import { Heart, Sliders, Shield, Palette, RefreshCw, Keyboard, BookOpen, Grid3x3, Table2, Type, Layout as LayoutIcon, X } from 'lucide-react';
 import AppUpdate from './settings/AppUpdate';
 import ImportExport from './settings/ImportExport';
 import DataSecurity from './settings/DataSecurity';
@@ -11,18 +11,16 @@ import { useKeybinds, KEYBIND_LABELS, formatBinding, bindingFromEvent, DEFAULT_K
 import { useUserName } from '@/lib/userProfile';
 import { useRef } from 'react';
 
-// About section — features list (mirrors src/pages/QuillosofiCentre.jsx)
+// About section — features list (writing-first, post-AI-rip)
 const ABOUT_FEATURES = [
-  { icon: MessageSquare, title: 'AI Chat', description: 'Have rich, context-aware conversations with Quillosofi. It remembers your preferences and adapts to your style.' },
-  { icon: Brain, title: 'Persistent Memory', description: 'Quillosofi learns what matters to you. Save facts, preferences, and context that carry across every conversation.' },
-  { icon: Grid3x3, title: 'Project Spaces', description: 'Organize your work into dedicated spaces with custom system prompts, reference links, and shared memory.' },
-  { icon: BookOpen, title: 'Canvas Vault', description: 'Write, format, and save rich text canvases directly inside your chats. Export to TXT, MD, DOCX, or PDF.' },
-  { icon: Table2, title: 'Spreadsheets', description: 'Build and manage live spreadsheets inside your conversations with conditional formatting and cell types.' },
-  { icon: Search, title: 'Web Search', description: 'Ask Quillosofi anything with live internet context — news, research, facts, and real-time information.' },
-  { icon: Palette, title: 'Full Customization', description: 'Choose your theme, font, bot personality, tone, response style, and even create custom AI personas.' },
-  { icon: Shield, title: 'Privacy First', description: 'Your data is encrypted, never sold, and always under your control. Export or delete everything at any time.' },
-  { icon: Zap, title: 'Slash Commands', description: 'Trigger powerful tools instantly — /canvas, /spreadsheet, /search, and more — right inside any chat.' },
-  { icon: BookOpen, title: 'Custom Dictionary', description: 'Build your own personal vocabulary. Add words, definitions, and categories. Pin words to inject them passively into every AI conversation.' },
+  { icon: BookOpen, title: 'Canvas', description: 'A focused, distraction-free writing surface with visual page frames, rulers, margins, and rich text formatting.' },
+  { icon: LayoutIcon, title: 'Page Setup', description: 'Choose paper size (Word and KDP presets), margins, orientation, and view modes — vertical, side-by-side, or book spread.' },
+  { icon: Table2, title: 'Spreadsheets', description: 'Build and manage live spreadsheets with conditional formatting, cell types, and formulas.' },
+  { icon: Grid3x3, title: 'Project Spaces', description: 'Organize canvases into dedicated spaces with notes, reference links, and attached files.' },
+  { icon: BookOpen, title: 'Custom Dictionary', description: 'Build your own personal vocabulary. Add words, definitions, and categories. Star the ones you reference most.' },
+  { icon: Type, title: 'Custom Fonts', description: 'Pick from a curated typography library, including Oldenburg as the default humanist slab serif.' },
+  { icon: Palette, title: 'Theme Customization', description: 'Tune the dark green chalkboard aesthetic to your taste. Sticky notes, chalk colours, and surfaces.' },
+  { icon: Shield, title: 'Privacy First', description: 'Local-first by design. Your data lives on your machine — export or delete everything at any time.' },
 ];
 
 function KeybindRow({ action, binding, onCapture }) {
@@ -248,7 +246,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">Quillosofi v0.4.2 — Writing First. Local-first by design.</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Quillosofi v0.4.46 — The Pure Writing Refactor. Local-first by design.</p>
               </div>
             </div>
           }

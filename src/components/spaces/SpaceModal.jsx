@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { guestStorage } from '../../utils/guestStorage';
 import { app } from '@/api/localClient';
 import { X, Plus, Trash2, Link as LinkIcon, Brain, FileText, Settings, Upload, Smile, File } from 'lucide-react';
-import ConfirmDialog from '../chat/ConfirmDialog';
+import ConfirmDialog from '../ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

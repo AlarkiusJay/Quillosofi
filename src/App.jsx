@@ -14,15 +14,12 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
-import Chat from './pages/Chat';
-import Settings from './pages/Settings';
 import Space from './pages/Space';
 import SpacesGrid from './components/SpacesGrid';
 import AuthCallback from './pages/AuthCallback';
 import CanvasVault from './pages/CanvasVault';
 import CanvasEditorHub from './pages/CanvasEditorHub';
 import SheetsEditorHub from './pages/SheetsEditorHub';
-import Research from './pages/Research';
 import QuillosofiCentre from './pages/QuillosofiCentre';
 import Quillounge from './pages/Quillounge';
 
@@ -53,10 +50,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Quillounge />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/chat/:conversationId" element={<Chat />} />
         <Route path="/spaces" element={<SpacesGrid />} /> {/* loads its own data */}
-        <Route path="/settings" element={<Settings />} />
         <Route path="/space/:spaceId" element={<Space />} />
         <Route path="/auth-callback" element={<AuthCallback />} />
         {/* Quillibrary — renamed from Canvas Vault in v0.4. Old path kept for back-compat. */}
@@ -67,8 +61,6 @@ const AuthenticatedApp = () => {
         <Route path="/canvas/:id" element={<CanvasEditorHub />} />
         <Route path="/sheets" element={<SheetsEditorHub />} />
         <Route path="/sheets/:id" element={<SheetsEditorHub />} />
-        <Route path="/research" element={<Research />} />
-        <Route path="/research/:researchId" element={<Research />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
       <Route path="/quillosofi-centre" element={<QuillosofiCentre />} />

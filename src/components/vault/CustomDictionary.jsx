@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Trash2, Pin, Edit3, Check, X } from 'lucide-react';
+import { Search, Plus, Trash2, Star, Edit3, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useCustomDict } from '@/lib/customDict';
-import { isExtensionActive, useAiEnabled, useAiExtensions } from '@/lib/aiState';
 
-function WordRow({ word, onDelete, onTogglePin, onUpdate, aiActive }) {
+function WordRow({ word, onDelete, onTogglePin, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [def, setDef] = useState(word.definition || '');
   const [cat, setCat] = useState(word.category || '');
@@ -34,11 +33,8 @@ function WordRow({ word, onDelete, onTogglePin, onUpdate, aiActive }) {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">{word.category}</span>
             )}
             {word.is_pinned && (
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                aiActive ? "bg-[hsl(var(--chalk-yellow)/0.18)] text-[hsl(var(--chalk-yellow))]" : "bg-[hsl(var(--chalk-board-alt))] chalk-muted"
-              )}>
-                {aiActive ? 'AI Context' : 'Pinned (AI off)'}
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[hsl(var(--chalk-yellow)/0.18)] text-[hsl(var(--chalk-yellow))]">
+                Starred
               </span>
             )}
           </div>
@@ -84,10 +80,10 @@ function WordRow({ word, onDelete, onTogglePin, onUpdate, aiActive }) {
           )}
           <button
             onClick={() => onTogglePin(word)}
-            title={word.is_pinned ? 'Remove from AI context' : 'Inject into AI context'}
-            className={cn("h-7 w-7 rounded flex items-center justify-center transition-colors", word.is_pinned ? "text-primary" : "text-[hsl(220,7%,45%)] hover:text-primary")}
+            title={word.is_pinned ? 'Unstar word' : 'Star word'}
+            className={cn("h-7 w-7 rounded flex items-center justify-center transition-colors", word.is_pinned ? "text-[hsl(var(--chalk-yellow))]" : "text-[hsl(220,7%,45%)] hover:text-[hsl(var(--chalk-yellow))]")}
           >
-            <Pin className="h-3.5 w-3.5" fill={word.is_pinned ? 'currentColor' : 'none'} />
+            <Star className="h-3.5 w-3.5" fill={word.is_pinned ? 'currentColor' : 'none'} />
           </button>
           <button onClick={() => onDelete(word)} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-red-400 transition-colors" title="Delete">
             <Trash2 className="h-3.5 w-3.5" />
@@ -103,14 +99,6 @@ export default function CustomDictionary() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newWord, setNewWord] = useState('');
-  const [aiEnabled] = useAiEnabled();
-  const [extensions] = useAiExtensions();
-  // The "AI Context" pill only lights up when both global AI and the
-  // Custom Dictionary AI extension are on. Otherwise pinned words still exist
-  // (so the user keeps their list across AI on/off cycles) but we make it
-  // visually clear they aren't being injected anywhere right now.
-  const aiDictActive = !!aiEnabled && !!extensions?.customDictionary;
-
   const handleAdd = () => {
     const trimmed = newWord.trim();
     if (!trimmed) return;
@@ -184,11 +172,11 @@ export default function CustomDictionary() {
       {/* Stats */}
       <div className="px-4 py-2.5 border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,16%)] flex items-center gap-4 flex-wrap">
         <span className="text-[11px] text-[hsl(220,7%,45%)]">{words.length} words total</span>
-        <span className={cn("text-[11px]", aiDictActive ? "text-[hsl(var(--chalk-yellow))]" : "chalk-muted")}>
-          <Pin className="h-2.5 w-2.5 inline mr-1" fill="currentColor" />
-          {pinnedCount} pinned {aiDictActive ? '· in AI context' : '· AI off'}
+        <span className="text-[11px] text-[hsl(var(--chalk-yellow))]">
+          <Star className="h-2.5 w-2.5 inline mr-1" fill="currentColor" />
+          {pinnedCount} starred
         </span>
-        <span className="text-[10px] text-[hsl(220,7%,35%)]">· Right-click any word in a canvas to add or pin it</span>
+        <span className="text-[10px] text-[hsl(220,7%,35%)]">· Right-click any word in a canvas to add or star it</span>
       </div>
 
       {/* List */}
@@ -201,7 +189,7 @@ export default function CustomDictionary() {
           </div>
         ) : (
           filtered.map(w => (
-            <WordRow key={w.id} word={w} onDelete={handleDelete} onTogglePin={handleTogglePin} onUpdate={handleUpdate} aiActive={aiDictActive} />
+            <WordRow key={w.id} word={w} onDelete={handleDelete} onTogglePin={handleTogglePin} onUpdate={handleUpdate} />
           ))
         )}
       </div>

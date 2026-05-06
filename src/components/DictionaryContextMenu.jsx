@@ -19,7 +19,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { BookPlus, Sparkles, Pin } from 'lucide-react';
 import { addCustomWord, isCustomWord, togglePin as togglePinByText, listCustomWords } from '@/lib/customDict';
 import { suggest, checkWordSync, preloadSpellcheck } from '@/lib/spellcheck';
-import { isExtensionActive } from '@/lib/aiState';
 
 function getWordAtPoint(x, y) {
   // Modern browsers: caretRangeFromPoint (Chrome/Safari) or caretPositionFromPoint (Firefox)
@@ -201,15 +200,6 @@ export default function DictionaryContextMenu({ containerRef }) {
             <span>Add to Dictionary</span>
           </button>
 
-          {isExtensionActive('customDictionary') && (
-            <button
-              onClick={handleAddPinned}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-[hsl(228,7%,22%)] rounded transition-colors"
-            >
-              <Pin className="h-3.5 w-3.5" style={{ color: 'hsl(var(--chalk-yellow))' }} />
-              <span>Add + Pin to AI context</span>
-            </button>
-          )}
         </div>
       )}
     </>

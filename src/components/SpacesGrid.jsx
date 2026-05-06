@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { guestStorage } from '../utils/guestStorage';
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import ConfirmDialog from './chat/ConfirmDialog';
+import ConfirmDialog from './ConfirmDialog';
 import { app } from '@/api/localClient';
 import SpaceModal from './spaces/SpaceModal';
 

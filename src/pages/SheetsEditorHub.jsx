@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useEditorTabs } from '@/lib/editorTabs';
 import TabStrip from '@/components/editors/TabStrip';
-import MessageSpreadsheet from '@/components/chat/MessageSpreadsheet';
+import SpreadsheetEditor from '@/components/sheets/SpreadsheetEditor';
 
 const DEFAULT_ROWS = 20;
 const DEFAULT_COLS = 10;
@@ -120,7 +120,7 @@ export default function SheetsEditorHub() {
       />
 
       {activeSheet ? (
-        <MessageSpreadsheet
+        <SpreadsheetEditor
           key={activeSheet.id}
           sheet={activeSheet}
           embedded

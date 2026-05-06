@@ -5,51 +5,23 @@ import { guestStorage } from '../utils/guestStorage';
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { app } from '@/api/localClient';
 import { cn } from '@/lib/utils';
-import { Menu, X } from 'lucide-react';
-import ChatSidebar from './chat/ChatSidebar.jsx';
-import ConfirmDialog from './chat/ConfirmDialog';
-import SettingsModal from './SettingsModal';
+
 import StatsPanel from './StatsPanel.jsx';
 import SpaceRail from './SpaceRail.jsx';
 import GuestExpiredScreen from './guest/GuestExpiredScreen';
 import { useGlobalKeybinds } from '@/lib/keybinds';
 import { addCustomWord } from '@/lib/customDict';
-import { useAiEnabled } from '@/lib/aiState';
 
 import { useGuestMode } from '../hooks/useGuestMode';
 
-// v0.4.18 — routes that only exist while AI is enabled. If AI flips off
-// while the user is parked on one of these, the page goes silently dead
-// (rail buttons disappear but the AI-only Outlet keeps rendering). Bounce
-// back to Quillounge so they land on real writing features.
-const AI_ONLY_PREFIXES = ['/spaces', '/space/', '/research', '/chat'];
-const isAiOnlyPath = (pathname) =>
-  AI_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
-
+// v0.4.46 — The Pure Writing Refactor. AI/chat layer fully removed.
+// Layout no longer renders ChatSidebar or watches for AI-only routes:
+// every surviving route is a pure writing feature.
 export default function Layout() {
   const { isExpired, isGuest, loading: guestLoading } = useGuestMode();
-  const [aiEnabled] = useAiEnabled();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Bounce off AI-only routes the moment AI is disabled. Replace (don't push)
-  // so Back doesn't drop them right back into a dead view.
-  useEffect(() => {
-    if (!aiEnabled && isAiOnlyPath(location.pathname)) {
-      navigate('/', { replace: true });
-    }
-  }, [aiEnabled, location.pathname, navigate]);
-
-  useEffect(() => {
-    if (isExpired && isGuest) {
-      app.entities.BotConfig.list('-created_date', 1).then(configs => {
-        if (configs[0]?.user_address) {
-          app.entities.BotConfig.update(configs[0].id, { user_address: '' });
-        }
-      });
-    }
-  }, [isExpired, isGuest]);
-  const [conversations, setConversations] = useState([]);
   const [spaces, setSpaces] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -88,24 +60,9 @@ export default function Layout() {
     if (isRightSwipe && !rightSidebarOpen) setLeftSidebarOpen(true);
   };
 
-  // v0.4.18: navigate + location are declared at the top of the component
-  // alongside the AI-route bounce effect. Keep params local.
+  // navigate + location declared at the top. Keep params local for routes
+  // that still need them (notably nothing right now — kept for parity).
   const params = useParams();
-  const activeId = params.conversationId;
-
-  const loadConversations = useCallback(async () => {
-    const isAuthed = await app.auth.isAuthenticated();
-    if (!isAuthed) {
-      setConversations(guestStorage.getConversations().filter(c => !c.is_archived));
-      return;
-    }
-    const data = await app.entities.Conversation.filter(
-      { is_archived: false },
-      '-created_date',
-      100
-    );
-    setConversations(data);
-  }, []);
 
   const loadSpaces = useCallback(async () => {
     const isAuthed = await app.auth.isAuthenticated();
@@ -122,57 +79,27 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
-    loadConversations();
     loadSpaces();
-  }, [loadConversations, loadSpaces]);
+  }, [loadSpaces]);
 
-  const handleNewChat = () => {
-    navigate('/chat');
-  };
-
-  // Wire global keybinds. Settings + AI Settings are routed through window
-  // events so SpaceRail (which owns the modals) picks them up. The dictionary
-  // shortcut grabs the current selection and stuffs it into the local store.
+  // Wire global keybinds. Settings is routed through a window event so
+  // SpaceRail (which owns the modal) picks it up. The dictionary shortcut
+  // grabs the current selection and stuffs it into the local store.
   const keybindHandlers = useMemo(() => ({
     openSettings:    () => window.dispatchEvent(new CustomEvent('quillosofi:open-settings')),
-    openAiSettings:  () => window.dispatchEvent(new CustomEvent('quillosofi:open-ai-settings')),
     addToDictionary: () => {
       const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
       const word = sel?.toString?.().trim();
       if (!word) return;
       addCustomWord({ word });
     },
-    toggleAiDictionary: () => {
-      // Pinning toggle from a selection — pinning a freshly-added word puts
-      // it in AI vocabulary; on an existing pinned word, this unpins it.
-      const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
-      const word = sel?.toString?.().trim();
-      if (!word) return;
-      // Use a dynamic import to avoid circulars; safe because keybinds.js
-      // already imports React.
-      import('@/lib/customDict').then(mod => {
-        const existing = mod.getCustomWord(word);
-        if (existing) {
-          mod.updateCustomWord(existing.id, { is_pinned: !existing.is_pinned });
-        } else {
-          mod.addCustomWord({ word, is_pinned: true });
-        }
-      });
-    },
   }), []);
   useGlobalKeybinds(keybindHandlers);
 
-  const handleDelete = (id) => setPendingDelete(id);
-
   const doDelete = async (id) => {
-    const isAuthed = await app.auth.isAuthenticated();
-    if (!isAuthed) {
-      guestStorage.updateConversation(id, { is_archived: true });
-    } else {
-      await app.entities.Conversation.update(id, { is_archived: true });
-    }
-    setConversations(prev => prev.filter(c => c.id !== id));
-    if (activeId === id) navigate('/');
+    // Retained for any future generic delete confirmation flow. Currently
+    // unused since the conversation list was removed in v0.4.46.
+    setPendingDelete(null);
   };
 
   return (
@@ -185,13 +112,7 @@ export default function Layout() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {pendingDelete && (
-        <ConfirmDialog
-          message="This will delete the chat permanently."
-          onConfirm={() => { doDelete(pendingDelete); setPendingDelete(null); }}
-          onCancel={() => setPendingDelete(null)}
-        />
-      )}
+
 
       {showHydrationModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowHydrationModal(false)}>
@@ -209,45 +130,6 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Left: ChatSidebar - Desktop (AI feature — hidden when AI is off) */}
-      {aiEnabled && (
-        <div className="hidden md:flex md:w-60 border-r border-border overflow-hidden flex-col chalk-shell-deep">
-          <ChatSidebar
-            conversations={conversations}
-            spaces={spaces}
-            activeId={activeId}
-            onNewChat={handleNewChat}
-            onDelete={handleDelete}
-            onClose={() => {}}
-            onSpaceCreated={(s) => setSpaces(prev => [s, ...prev])}
-            onUpdate={loadConversations}
-            refreshTrigger={refreshTrigger}
-            onAuthChange={handleAuthChange}
-          />
-        </div>
-      )}
-
-      {/* Left: ChatSidebar - Mobile Overlay (AI feature — hidden when AI is off) */}
-      {aiEnabled && leftSidebarOpen && (
-        <>
-          <div className={`fixed inset-0 z-40 bg-black/60 md:hidden ${leftSidebarClosing ? 'animate-out fade-out duration-300' : 'animate-in fade-in duration-300'}`} onClick={closeLeftSidebar} />
-          <div className={`fixed left-0 top-0 h-screen w-60 z-50 md:hidden overflow-hidden flex flex-col chalk-shell-deep ${leftSidebarClosing ? 'animate-out slide-out-to-left duration-300' : 'animate-in slide-in-from-left duration-300'}`}>
-            <ChatSidebar
-              conversations={conversations}
-              spaces={spaces}
-              activeId={activeId}
-              onNewChat={handleNewChat}
-              onDelete={handleDelete}
-              onClose={closeLeftSidebar}
-              onSpaceCreated={(s) => setSpaces(prev => [s, ...prev])}
-              onUpdate={loadConversations}
-              refreshTrigger={refreshTrigger}
-              onAuthChange={handleAuthChange}
-            />
-          </div>
-        </>
-      )}
-
       {/* Center: SpaceRail + Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* SpaceRail - Mobile only, at top */}
@@ -257,16 +139,7 @@ export default function Layout() {
 
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between h-12 px-3 border-b border-border chalk-shell-board">
-          {aiEnabled ? (
-            <button
-              onClick={() => setLeftSidebarOpen(true)}
-              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          ) : (
-            <span className="w-8" />
-          )}
+          <span className="w-8" />
           <span className="font-semibold text-sm flex-1 text-center">Quillosofi</span>
           <button
             onClick={() => setRightSidebarOpen(true)}
@@ -284,17 +157,17 @@ export default function Layout() {
         {/* Main Content */}
         {isExpired
           ? <GuestExpiredScreen />
-          : <Outlet context={{ conversations, setConversations, loadConversations, spaces }} />}
+          : <Outlet context={{ spaces, refreshSpaces: loadSpaces }} />}
       </div>
 
       {/* Right: StatsPanel - Desktop */}
       <div className="hidden md:flex md:w-64 border-l border-border overflow-hidden flex-col chalk-shell-deep">
         <StatsPanel
-          conversations={conversations}
           spaces={spaces}
           onClose={() => {}}
           onShowHydrationModal={() => setShowHydrationModal(true)}
-          onDataUpdate={() => { setRefreshTrigger(prev => prev + 1); loadConversations(); }}
+          onDataUpdate={() => setRefreshTrigger(prev => prev + 1)}
+          refreshTrigger={refreshTrigger}
         />
       </div>
 
@@ -307,11 +180,11 @@ export default function Layout() {
               <span className="font-semibold text-sm">Stats</span>
             </div>
             <StatsPanel
-              conversations={conversations}
               spaces={spaces}
               onClose={() => setRightSidebarOpen(false)}
               onShowHydrationModal={() => setShowHydrationModal(true)}
-              onDataUpdate={() => { setRefreshTrigger(prev => prev + 1); loadConversations(); }}
+              onDataUpdate={() => setRefreshTrigger(prev => prev + 1)}
+              refreshTrigger={refreshTrigger}
             />
           </div>
         </>
