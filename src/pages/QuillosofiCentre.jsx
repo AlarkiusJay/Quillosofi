@@ -1,86 +1,70 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Brain, BookOpen, Grid3x3, Table2, Palette, Shield, Zap, MessageSquare, Search, Star } from 'lucide-react';
+import { ArrowLeft, BookOpen, Grid3x3, Table2, Palette, Shield, Type, Layout as LayoutIcon, Star } from 'lucide-react';
 
 const FEATURES = [
   {
-    icon: MessageSquare,
-    title: 'AI Chat',
-    description: 'Have rich, context-aware conversations with Quillosofi. It remembers your preferences and adapts to your style.',
+    icon: BookOpen,
+    title: 'Canvas',
+    description: 'A focused, distraction-free writing surface with visual page frames, rulers, and rich text formatting.',
+    color: 'from-green-500/20 to-green-600/10',
+    accent: 'text-green-400',
+    border: 'border-green-500/20',
+  },
+  {
+    icon: LayoutIcon,
+    title: 'Page Setup',
+    description: 'Choose paper size (Word and KDP presets), margins, orientation, and view modes — vertical, side-by-side, or book spread.',
     color: 'from-blue-500/20 to-blue-600/10',
     accent: 'text-blue-400',
     border: 'border-blue-500/20',
   },
   {
-    icon: Brain,
-    title: 'Persistent Memory',
-    description: 'Quillosofi learns what matters to you. Save facts, preferences, and context that carry across every conversation.',
-    color: 'from-purple-500/20 to-purple-600/10',
-    accent: 'text-purple-400',
-    border: 'border-purple-500/20',
+    icon: Table2,
+    title: 'Spreadsheets',
+    description: 'Build and manage live spreadsheets with conditional formatting, cell types, and formulas.',
+    color: 'from-amber-500/20 to-amber-600/10',
+    accent: 'text-amber-400',
+    border: 'border-amber-500/20',
   },
   {
     icon: Grid3x3,
     title: 'Project Spaces',
-    description: 'Organize your work into dedicated spaces with custom system prompts, reference links, and shared memory.',
+    description: 'Organize canvases into dedicated spaces with notes, reference links, and attached files.',
     color: 'from-indigo-500/20 to-indigo-600/10',
     accent: 'text-indigo-400',
     border: 'border-indigo-500/20',
   },
   {
     icon: BookOpen,
-    title: 'Canvas Vault',
-    description: 'Write, format, and save rich text canvases directly inside your chats. Export to TXT, MD, DOCX, or PDF.',
-    color: 'from-green-500/20 to-green-600/10',
-    accent: 'text-green-400',
-    border: 'border-green-500/20',
+    title: 'Custom Dictionary',
+    description: 'Build your own personal vocabulary. Add words, definitions, and categories. Star the ones you reference most.',
+    color: 'from-teal-500/20 to-teal-600/10',
+    accent: 'text-teal-400',
+    border: 'border-teal-500/20',
   },
   {
-    icon: Table2,
-    title: 'Spreadsheets',
-    description: 'Build and manage live spreadsheets inside your conversations with conditional formatting and cell types.',
-    color: 'from-amber-500/20 to-amber-600/10',
-    accent: 'text-amber-400',
-    border: 'border-amber-500/20',
-  },
-  {
-    icon: Search,
-    title: 'Web Search',
-    description: 'Ask Quillosofi anything with live internet context — news, research, facts, and real-time information.',
-    color: 'from-cyan-500/20 to-cyan-600/10',
-    accent: 'text-cyan-400',
-    border: 'border-cyan-500/20',
-  },
-  {
-    icon: Palette,
-    title: 'Full Customization',
-    description: 'Choose your theme, font, bot personality, tone, response style, and even create custom AI personas.',
+    icon: Type,
+    title: 'Custom Fonts',
+    description: 'Pick from a curated typography library, including Oldenburg as the default humanist slab serif.',
     color: 'from-pink-500/20 to-pink-600/10',
     accent: 'text-pink-400',
     border: 'border-pink-500/20',
   },
   {
+    icon: Palette,
+    title: 'Theme Customization',
+    description: 'Tune the dark green chalkboard aesthetic to your taste. Sticky notes, chalk colours, and surfaces.',
+    color: 'from-purple-500/20 to-purple-600/10',
+    accent: 'text-purple-400',
+    border: 'border-purple-500/20',
+  },
+  {
     icon: Shield,
     title: 'Privacy First',
-    description: 'Your data is encrypted, never sold, and always under your control. Export or delete everything at any time.',
+    description: 'Local-first by design. Your data lives on your machine — export or delete everything at any time.',
     color: 'from-red-500/20 to-red-600/10',
     accent: 'text-red-400',
     border: 'border-red-500/20',
-  },
-  {
-    icon: Zap,
-    title: 'Slash Commands',
-    description: 'Trigger powerful tools instantly — /canvas, /spreadsheet, /search, and more — right inside any chat.',
-    color: 'from-yellow-500/20 to-yellow-600/10',
-    accent: 'text-yellow-400',
-    border: 'border-yellow-500/20',
-  },
-  {
-    icon: BookOpen,
-    title: 'Custom Dictionary',
-    description: 'Build your own personal vocabulary. Add words, definitions, and categories. Pin words to inject them passively into every AI conversation — perfect for characters, lore, or specialized terms.',
-    color: 'from-teal-500/20 to-teal-600/10',
-    accent: 'text-teal-400',
-    border: 'border-teal-500/20',
   },
 ];
 
@@ -113,11 +97,10 @@ export default function QuillosofiCentre() {
             Quillosofi
           </h1>
           <p className="text-lg md:text-xl text-[hsl(220,14%,65%)] leading-relaxed max-w-xl">
-            Your Writing and Creative Companion. Built with Canvases, Custom Dictionary, and More!
+            Your distraction-free writing companion. Pure canvases, real page frames, and a custom dictionary all your own.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-            <span className="px-3 py-1.5 rounded-full bg-primary/15 border border-primary/25 text-primary text-xs font-medium">AI-Powered</span>
-            <span className="px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-400 text-xs font-medium">Memory-Aware</span>
+            <span className="px-3 py-1.5 rounded-full bg-primary/15 border border-primary/25 text-primary text-xs font-medium">Writing First</span>
             <span className="px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/25 text-green-400 text-xs font-medium">Privacy First</span>
             <span className="px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-400 text-xs font-medium">Fully Customizable</span>
           </div>

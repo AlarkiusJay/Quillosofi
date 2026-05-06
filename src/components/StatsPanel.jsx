@@ -1,13 +1,19 @@
+/*
+ * StatsPanel — right-rail stats / clock / fonts.
+ *
+ * v0.4.46 — The Pure Writing Refactor: removed Library tab, Plugins tab,
+ * AI quick-toggle row, AiSettingsModal mount, the conversations stat,
+ * and the Recent Chats list. The panel now reflects writing activity:
+ * canvas count, sheet count, spaces summary, and an optional list of
+ * recent canvases when the consumer passes them in.
+ */
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import UpgradeModal from './UpgradeModal';
-import AiSettingsModal from './AiSettingsModal';
-import { Hash, Folder, X, BarChart2, MessageSquare, Library, Plug, Brain, Settings as SettingsIcon } from 'lucide-react';
-import PluginsTab from './settings/PluginsTab';
-import LibraryPanel from './LibraryPanel';
+import { Folder, X, BarChart2, FileText, Table2 } from 'lucide-react';
 import FontSelector from './FontSelector';
-import { Switch } from '@/components/ui/switch';
-import { useAiEnabled } from '@/lib/aiState';
+import { app } from '@/api/localClient';
+import { guestStorage } from '../utils/guestStorage';
 import { cn } from '@/lib/utils';
 
 function LiveClock({ onShowHydrationModal }) {
@@ -43,35 +49,53 @@ function LiveClock({ onShowHydrationModal }) {
   );
 }
 
-// Compact gear+brain glyph used inline next to the AI toggle. Matches the
-// SpaceRail / AiSettingsModal treatment so it reads as the same affordance.
-function GearBrainGlyph({ active }) {
-  return (
-    <span
-      className={cn(
-        'relative h-5 w-5 rounded-md flex items-center justify-center bg-gradient-to-br shrink-0',
-        active ? 'from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))]' : 'from-[hsl(var(--chalk-yellow)/0.6)] to-[hsl(var(--chalk-pink)/0.6)]'
-      )}
-    >
-      <SettingsIcon className="absolute h-3 w-3 text-white" style={{ transform: 'translate(-1px,-1px)' }} />
-      <Brain className="absolute h-3 w-3 text-white" style={{ transform: 'translate(1.5px,1.5px)' }} />
-    </span>
-  );
-}
-
-export default function StatsPanel({ conversations, spaces, onClose, onShowHydrationModal, onDataUpdate }) {
+export default function StatsPanel({ spaces = [], onClose, onShowHydrationModal }) {
   const [tab, setTab] = useState('stats');
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [showAiSettings, setShowAiSettings] = useState(false);
-  const [aiEnabled, setAiEnabled] = useAiEnabled();
-  const totalMessages = conversations.length;
+  const [canvasCount, setCanvasCount] = useState(0);
+  const [sheetCount, setSheetCount] = useState(0);
+  const [recentCanvases, setRecentCanvases] = useState([]);
+
   const totalSpaces = spaces.length;
 
-  // If the user toggles AI off while sitting on Library or Plugins, kick them
-  // back to the Stats tab so they don't end up staring at a hidden surface.
+  // Pull canvas + sheet counts in parallel. Falls back to guest storage when
+  // the user isn't signed in. Light query — capped to 5 recent canvases.
   useEffect(() => {
-    if (!aiEnabled && (tab === 'library' || tab === 'plugins')) setTab('stats');
-  }, [aiEnabled, tab]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const isAuthed = await app.auth.isAuthenticated();
+        if (!isAuthed) {
+          const canvases = guestStorage.getCanvases?.() || [];
+          const sheets = guestStorage.getSpreadsheets?.() || [];
+          if (!cancelled) {
+            setCanvasCount(canvases.length);
+            setSheetCount(sheets.length);
+            setRecentCanvases(canvases.slice(0, 5));
+          }
+          return;
+        }
+        const [canvases, sheets] = await Promise.all([
+          app.entities.Canvas.list('-updated_date', 5),
+          app.entities.Spreadsheet.list('-updated_date', 1),
+        ]);
+        if (!cancelled) {
+          setRecentCanvases(canvases || []);
+          // Counts: we only fetched 5 / 1 above for the recent list, so issue a
+          // separate quick filter for true totals.
+          const allCanvases = await app.entities.Canvas.list('-updated_date', 500);
+          const allSheets = await app.entities.Spreadsheet.list('-updated_date', 500);
+          if (!cancelled) {
+            setCanvasCount(allCanvases.length);
+            setSheetCount(allSheets.length);
+          }
+        }
+      } catch {
+        // Stats panel is decorative; swallow errors silently.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="h-full flex flex-col w-full md:w-64 shrink-0" style={{ background: 'transparent', borderLeft: '1px solid hsl(var(--chalk-white-faint) / 0.3)' }}>
@@ -84,66 +108,30 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
           )}>
             <BarChart2 className="h-3.5 w-3.5" /> Stats
           </button>
-          {aiEnabled && (
-            <>
-              <button onClick={() => setTab('library')} className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold transition-colors',
-                tab === 'library' ? 'bg-primary/20 text-primary' : 'text-[hsl(220,7%,55%)] hover:text-white'
-              )}>
-                <Library className="h-3.5 w-3.5" /> Library
-              </button>
-              <button onClick={() => setTab('plugins')} className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold transition-colors',
-                tab === 'plugins' ? 'bg-primary/20 text-primary' : 'text-[hsl(220,7%,55%)] hover:text-white'
-              )}>
-                <Plug className="h-3.5 w-3.5" /> Plugins
-              </button>
-            </>
-          )}
         </div>
         <button onClick={onClose} className="p-1.5 rounded hover:bg-[hsl(228,7%,27%)] transition-colors md:hidden text-[hsl(220,7%,65%)] hover:text-white">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      {tab === 'library' && aiEnabled && <LibraryPanel spaces={spaces} />}
-      {tab === 'plugins' && aiEnabled && <PluginsTab />}
       <div className={cn("flex-1 overflow-y-auto", tab !== 'stats' && 'hidden')}>
         <FontSelector />
         <div className="py-4 px-3 space-y-4">
 
-          {/* AI Quick Row — layout-only toggle for AI + entry point to AI Settings */}
-          <div
-            className="rounded-xl p-3 border border-[hsl(225,9%,22%)]"
-            style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}
-          >
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => setShowAiSettings(true)}
-                title="Open AI Settings"
-                className="hover:scale-105 transition-transform shrink-0"
-              >
-                <GearBrainGlyph active={aiEnabled} />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white">AI</p>
-                <p className="text-[10px] text-[hsl(220,7%,55%)] leading-tight">
-                  {aiEnabled ? 'On — extras unlocked' : 'Off — writing-only mode'}
-                </p>
-              </div>
-              <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
-            </div>
-          </div>
-
           {/* Clock */}
           <LiveClock onShowHydrationModal={onShowHydrationModal} />
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Summary cards — Canvases / Sheets / Spaces */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg p-3" style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}>
-              <MessageSquare className="h-4 w-4 text-primary mb-1" />
-              <p className="text-xl font-bold text-white">{totalMessages}</p>
-              <p className="text-[10px] text-[hsl(220,7%,50%)] font-medium">Conversations</p>
+              <FileText className="h-4 w-4 text-primary mb-1" />
+              <p className="text-xl font-bold text-white">{canvasCount}</p>
+              <p className="text-[10px] text-[hsl(220,7%,50%)] font-medium">Canvases</p>
+            </div>
+            <div className="rounded-lg p-3" style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}>
+              <Table2 className="h-4 w-4 text-primary mb-1" />
+              <p className="text-xl font-bold text-white">{sheetCount}</p>
+              <p className="text-[10px] text-[hsl(220,7%,50%)] font-medium">Sheets</p>
             </div>
             <div className="rounded-lg p-3" style={{ background: 'hsl(var(--chalk-board-alt) / 0.55)', backdropFilter: 'blur(2px)' }}>
               <Folder className="h-4 w-4 text-primary mb-1" />
@@ -170,22 +158,22 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
             </div>
           )}
 
-          {/* Recent conversations */}
-          {conversations.length > 0 && (
+          {/* Recent canvases — replaces Recent Chats */}
+          {recentCanvases.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(220,7%,50%)] mb-2 px-1">Recent Chats</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(220,7%,50%)] mb-2 px-1">Recent canvases</p>
               <div className="space-y-1">
-                {conversations.map(c => (
+                {recentCanvases.map(c => (
                   <div
                     key={c.id}
                     className="flex items-start gap-2 px-2 py-1.5 rounded text-sm text-[hsl(220,7%,65%)]"
                   >
-                    <Hash className="h-3.5 w-3.5 shrink-0 mt-0.5 opacity-60" />
+                    <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 opacity-60" />
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-xs">{c.title}</p>
-                      {c.created_date && (
+                      <p className="truncate text-xs">{c.title || 'Untitled canvas'}</p>
+                      {c.updated_date && (
                         <p className="text-[10px] text-[hsl(220,7%,40%)]">
-                          {format(new Date(c.created_date), 'MMM d, yyyy')}
+                          {format(new Date(c.updated_date), 'MMM d, yyyy')}
                         </p>
                       )}
                     </div>
@@ -195,14 +183,13 @@ export default function StatsPanel({ conversations, spaces, onClose, onShowHydra
             </div>
           )}
 
-          {conversations.length === 0 && spaces.length === 0 && (
+          {recentCanvases.length === 0 && spaces.length === 0 && (
             <p className="text-xs text-[hsl(220,7%,45%)] text-center py-8">No history yet</p>
           )}
         </div>
       </div>
 
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
-      {showAiSettings && <AiSettingsModal onClose={() => setShowAiSettings(false)} />}
     </div>
   );
 }

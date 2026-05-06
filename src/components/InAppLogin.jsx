@@ -16,7 +16,6 @@ const LOCAL_USER = {
 
 export default function InAppLogin({ onAuthChange }) {
   const [user, setUser] = useState(IS_DESKTOP ? LOCAL_USER : null);
-  const [botConfig, setBotConfig] = useState(null);
   const [showEmail, setShowEmail] = useState(false);
   const [loading, setLoading] = useState(!IS_DESKTOP);
   const [showSettings, setShowSettings] = useState(false);
@@ -39,8 +38,6 @@ export default function InAppLogin({ onAuthChange }) {
       if (isAuthed) {
         const u = await app.auth.me();
         setUser(u);
-        const configs = await app.entities.BotConfig.list(null, 1);
-        setBotConfig(configs?.[0] || null);
       } else {
         setUser(null);
       }
@@ -53,10 +50,7 @@ export default function InAppLogin({ onAuthChange }) {
 
   useEffect(() => {
     if (IS_DESKTOP) {
-      // Desktop: skip auth, just hydrate the bot config (avatar/nickname).
-      app.entities.BotConfig.list(null, 1)
-        .then((configs) => setBotConfig(configs?.[0] || null))
-        .catch(() => {});
+      // Desktop: skip auth, fully local app.
       return;
     }
     loadUser();
@@ -110,20 +104,15 @@ export default function InAppLogin({ onAuthChange }) {
     );
   }
 
-  const displayProfilePicture = botConfig?.profile_picture;
-
   return (
     <>
       <div className="shrink-0 px-3 py-3 border-t border-black/30">
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg group">
           <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-[hsl(262,83%,58%)] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
-            {displayProfilePicture
-              ? <img src={displayProfilePicture} alt="Profile" className="w-full h-full object-cover" />
-              : user.full_name?.charAt(0) || '?'
-            }
+            {user.full_name?.charAt(0) || '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">{botConfig?.user_address || user.full_name || 'User'}</p>
+            <p className="text-xs font-semibold text-white truncate">{user.full_name || 'User'}</p>
             <button
               onClick={() => setShowEmail(!showEmail)}
               className="text-[10px] text-[hsl(220,7%,45%)] font-mono truncate hover:text-[hsl(220,7%,55%)] transition-colors cursor-pointer"

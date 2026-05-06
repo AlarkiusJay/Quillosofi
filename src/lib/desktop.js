@@ -216,11 +216,10 @@ export const localIntegrations = {
       return { file_url };
     },
 
-    // Route LLM calls through OpenRouter. Lazy-imported to avoid a circular
-    // dep with llm.js.
-    InvokeLLM: async (params = {}) => {
-      const { invokeLLM } = await import('@/lib/llm');
-      return invokeLLM(params);
+    // AI features were removed in v0.4.46 — Quillosofi is now a pure
+    // writing app. Any leftover callers get a clean rejection.
+    InvokeLLM: async () => {
+      throw new Error('AI features have been removed from Quillosofi.');
     },
 
     // Image generation isn't wired up locally yet. Returning a clear error

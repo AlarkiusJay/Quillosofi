@@ -11,95 +11,115 @@ export default function ImportExport() {
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef(null);
 
+  const safeList = async (entityName, ...args) => {
+    try {
+      const ent = app.entities?.[entityName];
+      if (!ent) return [];
+      return (await ent.list(...args)) || [];
+    } catch {
+      return [];
+    }
+  };
+
   const handleExport = async () => {
     setExporting(true);
-    const [conversations, messages, memories, botConfig] = await Promise.all([
-      app.entities.Conversation.filter({ is_archived: false }, '-created_date', 500),
-      app.entities.Message.list('-created_date', 5000),
-      app.entities.UserMemory.filter({}, '-updated_date', 500),
-      app.entities.BotConfig.list('-created_date', 1),
+    const [canvases, spreadsheets, spaces, spaceFiles, customWords] = await Promise.all([
+      safeList('Canvas', '-updated_date', 1000),
+      safeList('Spreadsheet', '-updated_date', 1000),
+      safeList('ProjectSpace', '-updated_date', 500),
+      safeList('SpaceFile', '-updated_date', 1000),
+      safeList('CustomWord', '-updated_date', 5000),
     ]);
     const exportData = {
       exported_at: new Date().toISOString(),
-      version: '1.0',
-      conversations,
-      messages,
-      memories,
-      bot_config: botConfig[0] || null,
+      version: '2.0',
+      app: 'quillosofi',
+      canvases,
+      spreadsheets,
+      spaces,
+      space_files: spaceFiles,
+      custom_words: customWords,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nexal-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `quillosofi-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setExporting(false);
   };
 
   const handleImportFile = async (e) => {
-   const file = e.target.files?.[0];
-   if (!file) return;
-   const validExtensions = ['.json', '.txt', '.csv', '.zip'];
-   const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-   if (!validExtensions.includes(fileExt)) {
-     setImportStatus({ type: 'error', message: `Unsupported file format. Supported formats: ${validExtensions.join(', ')}` });
-     e.target.value = '';
-     return;
-   }
-   setImporting(true);
-   setImportStatus(null);
-   const text = await file.text();
-    const data = JSON.parse(text);
-    if (!data.version || !data.conversations) {
-      setImportStatus({ type: 'error', message: 'Invalid export file format.' });
-      setImporting(false);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setImportStatus({ type: 'error', message: 'Only .json export files are supported.' });
+      e.target.value = '';
       return;
     }
-    let imported = { conversations: 0, messages: 0, memories: 0 };
-    const convoIdMap = {};
-    for (const c of (data.conversations || [])) {
-      const { id, created_date, updated_date, created_by, ...fields } = c;
-      const created = await app.entities.Conversation.create(fields);
-      convoIdMap[id] = created.id;
-      imported.conversations++;
-    }
-    for (const m of (data.messages || [])) {
-      const newConvoId = convoIdMap[m.conversation_id];
-      if (!newConvoId) continue;
-      const { id, created_date, updated_date, created_by, ...fields } = m;
-      await app.entities.Message.create({ ...fields, conversation_id: newConvoId });
-      imported.messages++;
-    }
-    for (const mem of (data.memories || [])) {
-      const existing = await app.entities.UserMemory.filter({ key: mem.key });
-      if (existing.length === 0) {
-        const { id, created_date, updated_date, created_by, ...fields } = mem;
-        await app.entities.UserMemory.create(fields);
-        imported.memories++;
+    setImporting(true);
+    setImportStatus(null);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.version) {
+        setImportStatus({ type: 'error', message: 'Invalid export file format.' });
+        setImporting(false);
+        return;
       }
+      let imported = { canvases: 0, spreadsheets: 0, spaces: 0, files: 0, words: 0 };
+      const stripMeta = (o) => {
+        const { id, created_date, updated_date, created_by, ...rest } = o;
+        return rest;
+      };
+      const importBatch = async (entityName, list, counterKey) => {
+        const ent = app.entities?.[entityName];
+        if (!ent || !Array.isArray(list)) return;
+        for (const item of list) {
+          try {
+            await ent.create(stripMeta(item));
+            imported[counterKey]++;
+          } catch {}
+        }
+      };
+      await importBatch('ProjectSpace', data.spaces, 'spaces');
+      await importBatch('Canvas', data.canvases, 'canvases');
+      await importBatch('Spreadsheet', data.spreadsheets, 'spreadsheets');
+      await importBatch('SpaceFile', data.space_files, 'files');
+      await importBatch('CustomWord', data.custom_words, 'words');
+      setImportStatus({
+        type: 'success',
+        message: `Imported ${imported.canvases} canvases, ${imported.spreadsheets} sheets, ${imported.spaces} spaces, ${imported.files} files, ${imported.words} dictionary words.`,
+      });
+    } catch (err) {
+      setImportStatus({ type: 'error', message: `Import failed: ${err.message || 'Unknown error'}` });
+    } finally {
+      setImporting(false);
+      e.target.value = '';
     }
-    setImportStatus({
-      type: 'success',
-      message: `Imported ${imported.conversations} conversations, ${imported.messages} messages, ${imported.memories} memories.`,
-    });
-    setImporting(false);
-    e.target.value = '';
   };
 
   const handleDeleteAll = async () => {
     setDeleting(true);
-    const [convos, messages, memories] = await Promise.all([
-      app.entities.Conversation.filter({}, '-created_date', 1000),
-      app.entities.Message.list('-created_date', 10000),
-      app.entities.UserMemory.filter({}, '-updated_date', 1000),
-    ]);
-    for (const c of convos) await app.entities.Conversation.delete(c.id);
-    for (const m of messages) await app.entities.Message.delete(m.id);
-    for (const mem of memories) await app.entities.UserMemory.delete(mem.id);
+    const wipe = async (entityName) => {
+      const ent = app.entities?.[entityName];
+      if (!ent) return;
+      try {
+        const items = await ent.list('-created_date', 5000);
+        for (const item of items || []) {
+          try { await ent.delete(item.id); } catch {}
+        }
+      } catch {}
+    };
+    await wipe('Canvas');
+    await wipe('Spreadsheet');
+    await wipe('ProjectSpace');
+    await wipe('SpaceFile');
+    await wipe('CustomWord');
     setDeleting(false);
     setDeleteStep(0);
-    setImportStatus({ type: 'success', message: 'All data has been permanently deleted.' });
+    setImportStatus({ type: 'success', message: 'All your writing data has been permanently deleted.' });
   };
 
   return (
@@ -112,8 +132,8 @@ export default function ImportExport() {
           </div>
           <div>
             <p className="text-sm font-semibold">Export Data</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Download all your conversations, messages, memories, and settings as a JSON file.</p>
-            <p className="text-xs text-muted-foreground/70 mt-2">📦 <span className="font-medium">Format:</span> JSON</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Download all your canvases, sheets, spaces, files, and custom dictionary as a JSON file.</p>
+            <p className="text-xs text-muted-foreground/70 mt-2">Format: JSON</p>
           </div>
         </div>
         <Button onClick={handleExport} disabled={exporting} className="w-full">
@@ -129,11 +149,11 @@ export default function ImportExport() {
           </div>
           <div>
             <p className="text-sm font-semibold">Import Data</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Restore from a previously exported Nexal backup. Existing data won't be deleted — new items will be added.</p>
-            <p className="text-xs text-muted-foreground/70 mt-2">📦 <span className="font-medium">Supported formats:</span> JSON, Markdown (.txt), CSV, ZIP</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Restore from a previously exported Quillosofi backup. Existing data won't be deleted — new items will be added.</p>
+            <p className="text-xs text-muted-foreground/70 mt-2">Supported format: JSON</p>
           </div>
         </div>
-        <input ref={fileInputRef} type="file" accept=".json,.txt,.csv,.zip" className="hidden" onChange={handleImportFile} />
+        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
         <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing} className="w-full">
           {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importing…</> : <><Upload className="h-4 w-4 mr-2" />Choose File to Import</>}
         </Button>
@@ -155,7 +175,7 @@ export default function ImportExport() {
           </div>
           <div>
             <p className="text-sm font-semibold text-red-400">Delete All Data</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Permanently delete every conversation, message, memory, and setting. This cannot be undone.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Permanently delete every canvas, sheet, space, file, and dictionary word. This cannot be undone.</p>
           </div>
         </div>
         <button
@@ -172,10 +192,9 @@ export default function ImportExport() {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div className="relative bg-[hsl(220,8%,18%)] border-2 border-red-600 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-5">
-              <p className="text-4xl mb-3">🚨</p>
               <p className="text-lg font-black text-red-400 mb-2">WHOA HOLD ON THERE BUDDY</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                You are about to nuke <span className="font-bold text-white">everything</span>. Every message. Every memory. Every single thing you have ever said to Nexal. Gone. Forever. Into the void. Are you <em>absolutely</em> sure?
+                You are about to nuke <span className="font-bold text-white">everything</span>. Every canvas. Every sheet. Every space. Gone. Forever. Into the void. Are you <em>absolutely</em> sure?
               </p>
             </div>
             <div className="flex gap-2">
@@ -192,10 +211,9 @@ export default function ImportExport() {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
           <div className="relative bg-[hsl(220,8%,14%)] border-2 border-red-500 rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-5">
-              <p className="text-4xl mb-3">💀</p>
               <p className="text-lg font-black text-red-300 mb-2">THIS IS YOUR LAST CHANCE.</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                I am begging you. Please. There is no undo button. No backup. No oops I did not mean it. Your entire chat history will be <span className="font-black text-red-400">obliterated from existence</span>. Your memories, gone. Your spaces, gone. All of it. <span className="text-white font-semibold">Are you actually, truly, genuinely doing this?</span>
+                I am begging you. Please. There is no undo button. No backup. No oops I did not mean it. Your entire writing library will be <span className="font-black text-red-400">obliterated from existence</span>. <span className="text-white font-semibold">Are you actually, truly, genuinely doing this?</span>
               </p>
             </div>
             <div className="flex gap-2">
@@ -209,7 +227,7 @@ export default function ImportExport() {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center px-2">
-        Your data is stored privately and only accessible by you. Exports include all non-archived conversations, messages, memories, and bot configuration.
+        Your data is stored privately and only accessible by you. Exports include canvases, sheets, project spaces, attached files, and your custom dictionary.
       </p>
     </div>
   );

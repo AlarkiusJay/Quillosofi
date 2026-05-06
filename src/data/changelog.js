@@ -17,6 +17,23 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.46',
+    date: '2026-05-06',
+    tagline: 'The Pure Writing Refactor — the entire AI/chat layer is gone, Spaces revamped as pure writing organisation.',
+    changes: [
+      'Surgically removed the entire AI/chat layer. No more Chat page, Research page, Settings page (the orphaned one), AI Settings modal, Bot Persona, API Key tab, system prompts as prompts, command picker, message canvases, or LLM caller. Quillosofi is now a pure writing app.',
+      'Spaces revamped end-to-end. The Space view no longer lists conversations — it shows the canvases inside that space, plus your reference links, attached files, and “Notes” (formerly the system_prompt field, repurposed as plain notes).',
+      'New “New canvas in this space” button replaces the old “New chat in this space” button. Spaces are now writing organisation tools, not chat folders.',
+      'Custom Dictionary stayed — but the “AI context pin” is now just a plain Star. Pinned words are renamed to Starred. Same data field under the hood, no more AI-context-injection language anywhere in the UI.',
+      'Right-click context menu in canvases lost the “Add + Pin to AI context” entry. Plain “Add to Dictionary” remains.',
+      'Stats panel rebuilt around writing: canvas count, sheet count, and a recent canvases list. The conversations stat, recent chats list, and AI quick-toggle row are gone.',
+      'Sources Vault stays as a manual-entry tool — no auto-cite, no AI-generated citations, just a place to track sources you add yourself.',
+      'Import/Export rewritten to handle writing artifacts only: canvases, spreadsheets, project spaces, attached files, and your custom dictionary. Old chat-era exports won’t round-trip; new format is version 2.0.',
+      'Removed orphaned Stripe dependencies (@stripe/react-stripe-js, @stripe/stripe-js) that had been hanging around since v0.4.45 when the Upgrade tab became the Donate tab.',
+      'About sections in Settings and the Quillosofi Centre rewritten around what’s actually here: Canvas, Page Setup, Spreadsheets, Project Spaces, Custom Dictionary, Custom Fonts, Theme Customization, and Privacy First.',
+    ],
+  },
+  {
     version: '0.4.45',
     date: '2026-05-04',
     tagline: 'Settings → Upgrade is now Settings → Donate. Real Ko-Fi link, no fake pricing tiers.',

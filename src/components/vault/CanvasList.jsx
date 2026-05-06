@@ -124,24 +124,8 @@ export default function CanvasList({ filter, spaces }) {
 
   const load = async () => {
     setLoading(true);
-    const [data, messages] = await Promise.all([
-      app.entities.Canvas.list('-updated_date', 200),
-      app.entities.Message.filter({ role: 'user' }, '-created_date', 500),
-    ]);
-    const messagesWithCanvas = messages.filter(m => m.canvas_content && m.canvas_content.trim());
-    const existingMessageIds = new Set(data.map(c => c.message_id).filter(Boolean));
-    const toImport = messagesWithCanvas.filter(m => !existingMessageIds.has(m.id));
-    const newCanvases = await Promise.all(
-      toImport.map(m => app.entities.Canvas.create({
-        title: m.canvas_title || 'Untitled Canvas',
-        content: m.canvas_content,
-        message_id: m.id,
-        conversation_id: m.conversation_id || '',
-      }))
-    );
-    const all = [...data, ...newCanvases];
-    all.sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
-    setCanvases(all);
+    const data = await app.entities.Canvas.list('-updated_date', 200);
+    setCanvases(data);
     setLoading(false);
   };
 

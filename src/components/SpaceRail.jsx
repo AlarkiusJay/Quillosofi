@@ -1,12 +1,10 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Settings, Home, Grid3x3, Pencil, BookOpen, Microscope, MessageSquare, Brain, FileText, Table2 } from 'lucide-react';
+import { Settings, Home, Grid3x3, Pencil, BookOpen, FileText, Table2 } from 'lucide-react';
 import SettingsModal from './SettingsModal';
-import AiSettingsModal from './AiSettingsModal';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import SpaceModal from './spaces/SpaceModal';
 import Tooltip from './Tooltip';
-import { useAiEnabled } from '@/lib/aiState';
 import useFreshlyUpdated from '@/lib/useFreshlyUpdated';
 import PostUpdateToast from './PostUpdateToast';
 
@@ -17,24 +15,10 @@ import PostUpdateToast from './PostUpdateToast';
 // electron-updater + GitHub releases. The badge dot driven by the Settings
 // gear is wired to the desktop updater state instead.
 
-// Combined gear+brain glyph for the AI Settings entry point. Mirrors the
-// header treatment in <AiSettingsModal />. Uses a tiny gradient backdrop so
-// it reads as a single icon at button size.
-function GearBrainGlyph({ active = false }) {
-  return (
-    <span
-      className={cn(
-        'relative h-4 w-4 rounded-md flex items-center justify-center bg-gradient-to-br',
-        active
-          ? 'from-[hsl(var(--chalk-yellow))] to-[hsl(var(--chalk-pink))]'
-          : 'from-[hsl(var(--chalk-yellow)/0.7)] to-[hsl(var(--chalk-pink)/0.7)]'
-      )}
-    >
-      <Settings className="absolute h-2.5 w-2.5 text-white" style={{ transform: 'translate(-1px,-1px)' }} />
-      <Brain className="absolute h-2.5 w-2.5 text-white" style={{ transform: 'translate(1.5px,1.5px)' }} />
-    </span>
-  );
-}
+// v0.4.46 — The Pure Writing Refactor. The combined gear+brain glyph and
+// the separate AI Settings entry point have been removed. The single
+// Settings gear on the right side of the rail is now the only entry point
+// since the AI layer no longer exists.
 
 export default function SpaceRail({ spaces, onSpaceCreated }) {
   const location = useLocation();
@@ -42,12 +26,10 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   const [showSpaceModal, setShowSpaceModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('general');
-  const [showAiSettings, setShowAiSettings] = useState(false);
   const [editingSpace, setEditingSpace] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const menuRef = useRef(null);
   const scrollRef = useRef(null);
-  const [aiEnabled] = useAiEnabled();
 
   // Freshly-updated dot: lights up after a version bump, until the user opens
   // the Update tab. Independent from the in-app updater badge below.
@@ -72,16 +54,15 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
     return () => { if (unsub) unsub(); };
   }, []);
 
-  // Listen for global keybind triggers from <Layout /> so Ctrl+, / Ctrl+;
-  // open the right modal even when the user is focused elsewhere.
+  // Listen for the global keybind trigger from <Layout /> so Ctrl+, opens
+  // Settings even when the user is focused elsewhere. (v0.4.46: the
+  // separate Ctrl+; → AI Settings binding was removed alongside the AI
+  // layer.)
   useEffect(() => {
     const onOpenSettings = () => setShowSettings(true);
-    const onOpenAiSettings = () => setShowAiSettings(true);
     window.addEventListener('quillosofi:open-settings', onOpenSettings);
-    window.addEventListener('quillosofi:open-ai-settings', onOpenAiSettings);
     return () => {
       window.removeEventListener('quillosofi:open-settings', onOpenSettings);
-      window.removeEventListener('quillosofi:open-ai-settings', onOpenAiSettings);
     };
   }, []);
 
@@ -103,8 +84,6 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   // multi-doc tabs and Resume Last. Quillibrary remains pure storage.
   const isCanvasHub = location.pathname === '/canvas' || location.pathname.startsWith('/canvas/');
   const isSheetsHub = location.pathname === '/sheets' || location.pathname.startsWith('/sheets/');
-  const isResearch = location.pathname.startsWith('/research');
-  const isChat = location.pathname.startsWith('/chat');
   const activeSpaceId = location.pathname.startsWith('/space/') ? location.pathname.split('/space/')[1] : null;
 
   const railBtn = (active) => cn(
@@ -157,52 +136,26 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             </button>
           </Tooltip>
 
-          {aiEnabled && (
-            <>
-              <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
+          <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
 
-              <Tooltip text="Spaces — Chat folders (AI)">
-                <button
-                  onClick={() => navigate('/spaces')}
-                  style={{ touchAction: 'manipulation' }}
-                  className={railBtn(isSpacesHome)}
-                >
-                  <Grid3x3 className="h-4 w-4 text-white" />
-                </button>
-              </Tooltip>
-
-              <Tooltip text="Research & Cite (AI)">
-                <button
-                  onClick={() => navigate('/research')}
-                  style={{ touchAction: 'manipulation' }}
-                  className={railBtn(isResearch)}
-                >
-                  <Microscope className="h-4 w-4 text-white" />
-                </button>
-              </Tooltip>
-
-              <Tooltip text="Chat (AI)">
-                <button
-                  onClick={() => navigate('/chat')}
-                  style={{ touchAction: 'manipulation' }}
-                  className={railBtn(isChat)}
-                >
-                  <MessageSquare className="h-4 w-4 text-white" />
-                </button>
-              </Tooltip>
-            </>
-          )}
+          <Tooltip text="Spaces — organise canvases, sheets, and notes">
+            <button
+              onClick={() => navigate('/spaces')}
+              style={{ touchAction: 'manipulation' }}
+              className={railBtn(isSpacesHome)}
+            >
+              <Grid3x3 className="h-4 w-4 text-white" />
+            </button>
+          </Tooltip>
 
           <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
         </div>
 
-        {/* Scrollable spaces section — spaces are an AI feature, hidden when AI is off */}
+        {/* Scrollable spaces section — always visible in v0.4.46+, since
+            spaces are now a pure writing organisation feature. */}
         <div
           ref={scrollRef}
-          className={cn(
-            "flex items-center gap-2 overflow-x-auto spacerail-scroll flex-1 px-2",
-            !aiEnabled && "pointer-events-none opacity-0"
-          )}
+          className="flex items-center gap-2 overflow-x-auto spacerail-scroll flex-1 px-2"
           style={{ WebkitOverflowScrolling: 'touch', overflowX: 'auto', touchAction: 'pan-x' }}
           onPointerDown={(e) => {
             const el = scrollRef.current;
@@ -244,16 +197,8 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           })}
         </div>
 
-        {/* Right fixed buttons: Settings + AI Settings */}
+        {/* Right fixed buttons: Settings */}
         <div className="flex items-center gap-2 px-3 shrink-0">
-          <Tooltip text="AI Settings (Ctrl+;)">
-            <button onClick={() => setShowAiSettings(true)}
-              style={{ touchAction: 'manipulation' }}
-              className="w-11 h-11 md:w-9 md:h-9 shrink-0 rounded-[18px] bg-[hsl(228,7%,42%)] hover:bg-primary hover:rounded-[10px] flex items-center justify-center transition-all duration-150 active:scale-90 active:brightness-75">
-              <GearBrainGlyph active={aiEnabled} />
-            </button>
-          </Tooltip>
-
           <Tooltip text="Settings (Ctrl+,)">
             <button onClick={() => setShowSettings(true)}
               style={{ touchAction: 'manipulation' }}
@@ -289,8 +234,6 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           }}
         />
       )}
-      {showAiSettings && <AiSettingsModal onClose={() => setShowAiSettings(false)} />}
-
       {contextMenu && (
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setContextMenu(null)} />
