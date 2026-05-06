@@ -69,15 +69,16 @@ export default function PageView({ setup, children }) {
         className="flex-1 overflow-auto"
         style={{ background: 'hsl(220, 12%, 9%)' }}
       >
+        {/* v0.4.52 — outer wrapper centers horizontally; inner scaled
+            wrapper transforms in place. Previous version stretched the
+            wrapper to 100/zoom% which pushed multi-page stacks against the
+            right edge at zoom < 1 (Alaria's bug-2 screenshot). */}
         <div
-          className="flex flex-col items-center gap-6 py-8 px-12"
+          className="flex flex-col items-center gap-6 py-8 px-12 mx-auto"
           style={{
             transform: `scale(${setup.zoom})`,
             transformOrigin: 'top center',
-            // Compensate the container width so scrollbar tracks scaled content
-            width: setup.zoom !== 1 ? `${100 / setup.zoom}%` : '100%',
-            // Keep the page centred with chalkboard breathing room on letter
-            // and other large trims.
+            width: 'fit-content',
             minWidth: 0,
           }}
         >

@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { exportTxt, exportMd, exportDocx, exportPdf } from './canvasExportUtils';
 import ReactQuill from 'react-quill';
 import '@/lib/quillFormats'; // side-effect: registers font-size whitelist + line-height
@@ -100,6 +101,64 @@ const editorStyles = `
   .vault-quill-wrapper .ql-editor .ql-indent-8 { padding-left: 24em; }
 `;
 
+// v0.4.52 — small wrapper triggers that own their own anchor ref so the
+// portal Menu can position itself relative to the actual button rect.
+// Defined at module scope (not inside Toolbar) so each instance has stable
+// hook order regardless of toolbar re-renders.
+function FontSizeTrigger({ show, setShow, Menu, items, onPick }) {
+  const anchorRef = useRef(null);
+  return (
+    <div className="relative">
+      <button
+        ref={anchorRef}
+        type="button"
+        title="Font size"
+        onMouseDown={(e) => { e.preventDefault(); setShow((v) => !v); }}
+        className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs font-mono"
+      >
+        <Type className="h-3.5 w-3.5" />
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {show && (
+        <Menu
+          anchorRef={anchorRef}
+          label="Font size"
+          items={items}
+          onPick={onPick}
+          onClose={() => setShow(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function LineSpacingTrigger({ show, setShow, Menu, items, onPick }) {
+  const anchorRef = useRef(null);
+  return (
+    <div className="relative">
+      <button
+        ref={anchorRef}
+        type="button"
+        title="Line spacing"
+        onMouseDown={(e) => { e.preventDefault(); setShow((v) => !v); }}
+        className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs"
+      >
+        <MoreVertical className="h-3.5 w-3.5" />
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {show && (
+        <Menu
+          anchorRef={anchorRef}
+          label="Line spacing"
+          items={items}
+          onPick={onPick}
+          onClose={() => setShow(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog }) {
   const [showHeadings, setShowHeadings] = useState(false);
   const [showFontSize, setShowFontSize] = useState(false);
@@ -153,52 +212,62 @@ function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog
   const Divider = () => <div className="w-px h-4 bg-[hsl(var(--chalk-white-faint)/0.2)] mx-0.5" />;
 
   // Reusable dropdown menu component for font size + line height.
-  const Menu = ({ items, onPick, onClose, label }) => (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div
-        className="absolute z-50 mt-1 bg-[hsl(var(--chalk-deep)/0.97)] border border-[hsl(var(--chalk-white-faint)/0.25)] rounded-lg shadow-2xl backdrop-blur-md p-1 min-w-[88px]"
-        role="menu"
-        aria-label={label}
-      >
-        {items.map(it => (
-          <button
-            key={it.value}
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); onPick(it.value); onClose(); }}
-            className="w-full text-left px-3 py-1.5 text-xs rounded text-[hsl(220,7%,72%)] hover:bg-[hsl(var(--chalk-deep))] hover:text-[hsl(var(--chalk-yellow))] transition-colors font-mono"
-          >
-            {it.label}
-          </button>
-        ))}
-      </div>
-    </>
-  );
+  // v0.4.52 — toolbar dropdown popovers were rendering inside the toolbar
+  // stacking context with z-50, which lost a z-index war against the page
+  // surface in PageView (Alaria's screenshot showed Headings/Line Spacing
+  // menus appearing BEHIND the editor). Fix: portal them to <body> with a
+  // fixed-position anchor under the trigger button, same pattern as
+  // ViewMenu. min-width=88px preserved.
+  const Menu = ({ anchorRef, items, onPick, onClose, label, align = 'left' }) => {
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+    useLayoutEffect(() => {
+      if (!anchorRef?.current) return;
+      const r = anchorRef.current.getBoundingClientRect();
+      const POPOVER_W = 110;
+      setPos({
+        top: r.bottom + 4,
+        left: align === 'right'
+          ? Math.max(8, r.right - POPOVER_W)
+          : r.left,
+      });
+    }, [anchorRef, align]);
+    return createPortal(
+      <>
+        <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={onClose} />
+        <div
+          role="menu"
+          aria-label={label}
+          className="fixed bg-[hsl(var(--chalk-deep)/0.97)] border border-[hsl(var(--chalk-white-faint)/0.25)] rounded-lg shadow-2xl backdrop-blur-md p-1 min-w-[88px]"
+          style={{ zIndex: 9999, top: pos.top, left: pos.left }}
+        >
+          {items.map(it => (
+            <button
+              key={it.value}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onPick(it.value); onClose(); }}
+              className="w-full text-left px-3 py-1.5 text-xs rounded text-[hsl(220,7%,72%)] hover:bg-[hsl(var(--chalk-deep))] hover:text-[hsl(var(--chalk-yellow))] transition-colors font-mono"
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      </>,
+      document.body
+    );
+  };
 
   return (
     <div className="border-b border-[hsl(var(--chalk-white-faint)/0.15)] px-4 py-1.5 flex items-center gap-0.5 flex-wrap bg-[hsl(var(--chalk-deep)/0.55)] backdrop-blur-sm">
       <Btn icon={Heading2} title="Headings" onClick={() => setShowHeadings(v => !v)} />
 
       {/* Font size dropdown */}
-      <div className="relative">
-        <button
-          type="button"
-          title="Font size"
-          onMouseDown={(e) => { e.preventDefault(); setShowFontSize(v => !v); }}
-          className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs font-mono"
-        >
-          <Type className="h-3.5 w-3.5" />
-          <ChevronDown className="h-3 w-3" />
-        </button>
-        {showFontSize && (
-          <Menu
-            label="Font size"
-            items={FONT_SIZES}
-            onPick={(v) => setFmt('size', v)}
-            onClose={() => setShowFontSize(false)}
-          />
-        )}
-      </div>
+      <FontSizeTrigger
+        show={showFontSize}
+        setShow={setShowFontSize}
+        Menu={Menu}
+        items={FONT_SIZES}
+        onPick={(v) => setFmt('size', v)}
+      />
 
       <Divider />
       <Btn icon={Bold} title="Bold" onClick={() => fmt('bold', true)} />
@@ -220,25 +289,13 @@ function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog
 
       <Divider />
       {/* Line height dropdown */}
-      <div className="relative">
-        <button
-          type="button"
-          title="Line spacing"
-          onMouseDown={(e) => { e.preventDefault(); setShowLineHeight(v => !v); }}
-          className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(var(--chalk-deep)/0.6)] transition-colors text-xs"
-        >
-          <MoreVertical className="h-3.5 w-3.5" />
-          <ChevronDown className="h-3 w-3" />
-        </button>
-        {showLineHeight && (
-          <Menu
-            label="Line spacing"
-            items={LINE_HEIGHTS}
-            onPick={(v) => setFmt('line-height', v)}
-            onClose={() => setShowLineHeight(false)}
-          />
-        )}
-      </div>
+      <LineSpacingTrigger
+        show={showLineHeight}
+        setShow={setShowLineHeight}
+        Menu={Menu}
+        items={LINE_HEIGHTS}
+        onPick={(v) => setFmt('line-height', v)}
+      />
 
       <Divider />
       <Btn icon={List} title="Bullet list" onClick={() => fmt('list', 'bullet')} />

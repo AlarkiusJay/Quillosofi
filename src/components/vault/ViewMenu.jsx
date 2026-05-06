@@ -32,7 +32,16 @@ export default function ViewMenu({ setup, onChange, onOpenPageSetup }) {
     });
   }, [open]);
 
-  const setMovement = (pageMovement) => onChange?.({ pageMovement });
+  // v0.4.52 — swapping page movement also resets zoom to a sensible default
+  // for that mode. Side-to-side defaults to 1.25 (Alaria's pick — the book
+  // spread feels too small at 1.0). Vertical defaults back to 1.0. The user
+  // can still tweak zoom freely after the swap; we only override on the
+  // movement transition itself.
+  const setMovement = (pageMovement) => {
+    if (pageMovement === setup.pageMovement) return;
+    const zoom = pageMovement === 'side-to-side' ? 1.25 : 1;
+    onChange?.({ pageMovement, zoom });
+  };
   const setLayout = (pageLayout) => onChange?.({ pageLayout });
   const setZoom = (zoom) => onChange?.({ zoom });
 

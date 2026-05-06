@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.52',
+    date: '2026-05-06',
+    tagline: 'Canvas bug squash \u2014 dropdowns now sit on top, multi-page view centers properly, side-to-side defaults to a comfier 125% zoom, and full pages stop expanding.',
+    changes: [
+      'Font Size and Line Spacing dropdowns now portal to the document body instead of fighting the page surface for z-index. They appear in front of the editor where they belong.',
+      'Multi-page (Vertical \u00b7 Multiple) layout now centers pages horizontally at every zoom level. The 100/zoom% width hack was pinning stacks to the right edge below 100% zoom.',
+      'Side-to-Side mode now defaults to 125% zoom when you switch into it, and snaps back to 100% on the way to Vertical. You can still tweak it from the View menu.',
+      'Side-to-Side: when a page is full of text, the live page now clips at the page bottom with a soft fade and a tiny "page full" chip instead of scrolling internally. True cross-page text flow is still on the v0.5.0 (Tiptap) ticket \u2014 this is the honest stopgap.',
+    ],
+  },
+  {
     version: '0.4.51',
     date: '2026-05-06',
     tagline: 'Auto-install is now visible \u2014 a 10s countdown on next launch with a chalkboard splash on the way back. Manual checks now show a scan animation.',
