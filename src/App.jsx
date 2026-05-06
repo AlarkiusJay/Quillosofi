@@ -21,6 +21,7 @@ import CanvasEditorHub from './pages/CanvasEditorHub';
 import SheetsEditorHub from './pages/SheetsEditorHub';
 import QuillosofiCentre from './pages/QuillosofiCentre';
 import Quillounge from './pages/Quillounge';
+import UpdateOverlays from './components/UpdateOverlays';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -78,6 +79,7 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
+        <UpdateOverlays />
       </QueryClientProvider>
     </AuthProvider>
   )

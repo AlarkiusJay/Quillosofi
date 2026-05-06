@@ -24,5 +24,13 @@ contextBridge.exposeInMainWorld('quillosofi', {
       ipcRenderer.on('updates:state', listener);
       return () => ipcRenderer.removeListener('updates:state', listener);
     },
+    // v0.4.51 — main process pings this 3s after launch when a pending
+    // install was staged last session. Renderer responds by showing the
+    // 10s countdown modal and calling updates:install when it expires.
+    onPendingInstall: (cb) => {
+      const listener = (_e, payload) => cb(payload);
+      ipcRenderer.on('updates:pending-install', listener);
+      return () => ipcRenderer.removeListener('updates:pending-install', listener);
+    },
   },
 });

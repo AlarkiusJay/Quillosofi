@@ -78,6 +78,7 @@ if (!gotLock) {
 // =============================================================
 const userDataPath = () => app.getPath('userData');
 const updateSettingsFile = () => path.join(userDataPath(), 'update-settings.json');
+const pendingInstallFile = () => path.join(userDataPath(), 'pending-install.json');
 
 const DEFAULT_UPDATE_SETTINGS = {
   autoInstall: true,        // auto-install on next launch
@@ -102,6 +103,30 @@ function saveUpdateSettings(settings) {
   }
 }
 let updateSettings = loadUpdateSettings();
+
+// v0.4.51 — "pending install on next launch" flow.
+// When a download finishes mid-session AND autoInstall is on, we DON'T install
+// silently on quit anymore. Instead we persist a small marker, and on next
+// launch (after a brief 3s settle), the renderer pops a 10s countdown modal
+// and then calls quitAndInstall. This makes the install transparent + visible
+// instead of a surprise restart.
+function loadPendingInstall() {
+  try {
+    const raw = fs.readFileSync(pendingInstallFile(), 'utf8');
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+function savePendingInstall(payload) {
+  try {
+    fs.mkdirSync(userDataPath(), { recursive: true });
+    fs.writeFileSync(pendingInstallFile(), JSON.stringify(payload, null, 2));
+  } catch (e) {
+    console.warn('Failed to persist pending-install marker:', e.message);
+  }
+}
+function clearPendingInstall() {
+  try { fs.unlinkSync(pendingInstallFile()); } catch (_) {}
+}
 
 // =============================================================
 // Update state machine — broadcast to renderer over 'updates:state'
@@ -197,15 +222,17 @@ function wireAutoUpdater() {
     updateState.downloadPercent = 100;
     emitUpdateState();
 
-    // If auto-install is on, just flag intent on next quit. The actual
-    // install fires when the user clicks Install & Restart, OR on next
-    // launch after they quit normally (electron-updater detects the
-    // pending installer and applies it).
+    // v0.4.51 — with autoInstall on, persist a pending-install marker so the
+    // NEXT launch shows a visible 10s countdown before quitAndInstall, instead
+    // of silently installing on quit. The renderer-side countdown is what drives
+    // the actual install.
+    //
+    // We still keep the in-page "Install & Restart" button live in the Update
+    // tab so the user can install immediately if they want.
     if (updateSettings.autoInstall) {
-      app.once('before-quit', () => {
-        app.isQuitting = true;
-        app.isInstallingUpdate = true;
-        try { globalShortcut.unregisterAll(); } catch (_) {}
+      savePendingInstall({
+        version: info.version,
+        readyAt: Date.now(),
       });
     }
   });
@@ -374,6 +401,10 @@ ipcMain.handle('updates:install', async () => {
     //   3. Call quitAndInstall(isSilent=true, isForceRunAfter=true) — it
     //      gracefully closes all windows itself, then launches NSIS.
     prepareForUpdateInstall();
+    // v0.4.51 — we're about to vanish; clear the pending-install marker so
+    // the next launch (the freshly-installed version) doesn't re-trigger the
+    // countdown for an already-applied update.
+    clearPendingInstall();
     // Small tick so the IPC reply lands before we vanish.
     setImmediate(() => {
       try { autoUpdater.quitAndInstall(true, true); } catch (_) {}
@@ -423,6 +454,34 @@ app.whenReady().then(() => {
       });
     }, 3000);
   }
+
+  // v0.4.51 — if we left a pending-install marker last session AND it points
+  // to a version that's still newer than what we just booted, the staged
+  // installer is sitting in <userData>/pending waiting for us. Tell the
+  // renderer 3s after launch so it can show the visible 10s countdown.
+  // The renderer will call updates:install once the countdown finishes.
+  setTimeout(() => {
+    if (isDev) return;
+    const pending = loadPendingInstall();
+    if (!pending || !pending.version) return;
+    // Already on the new version? Marker is stale — clean up.
+    try {
+      const cur = app.getVersion();
+      const sameOrNewer = (a, b) => {
+        const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+        const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+        for (let i = 0; i < 3; i++) {
+          if ((pa[i] || 0) > (pb[i] || 0)) return true;
+          if ((pa[i] || 0) < (pb[i] || 0)) return false;
+        }
+        return true;
+      };
+      if (sameOrNewer(cur, pending.version)) { clearPendingInstall(); return; }
+    } catch (_) {}
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updates:pending-install', { version: pending.version });
+    }
+  }, 3000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

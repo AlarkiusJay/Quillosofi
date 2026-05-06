@@ -90,6 +90,12 @@ function DesktopUpdateView() {
     settings: { autoInstall: true, autoCheck: true, channel: 'stable' },
   });
   const [busy, setBusy] = useState(false);
+  // v0.4.51 — when auto-install is OFF, the manual Check button runs a fake
+  // scan progress bar (~2s) before resolving the real check. Gives users a
+  // bit of feedback so the click doesn't feel inert. When auto-install is
+  // ON, this is skipped (the panel is mostly background-driven anyway).
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanning, setScanning] = useState(false);
   const [showDiag, setShowDiag] = useState(false);
   const [diagCopied, setDiagCopied] = useState(false);
   // v0.4.17: Changelog block — collapsed by default to stay calm; expand
@@ -131,6 +137,36 @@ function DesktopUpdateView() {
     setBusy(true);
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
   }, []);
+
+  // v0.4.51 — manual-check path with fake scan animation. Runs the
+  // progress bar from 0→100 over ~1.8s, then awaits the real check. We
+  // intentionally don't tie the bar to actual network progress because
+  // electron-updater's check is a single fetch with no granular events.
+  const handleScanThenCheck = useCallback(async () => {
+    if (scanning || busy) return;
+    setScanning(true);
+    setScanProgress(0);
+    const start = Date.now();
+    const DURATION = 1800;
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(100, Math.round((elapsed / DURATION) * 100));
+      setScanProgress(pct);
+    };
+    const interval = setInterval(tick, 60);
+    // Kick the real check immediately and let it run in parallel with the
+    // animation; whichever finishes last wraps things up.
+    const checkPromise = window.quillosofi.updates.check().catch(() => {});
+    await new Promise((r) => setTimeout(r, DURATION));
+    clearInterval(interval);
+    setScanProgress(100);
+    await checkPromise;
+    // Brief pause so the user sees the bar hit 100 before it disappears.
+    setTimeout(() => {
+      setScanning(false);
+      setScanProgress(0);
+    }, 220);
+  }, [scanning, busy]);
 
   const handleDownload = useCallback(async () => {
     setBusy(true);
@@ -197,8 +233,23 @@ function DesktopUpdateView() {
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
 
   // ---------- Status block ----------
+  // v0.4.51 — manual scan animation takes precedence over the regular
+  // 'checking' state when active, so the user sees the progress bar.
   let statusBlock;
-  if (status === 'checking') {
+  if (scanning) {
+    statusBlock = (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2 text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Scanning for updates…
+          </span>
+          <span className="font-mono text-xs text-muted-foreground">{scanProgress}%</span>
+        </div>
+        <Progress value={scanProgress} className="h-2" />
+      </div>
+    );
+  } else if (status === 'checking') {
     statusBlock = (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin shrink-0" />
@@ -273,7 +324,7 @@ function DesktopUpdateView() {
   // unmounting/remounting different <Button> elements per state — that was
   // the source of the glitch/flash on every status update. We compute one
   // `action` descriptor and feed it to a single persistent <Button>.
-  const checking = status === 'checking' || busy;
+  const checking = status === 'checking' || busy || scanning;
   const downloading = status === 'downloading';
   const installable = status === 'downloaded';
   const downloadable = status === 'available';
@@ -348,7 +399,7 @@ function DesktopUpdateView() {
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
-            onClick={handleCheck}
+            onClick={settings.autoInstall ? handleCheck : handleScanThenCheck}
             disabled={checking || downloading}
             className="w-full flex items-center gap-2"
           >

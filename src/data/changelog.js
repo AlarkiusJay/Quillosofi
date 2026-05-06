@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.51',
+    date: '2026-05-06',
+    tagline: 'Auto-install is now visible \u2014 a 10s countdown on next launch with a chalkboard splash on the way back. Manual checks now show a scan animation.',
+    changes: [
+      'When Auto-download & Install is on and a new version was downloaded in the background, the next launch now shows a centered countdown modal that ticks down from 10s before installing. No more silent install-on-quit confusion.',
+      'New chalkboard splash on every launch \u2014 Quillosofi wordmark in Oldenburg with a soft fade-in and a tiny spinner. About 1.6s. Just a nicer way to land in the app.',
+      'When Auto-install is OFF, clicking Check for Updates now plays a ~2s scan progress bar before resolving. The button no longer feels inert while the check runs.',
+      'Pending-install marker is persisted to userData (pending-install.json) so the countdown survives a crash or force-quit between download and the next launch.',
+    ],
+  },
+  {
     version: '0.4.50',
     date: '2026-05-06',
     tagline: 'Pinned/Favorites view is now a proper card grid — Spaces look like canvases & sheets, and Canvases finally show up in the Canvases section.',
