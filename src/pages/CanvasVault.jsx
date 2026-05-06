@@ -246,6 +246,10 @@ export default function CanvasVault() {
 
         {isCombined ? (
           <div className="flex-1 overflow-y-auto">
+            <div className="border-b border-[hsl(225,9%,14%)]">
+              <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-1">📄 Canvases</p>
+              <CanvasList filter={filter} spaces={spaces} compact />
+            </div>
             {matchingSpaces.length > 0 && (
               <div className="border-b border-[hsl(225,9%,14%)]">
                 <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-2">📁 Spaces</p>
@@ -254,10 +258,6 @@ export default function CanvasVault() {
                 </div>
               </div>
             )}
-            <div className="border-b border-[hsl(225,9%,14%)]">
-              <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-1">📄 Canvases</p>
-              <CanvasList filter={filter} spaces={spaces} compact />
-            </div>
             <div>
               <p className="text-[10px] font-semibold text-[hsl(220,7%,40%)] uppercase tracking-widest px-5 pt-4 pb-1">📊 Spreadsheets</p>
               <SpreadsheetList filter={filter} compact />

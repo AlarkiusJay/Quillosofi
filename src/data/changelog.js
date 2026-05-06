@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.49',
+    date: '2026-05-06',
+    tagline: 'Spaces settings simplified — Instructions/Sources/Files/Memory tabs removed (they were AI leftovers). Pinned view now shows Canvases first, then Spaces, then Spreadsheets.',
+    changes: [
+      'New Space and Edit Space dialogs are now a single clean form — name, description, emoji. Done.',
+      'Removed the Instructions, Sources, Files, and Memory tabs from the Space settings dialog. Those were AI-era features and have no place in pure-writing Quillosofi.',
+      'Existing spaces keep their old AI-era data on disk untouched (system_prompt, links, files, memory) — the dialog just doesn\u2019t expose it anymore.',
+      'Pinned and Favorites view in Quillibrary now lists Canvases first, then Spaces, then Spreadsheets. (Was Spaces \u2192 Canvases \u2192 Spreadsheets before.)',
+    ],
+  },
+  {
     version: '0.4.48',
     date: '2026-05-06',
     tagline: 'Spaces moved into Quillibrary. The rail Spaces button is gone, and Spaces can now be pinned and favorited just like canvases.',
