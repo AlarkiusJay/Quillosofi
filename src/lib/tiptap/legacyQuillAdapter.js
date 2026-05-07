@@ -55,7 +55,17 @@ export function makeLegacyQuillAdapter(getActiveEditor) {
 
       return {
         get root() {
-          return editor.view?.dom || null;
+          // Tiptap 3.x throws synchronously when reading `view` on a destroyed
+          // editor ("The editor view is not available"). The CanvasRuler
+          // measure loop polls via rAF across mode swaps where the previous
+          // editor is unmounting — swallow the error and return null so the
+          // ruler simply re-runs measure on the next animation frame against
+          // the new editor.
+          try {
+            return editor.view?.dom || null;
+          } catch {
+            return null;
+          }
         },
         focus() {
           editor.commands.focus();

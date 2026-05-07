@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'; 
 import { useNavigate, useParams } from 'react-router-dom';
 import { app } from '@/api/localClient';
 import { Plus, FileText, Clock, BookOpen, Home } from 'lucide-react';
@@ -35,22 +35,36 @@ export default function CanvasEditorHub() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  // Sync URL ↔ active tab. Single effect with explicit precedence:
-  //   1) URL is the source of truth. If the route has an :id, that id wins
-  //      and we open it as a tab (making it active). This handles both
-  //      Quillibrary "Open in Editor" navigations AND mounting at /canvas/:id
-  //      with a stale lastOpen value in localStorage.
-  //   2) If the URL is /canvas (no id) but a tab is active, hop the URL to
-  //      match — this preserves "resume last tab" on landing.
-  // Previously this was split into two effects (one per dep) which created a
-  // ping-pong when mounting at /canvas/B with localStorage lastOpen=A:
-  // effect-1 set active=B, effect-2 navigated URL back to A, repeat forever.
+  // Sync URL ↔ active tab.
+  //
+  // v0.5.0 bug (fixed in v0.5.1): the prior version treated `routeId` as the
+  // unconditional source of truth, so clicking a tab — which sets activeId to
+  // the new id but leaves the URL on the old one — caused this effect to run
+  // `openTab(routeId)` and snap the active tab back. Tab switching looked
+  // frozen.
+  //
+  // New rule: routeId only seeds activeId on the *first* mount (so deep links
+  // like /canvas/:id and Quillibrary "Open in Editor" still work). After that,
+  // activeId is the source of truth and the URL follows it.
+  const didInitialSync = useRef(false);
   useEffect(() => {
-    if (routeId) {
-      if (routeId !== activeId) openTab(routeId);
-      // routeId === activeId → already in sync, do nothing.
-    } else if (activeId) {
+    if (!didInitialSync.current) {
+      didInitialSync.current = true;
+      if (routeId && routeId !== activeId) {
+        openTab(routeId); // deep link or stale lastOpen — adopt URL once
+        return;
+      }
+      if (!routeId && activeId) {
+        navigate(`/canvas/${activeId}`, { replace: true });
+        return;
+      }
+      return;
+    }
+    // Post-mount: activeId wins. Push the URL to match it.
+    if (activeId && routeId !== activeId) {
       navigate(`/canvas/${activeId}`, { replace: true });
+    } else if (!activeId && routeId) {
+      navigate('/canvas', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId, activeId]);
@@ -94,11 +108,15 @@ export default function CanvasEditorHub() {
 
   const activeCanvas = activeId ? (openCanvasMap[activeId] || allCanvases.find(c => c.id === activeId)) : null;
 
-  // Recent canvases for the landing screen — exclude already-open tabs to avoid noise.
-  const recent = useMemo(() => {
-    const openSet = new Set(tabs);
-    return allCanvases.filter(c => !openSet.has(c.id)).slice(0, 12);
-  }, [allCanvases, tabs]);
+  // Recent canvases for the landing screen.
+  //
+  // v0.5.1 fix: previously this filtered out any canvas already in an open
+  // tab, which made the Hub landing page show "No canvases yet" the moment
+  // you had everything open — including freshly-created canvases that always
+  // open as tabs. We now show all canvases and just mark the open ones with
+  // a subtle badge.
+  const recent = useMemo(() => allCanvases.slice(0, 12), [allCanvases]);
+  const openTabSet = useMemo(() => new Set(tabs), [tabs]);
 
   const lastOpenCard = useMemo(() => {
     if (tabs.length > 0) return null; // Tab strip already covers this case.
@@ -151,6 +169,7 @@ export default function CanvasEditorHub() {
           loading={loading}
           lastOpenCard={lastOpenCard}
           recent={recent}
+          openTabSet={openTabSet}
           onOpen={handleOpen}
           onNew={handleNew}
           navigate={navigate}
@@ -160,7 +179,7 @@ export default function CanvasEditorHub() {
   );
 }
 
-function Landing({ loading, lastOpenCard, recent, onOpen, onNew, navigate }) {
+function Landing({ loading, lastOpenCard, recent, openTabSet, onOpen, onNew, navigate }) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-5xl mx-auto">
@@ -245,28 +264,41 @@ function Landing({ loading, lastOpenCard, recent, onOpen, onNew, navigate }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {recent.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => onOpen(c.id)}
-                  className={cn(
-                    'group rounded-xl border border-[hsl(225,9%,20%)] bg-[hsl(220,8%,16%)]',
-                    'hover:bg-[hsl(228,7%,20%)] hover:border-primary/40 transition-all overflow-hidden text-left'
-                  )}
-                >
-                  <div className="px-4 py-4 min-h-[110px]">
-                    <p className="text-xs text-[hsl(220,7%,50%)] leading-relaxed line-clamp-4">
-                      {(c.content || '').replace(/<[^>]+>/g, '').trim() || <span className="italic">Empty canvas</span>}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2.5 border-t border-[hsl(225,9%,15%)]">
-                    <p className="text-sm font-semibold text-white truncate">{c.title}</p>
-                    <p className="text-[10px] text-[hsl(220,7%,40%)] mt-0.5">
-                      {c.updated_date ? format(new Date(c.updated_date), 'MMM d, yyyy') : ''}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {recent.map(c => {
+                const isOpen = openTabSet?.has(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => onOpen(c.id)}
+                    className={cn(
+                      'group rounded-xl border border-[hsl(225,9%,20%)] bg-[hsl(220,8%,16%)]',
+                      'hover:bg-[hsl(228,7%,20%)] hover:border-primary/40 transition-all overflow-hidden text-left'
+                    )}
+                  >
+                    <div className="px-4 py-4 min-h-[110px]">
+                      <p className="text-xs text-[hsl(220,7%,50%)] leading-relaxed line-clamp-4">
+                        {(c.content || '').replace(/<[^>]+>/g, '').trim() || <span className="italic">Empty canvas</span>}
+                      </p>
+                    </div>
+                    <div className="px-4 py-2.5 border-t border-[hsl(225,9%,15%)] flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-white truncate">{c.title}</p>
+                        <p className="text-[10px] text-[hsl(220,7%,40%)] mt-0.5">
+                          {c.updated_date ? format(new Date(c.updated_date), 'MMM d, yyyy') : ''}
+                        </p>
+                      </div>
+                      {isOpen && (
+                        <span
+                          className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-primary/30 text-primary/80 bg-primary/10"
+                          title="Already open in a tab"
+                        >
+                          Open
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

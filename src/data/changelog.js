@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.1',
+    date: '2026-05-06',
+    tagline: 'v0.5.0 follow-ups — tabs switch again, the Hub stops gaslighting you about "no canvases yet", the ruler bar fits the page, and side-to-side mode actually fits on screen.',
+    changes: [
+      'Tab switching is unstuck. The route-sync effect was treating the URL as the unconditional source of truth, so clicking another tab snapped activeId back. Now activeId wins after first mount and the URL follows it.',
+      'Canvas Hub recent grid: stopped hiding canvases that were already open in tabs. Freshly-created canvases (which always open in a tab) used to disappear from "Recent" entirely — now they stay visible with a tiny “Open” badge so you can see what\'s already loaded.',
+      'Ruler bar finally measures itself correctly. The post-Tiptap measure pass ran once on mount before the editor had laid out, so contentWidth stayed at 0 forever and the ruler collapsed to a thin sliver. Now it re-measures whenever the active editor swaps and retries with rAF until the editor has real geometry. Resizes the window properly too.',
+      'Side-to-side mode now respects the zoom slider. The spread used to render raw 1632×1056 px with no scaling, blowing past smaller viewports and stretching pages flush to the edges with no padding. Now it scales like vertical mode does, keeps a chalkboard gutter around the spread, and lets you scroll if you zoom in past the viewport.',
+      'Default zoom for side-to-side dropped from 125% → 100%. The 125% pick was tuned for the old Quill spread; the Tiptap spread is rendered at honest US-Letter dimensions and already fills the chalkboard, so 125% was clipping the right page. You can still pick 125% (or any zoom) yourself — it\'s just no longer the auto-applied default when you swap modes.',
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-05-06',
     tagline: 'Quill is gone — Tiptap takes the canvas. Both pages in side-to-side are now typeable, and you can finally jump back to the Canvas Hub from inside an open canvas.',

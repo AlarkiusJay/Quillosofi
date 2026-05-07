@@ -601,7 +601,7 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
                 editor's geometry — the side-to-side spread has two of them. */}
             {pageSetup.pageMovement !== 'side-to-side' && (
               <PageRulerSlot setup={pageSetup}>
-                <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
+                <CanvasRuler quillRef={quillRef} canvasId={canvas.id} editorTick={activeEditor} />
               </PageRulerSlot>
             )}
             <PageView setup={pageSetup}>

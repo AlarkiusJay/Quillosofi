@@ -370,11 +370,20 @@ function SideToSideEditor({
     );
   };
 
+  // v0.5.1 — honour the zoom slider in side-to-side mode the same way the
+  // vertical mode does. Previously the spread rendered raw pageWidthPx ×
+  // pageHeightPx (1632 × 1056 for a US Letter spread) regardless of the
+  // viewport, so on smaller screens or any window narrower than the spread
+  // the pages stretched edge-to-edge with no padding and got clipped on the
+  // right side. Now we scale the spread, allow overflow scroll for the case
+  // where the user zooms in past the viewport, and keep a chalkboard gutter
+  // around the spread.
+  const zoom = typeof setup.zoom === 'number' ? setup.zoom : 1;
+
   return (
     <div
-      className="flex-1 relative overflow-hidden flex flex-col"
+      className="flex-1 relative flex flex-col overflow-hidden"
       style={{ background: 'hsl(220, 12%, 9%)' }}
-      onWheel={onWheel}
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft' && spreadIndex > 0) setSpreadIndex(spreadIndex - 1);
@@ -383,32 +392,51 @@ function SideToSideEditor({
     >
       <style>{TIPTAP_BASE_CSS}</style>
 
-      {/* Spine seam */}
+      {/* Scrollable scene — lets zoom > 100% pan rather than clip. */}
       <div
-        className="absolute inset-y-0 left-1/2 pointer-events-none"
-        style={{
-          width: 24,
-          transform: 'translateX(-50%)',
-          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',
-          zIndex: 1,
-        }}
-      />
-
-      <div className="flex-1 flex items-center justify-center px-16 py-8 relative" style={{ zIndex: 2 }}>
-        <div className="flex items-start justify-center gap-1">
-          {/* Left page (verso) */}
-          {isFirst ? (
-            <PageFrame setup={setup} pageIndex={1} live={false} number={null} fixedHeight={pageHeightPx} />
-          ) : (
-            renderEditorPanel(leftIdx)
-          )}
-          {/* Right page (recto) */}
-          {renderEditorPanel(rightIdx)}
+        className="flex-1 relative overflow-auto"
+        onWheel={onWheel}
+        style={{ zIndex: 2 }}
+      >
+        {/* Spine seam — lives inside the zoom-scaled wrapper so it tracks. */}
+        <div
+          className="min-h-full flex items-center justify-center px-12 py-8"
+          style={{ width: 'fit-content', minWidth: '100%', margin: '0 auto' }}
+        >
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: 'transform 120ms ease-out',
+            }}
+          >
+            <div className="flex items-start justify-center gap-1 relative">
+              {/* Spine shadow between the two pages. */}
+              <div
+                className="absolute inset-y-0 pointer-events-none"
+                style={{
+                  left: '50%',
+                  width: 24,
+                  transform: 'translateX(-50%)',
+                  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',
+                  zIndex: 1,
+                }}
+              />
+              {/* Left page (verso) */}
+              {isFirst ? (
+                <PageFrame setup={setup} pageIndex={1} live={false} number={null} fixedHeight={pageHeightPx} />
+              ) : (
+                renderEditorPanel(leftIdx)
+              )}
+              {/* Right page (recto) */}
+              {renderEditorPanel(rightIdx)}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Spread navigation footer */}
-      <div className="px-3 py-1.5 flex items-center justify-center gap-3 border-t border-[hsl(var(--chalk-white-faint)/0.15)] bg-[hsl(var(--chalk-deep)/0.55)]">
+      <div className="px-3 py-1.5 flex items-center justify-center gap-3 border-t border-[hsl(var(--chalk-white-faint)/0.15)] bg-[hsl(var(--chalk-deep)/0.55)] shrink-0" style={{ zIndex: 3 }}>
         <button
           onClick={() => setSpreadIndex((s) => Math.max(0, s - 1))}
           disabled={spreadIndex === 0}

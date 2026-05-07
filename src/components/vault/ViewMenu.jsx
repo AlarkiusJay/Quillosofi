@@ -32,15 +32,15 @@ export default function ViewMenu({ setup, onChange, onOpenPageSetup }) {
     });
   }, [open]);
 
-  // v0.4.52 — swapping page movement also resets zoom to a sensible default
-  // for that mode. Side-to-side defaults to 1.25 (Alaria's pick — the book
-  // spread feels too small at 1.0). Vertical defaults back to 1.0. The user
-  // can still tweak zoom freely after the swap; we only override on the
-  // movement transition itself.
+  // v0.5.1 — default zoom on movement swap. Pre-Tiptap (v0.4.52) we used
+  // 1.25 for side-to-side because the Quill spread felt small at 1.0. The
+  // new Tiptap spread is rendered at honest US-Letter dimensions (1632px
+  // wide), which already overflows most viewports at 1.0; pushing to 1.25
+  // by default made it crop on the right in v0.5.0. Now both modes default
+  // to 1.0 so the pages fit on screen, and the user can zoom up freely.
   const setMovement = (pageMovement) => {
     if (pageMovement === setup.pageMovement) return;
-    const zoom = pageMovement === 'side-to-side' ? 1.25 : 1;
-    onChange?.({ pageMovement, zoom });
+    onChange?.({ pageMovement, zoom: 1 });
   };
   const setLayout = (pageLayout) => onChange?.({ pageLayout });
   const setZoom = (zoom) => onChange?.({ zoom });

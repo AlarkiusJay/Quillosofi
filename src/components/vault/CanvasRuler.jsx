@@ -55,7 +55,13 @@ const parsePaddingRightPx = (val) => {
   return parseFloat(s) || 0;
 };
 
-export default function CanvasRuler({ quillRef, canvasId }) {
+// `editorTick` is an opaque value (typically the active Tiptap editor instance
+// from CanvasEditor) that bumps whenever the editor we're measuring against
+// changes identity. v0.5.0 had a bug where the ruler measured once on mount
+// before the Tiptap editor had attached, leaving contentWidthPx=0 forever and
+// the ruler track squished to nothing. Re-running the measure effect when the
+// editor appears (or swaps, e.g. side-to-side focus changes) fixes this.
+export default function CanvasRuler({ quillRef, canvasId, editorTick }) {
   const trackRef = useRef(null);
   const [contentLeftPx, setContentLeftPx] = useState(24);
   const [contentWidthPx, setContentWidthPx] = useState(0);
@@ -88,14 +94,38 @@ export default function CanvasRuler({ quillRef, canvasId }) {
   }, [quillRef]);
 
   // ── Measure editor geometry so ticks line up with text ─────────────────
+  //
+  // v0.5.1 fix: the prior version ran this effect once with [quillRef] as the
+  // only dep, then captured a (possibly null) `q.root` into the
+  // ResizeObserver. If the Tiptap editor mounted *after* this effect, we
+  // never observed it and contentWidthPx stayed 0 → the ruler bar collapsed
+  // to a thin sliver glued to the left edge regardless of window size.
+  //
+  // Two changes:
+  //   1. `editorTick` in deps so the effect re-runs when the active editor
+  //      changes (mount, focus swap in side-to-side, etc).
+  //   2. rAF-polled retry up to ~30 frames — covers the case where the editor
+  //      is mounting but its DOM hasn't been laid out yet, so
+  //      getBoundingClientRect returns 0-width on the first frame.
   useEffect(() => {
+    let cancelled = false;
+    let raf = 0;
+    let attempts = 0;
     const measure = () => {
+      if (cancelled) return;
       const q = quillRef.current?.getEditor?.();
       const track = trackRef.current;
-      if (!q || !track) return;
+      if (!q || !track || !q.root) {
+        if (attempts++ < 30) raf = requestAnimationFrame(measure);
+        return;
+      }
       const editor = q.root;
       const trackRect = track.getBoundingClientRect();
       const editorRect = editor.getBoundingClientRect();
+      if (editorRect.width === 0) {
+        if (attempts++ < 30) raf = requestAnimationFrame(measure);
+        return;
+      }
       const cs = window.getComputedStyle(editor);
       const padL = parseFloat(cs.paddingLeft) || 0;
       const padR = parseFloat(cs.paddingRight) || 0;
@@ -108,8 +138,13 @@ export default function CanvasRuler({ quillRef, canvasId }) {
     const q = quillRef.current?.getEditor?.();
     if (q?.root) ro.observe(q.root);
     window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
-  }, [quillRef]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [quillRef, editorTick]);
 
   // ── Persist tab stops per canvas ────────────────────────────────────────
   useEffect(() => {
