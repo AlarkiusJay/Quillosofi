@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.8',
+    date: '2026-05-07',
+    tagline: 'A real Word-style Paragraph dialog lives next to the View button now \u2014 indents, spacing, line spacing, page-break-before, hyphenation, and a full multilingual Asian Typography tab that adapts to whichever CJK or other Asian script you\u2019re actually writing in.',
+    changes: [
+      'New \u00b6 Paragraph button on the Canvas toolbar, parked right next to View. Opens a Word-faithful three-tab modal: Indents and Spacing, Line and Page Breaks, Asian Typography. The visual layout, tab order, and field labels mirror Word\u2019s Format \u2192 Paragraph dialog so muscle memory transfers cleanly. Apply scope is the current selection if you have one, otherwise the paragraph(s) the cursor is sitting in \u2014 same semantic Word uses.',
+      'Tab 1: Indents and Spacing. Alignment (Left / Centered / Right / Justified), Left and Right indents in inches with 0.01\u2033 steppers, Special indent (none / First line / Hanging) with a By-value field, Spacing Before and After in points, Line spacing (Single / 1.5 / Double / At least / Exactly / Multiple) with the corresponding At-value field that enables only when the chosen mode needs it, plus the \u201cDon\u2019t add space between paragraphs of the same style\u201d toggle. Outline level, Mirror indents, Auto-adjust right indent, Collapsed by default, and Snap to grid render in the layout but stay disabled \u2014 they need plumbing that arrives with full flow-pagination in v0.6.0.',
+      'Tab 2: Line and Page Breaks. Page break before and Don\u2019t hyphenate are wired up live; Widow/Orphan, Keep with next, Keep lines together, Suppress line numbers, and Tight wrap stay disabled with a tooltip pointing at v0.6.0 (they all depend on cross-page flow tracking that hasn\u2019t been written yet).',
+      'Tab 3: Asian Typography \u2014 multilingual, not Japanese-only. The toggles map to native browser CSS properties (line-break: strict for kinsoku, word-break: break-all for Latin mid-word wrap, hanging-punctuation for burasagari, text-spacing-trim for start-of-line punctuation compression, text-autospace for ideograph-alpha and ideograph-numeric spacing). The browser applies the right rules for whatever script the text is written in \u2014 Chinese, Japanese, Korean, and other Asian scripts all benefit from the same toggles instead of being shoehorned into Japanese-specific behavior.',
+      'Live preview pane at the bottom of the dialog reflects every change as you make it \u2014 alignment, indents, special indent, before/after spacing, line spacing, hyphenation, and the Latin wrap toggle all show in a real font sample with CJK characters mixed in so you can see autospace and kinsoku behavior before clicking OK.',
+      'New ParagraphFormat Tiptap extension stores all the dialog\u2019s state as paragraph attributes (data-* attrs + inline style) so values round-trip through save / load / export cleanly. Lives next to the existing Indent and LineHeight extensions, doesn\u2019t collide with them \u2014 the Tab+Shift-Tab indent ladder and the toolbar line-spacing dropdown still work exactly as before.',
+      'Footer matches Word: Tabs\u2026 and Set As Default sit on the left as disabled placeholders (Tabs\u2026 is a v0.6.0 sub-dialog, Set As Default lands in v0.5.9+ once style storage is in), Cancel and OK on the right. Animation polish, drag-resize, and the rest of the dialog\u2019s motion details are parked for v0.5.9 \u2192 v0.5.99.',
+    ],
+  },
+  {
     version: '0.5.72',
     date: '2026-05-07',
     tagline: 'The update flow stops fighting itself. One toggle, one button, one mobile-style green badge on the Settings gear that tells you exactly how many releases you\u2019ve missed.',

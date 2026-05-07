@@ -12,6 +12,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import FontSize from './extensions/FontSize';
 import LineHeight from './extensions/LineHeight';
 import Indent from './extensions/Indent';
+import ParagraphFormat from './extensions/ParagraphFormat';
 import LiteralTab from './extensions/LiteralTab';
 
 export function buildExtensions({ placeholder = '' } = {}) {
@@ -26,6 +27,7 @@ export function buildExtensions({ placeholder = '' } = {}) {
     FontSize,
     LineHeight,
     Indent,
+    ParagraphFormat,
     TextAlign.configure({
       types: ['heading', 'paragraph'],
       alignments: ['left', 'center', 'right', 'justify'],

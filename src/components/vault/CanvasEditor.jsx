@@ -6,7 +6,7 @@ import {
   X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload,
   ChevronDown, BookPlus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  IndentIncrease, IndentDecrease, Type, MoreVertical, Home,
+  IndentIncrease, IndentDecrease, Type, MoreVertical, Home, Pilcrow,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
@@ -15,6 +15,7 @@ import HeaderNavigator from './HeaderNavigator';
 import CanvasRuler from './CanvasRuler';
 import ViewMenu from './ViewMenu';
 import PageSetupDialog from './PageSetupDialog';
+import ParagraphDialog from './ParagraphDialog';
 import PageView from './PageView';
 import TiptapPagedEditor from './TiptapPagedEditor';
 import { makeLegacyQuillAdapter } from '@/lib/tiptap/legacyQuillAdapter';
@@ -106,7 +107,7 @@ function LineSpacingTrigger({ show, setShow, Menu, items, onPick }) {
   );
 }
 
-function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog }) {
+function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog, onOpenParagraphDialog }) {
   const [showHeadings, setShowHeadings] = useState(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showLineHeight, setShowLineHeight] = useState(false);
@@ -267,8 +268,14 @@ function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog
         </div>
       )}
 
-      {/* View menu — pushed to the far right */}
-      <div className="ml-auto">
+      {/* Paragraph dialog launcher (¶) + View menu — pushed to the far right.
+          v0.5.8: Word-faithful Paragraph dialog opens via ¶, sits next to View. */}
+      <div className="ml-auto flex items-center gap-1">
+        <Btn
+          icon={Pilcrow}
+          title="Paragraph…"
+          onClick={() => onOpenParagraphDialog?.()}
+        />
         <ViewMenu
           setup={pageSetup}
           onChange={onPageSetupChange}
@@ -352,6 +359,8 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   // ── Page Setup state ───────────────────────────────────────────────────
   const [pageSetup, setPageSetup] = useState(() => loadPageSetup(canvas.id));
   const [showPageSetupDialog, setShowPageSetupDialog] = useState(false);
+  // ── v0.5.8 Paragraph dialog state ──────────────────────────────────────
+  const [showParagraphDialog, setShowParagraphDialog] = useState(false);
 
   useEffect(() => {
     setPageSetup(loadPageSetup(canvas.id));
@@ -602,6 +611,7 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           pageSetup={pageSetup}
           onPageSetupChange={updatePageSetup}
           onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
+          onOpenParagraphDialog={() => setShowParagraphDialog(true)}
         />
 
         {/* Editor + outline rail (rail on the LEFT, ruler bar above editor — v0.4.30) */}
@@ -639,6 +649,13 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           onApply={applyPageSetup}
           onSetDefault={setAsDefaultPageSetup}
           onClose={() => setShowPageSetupDialog(false)}
+        />
+
+        {/* v0.5.8 — Word-style Paragraph dialog */}
+        <ParagraphDialog
+          open={showParagraphDialog}
+          editor={activeEditor}
+          onClose={() => setShowParagraphDialog(false)}
         />
 
         {/* Footer */}
