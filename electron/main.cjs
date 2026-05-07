@@ -81,8 +81,12 @@ const updateSettingsFile = () => path.join(userDataPath(), 'update-settings.json
 const pendingInstallFile = () => path.join(userDataPath(), 'pending-install.json');
 
 const DEFAULT_UPDATE_SETTINGS = {
-  autoInstall: true,        // auto-install on next launch
-  autoCheck: true,          // check on startup
+  // v0.5.72 — autoInstall removed from the user-facing toggle. The field is
+  // kept here (defaulting to false) so older serialised settings files load
+  // cleanly, but nothing in main.cjs reads it anymore. Updates are now
+  // strictly user-driven: badge appears, user clicks Install & Restart.
+  autoInstall: false,
+  autoCheck: true,          // silent check on startup (just so the badge appears)
   channel: 'stable',
 };
 
@@ -152,7 +156,7 @@ function wireAutoUpdater() {
   if (!autoUpdater || isDev) return;
 
   autoUpdater.autoDownload = false;            // we control download timing
-  autoUpdater.autoInstallOnAppQuit = false;    // we honor user's autoInstall toggle ourselves
+  autoUpdater.autoInstallOnAppQuit = false;    // v0.5.72 — install only on explicit user action
   autoUpdater.allowPrerelease = false;
 
   // Explicit feed URL — belt-and-suspenders so even older installs whose
@@ -194,13 +198,10 @@ function wireAutoUpdater() {
     updateState.releaseNotes =
       typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes || null;
     emitUpdateState();
-
-    // If user has autoInstall on, kick off the download immediately.
-    if (updateSettings.autoInstall) {
-      autoUpdater.downloadUpdate().catch((err) => {
-        console.error('downloadUpdate failed:', err);
-      });
-    }
+    // v0.5.72 — the renderer drives downloads explicitly. The old
+    // `autoInstall` toggle is gone (it raced the manual flow and made the
+    // "Download New Update" button feel inert). The Settings-gear badge
+    // tells the user a release is waiting; they decide when to fetch it.
   });
 
   autoUpdater.on('update-not-available', (info) => {
@@ -221,20 +222,10 @@ function wireAutoUpdater() {
     updateState.latestVersion = info.version;
     updateState.downloadPercent = 100;
     emitUpdateState();
-
-    // v0.4.51 — with autoInstall on, persist a pending-install marker so the
-    // NEXT launch shows a visible 10s countdown before quitAndInstall, instead
-    // of silently installing on quit. The renderer-side countdown is what drives
-    // the actual install.
-    //
-    // We still keep the in-page "Install & Restart" button live in the Update
-    // tab so the user can install immediately if they want.
-    if (updateSettings.autoInstall) {
-      savePendingInstall({
-        version: info.version,
-        readyAt: Date.now(),
-      });
-    }
+    // v0.5.72 — no auto-install path anymore. The downloaded installer
+    // sits on disk and the "Install & Restart" button in the Update tab
+    // (and the badge on the Settings gear) is the explicit user action
+    // that triggers quitAndInstall.
   });
 
   autoUpdater.on('error', (err) => {

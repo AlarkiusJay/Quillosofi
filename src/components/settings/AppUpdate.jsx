@@ -87,13 +87,15 @@ function DesktopUpdateView() {
     downloadPercent: 0,
     error: null,
     lastChecked: null,
-    settings: { autoInstall: true, autoCheck: true, channel: 'stable' },
+    settings: { autoInstall: false, autoCheck: true, channel: 'stable' },
   });
   const [busy, setBusy] = useState(false);
-  // v0.4.51 — when auto-install is OFF, the manual Check button runs a fake
-  // scan progress bar (~2s) before resolving the real check. Gives users a
-  // bit of feedback so the click doesn't feel inert. When auto-install is
-  // ON, this is skipped (the panel is mostly background-driven anyway).
+  // v0.5.72 — the manual "Check for Updates" button now runs a single
+  // pipeline: scan animation → (if newer found) auto-fire downloadUpdate →
+  // "Install & Restart" CTA. The fake-progress bar still runs during the
+  // network round-trip because electron-updater's checkForUpdates() emits
+  // no granular events; once that settles, the bar gets out of the way and
+  // the real download-progress events drive the percent display.
   const [scanProgress, setScanProgress] = useState(0);
   const [scanning, setScanning] = useState(false);
   const [showDiag, setShowDiag] = useState(false);
@@ -147,10 +149,12 @@ function DesktopUpdateView() {
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
   }, [armProgressCard]);
 
-  // v0.4.51 — manual-check path with fake scan animation. Runs the
-  // progress bar from 0→100 over ~1.8s, then awaits the real check. We
-  // intentionally don't tie the bar to actual network progress because
-  // electron-updater's check is a single fetch with no granular events.
+  // v0.5.72 — manual-check pipeline. Scan animation runs in parallel with
+  // the real GitHub fetch. When the check resolves with `update-available`,
+  // we auto-fire downloadUpdate so the installer is on disk by the time
+  // the user clicks "Install & Restart". This matches Alaria's mental
+  // model: scan → installing → install. No more autoInstall toggle
+  // race — the renderer is the single source of truth for download timing.
   const handleScanThenCheck = useCallback(async () => {
     if (scanning || busy) return;
     armProgressCard();
@@ -164,19 +168,22 @@ function DesktopUpdateView() {
       setScanProgress(pct);
     };
     const interval = setInterval(tick, 60);
-    // Kick the real check immediately and let it run in parallel with the
-    // animation; whichever finishes last wraps things up.
-    const checkPromise = window.quillosofi.updates.check().catch(() => {});
+    const result = await window.quillosofi.updates.check().catch(() => null);
     await new Promise((r) => setTimeout(r, DURATION));
     clearInterval(interval);
     setScanProgress(100);
-    await checkPromise;
-    // Brief pause so the user sees the bar hit 100 before it disappears.
     setTimeout(() => {
       setScanning(false);
       setScanProgress(0);
     }, 220);
-  }, [scanning, busy, armProgressCard]);
+    // If the check turned up a newer version, kick the download right
+    // away. The download-progress + downloaded events from main.cjs flip
+    // the status block to its 'downloading' / 'downloaded' renderings.
+    const info = result && result.ok ? result.info : null;
+    if (info && info.version && info.version !== state.currentVersion) {
+      try { await window.quillosofi.updates.download(); } catch (_) {}
+    }
+  }, [scanning, busy, armProgressCard, state.currentVersion]);
 
   const handleDownload = useCallback(async () => {
     armProgressCard();
@@ -205,11 +212,8 @@ function DesktopUpdateView() {
     await window.quillosofi.updates.install();
   }, []);
 
-  const toggleAutoInstall = useCallback(async (enabled) => {
-    const next = await window.quillosofi.updates.setSettings({ autoInstall: !!enabled });
-    setState((s) => ({ ...s, settings: next }));
-  }, []);
-
+  // v0.5.72 — toggleAutoInstall removed; the toggle is gone from the UI
+  // and the underlying setting is no longer read by main.cjs.
   const toggleAutoCheck = useCallback(async (enabled) => {
     const next = await window.quillosofi.updates.setSettings({ autoCheck: !!enabled });
     setState((s) => ({ ...s, settings: next }));
@@ -230,7 +234,6 @@ function DesktopUpdateView() {
       `Feed:          ${FEED_URL}`,
       `Download %:    ${state.downloadPercent}`,
       `Auto-check:    ${state.settings?.autoCheck ? 'on' : 'off'}`,
-      `Auto-install:  ${state.settings?.autoInstall ? 'on' : 'off'}`,
       `Channel:       ${state.settings?.channel || 'stable'}`,
     ].join('\n');
     try {
@@ -411,7 +414,7 @@ function DesktopUpdateView() {
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
-            onClick={settings.autoInstall ? handleCheck : handleScanThenCheck}
+            onClick={handleScanThenCheck}
             disabled={checking || downloading}
             className="w-full flex items-center gap-2"
           >
@@ -476,24 +479,16 @@ function DesktopUpdateView() {
           <Switch checked={!!settings.autoCheck} onCheckedChange={toggleAutoCheck} />
         </div>
 
-        <div className="border-t border-border" />
-
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">Auto-download &amp; install</p>
-              <p className="text-xs text-muted-foreground">Downloads in the background and installs on next quit.</p>
-            </div>
-            <Switch checked={!!settings.autoInstall} onCheckedChange={toggleAutoInstall} />
-          </div>
-          {settings.autoInstall && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-              <span className="text-amber-400 text-xs leading-tight" aria-hidden="true">⚠</span>
-              <p className="text-xs text-amber-200/90 leading-snug">
-                Heads-up: updates will apply silently on next launch. You'll see a small toast afterward letting you know what changed.
-              </p>
-            </div>
-          )}
+        {/* v0.5.72 — "Auto-download & install" toggle removed. The flow is
+            now strictly user-driven: silent check on launch (the toggle
+            above) populates the Settings-gear badge; the user clicks
+            Check for Updates, then Install & Restart, when they're ready.
+            See AppUpdate.jsx history for the previous racy two-toggle setup. */}
+        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+          <span className="text-muted-foreground text-xs leading-tight mt-0.5" aria-hidden="true">ℹ</span>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Updates download automatically when you click <span className="font-medium text-foreground">Check for Updates</span>, then wait for you to click <span className="font-medium text-foreground">Install &amp; Restart</span>. Nothing installs without your okay.
+          </p>
         </div>
       </div>
 
@@ -519,8 +514,7 @@ Dev mode:      ${isDev ? 'yes (auto-update disabled in dev)' : 'no'}
 Last checked:  ${formatChecked(lastChecked)}
 Last error:    ${error || '(none)'}
 Feed:          ${FEED_URL}
-Auto-check:    ${settings.autoCheck ? 'on' : 'off'}
-Auto-install:  ${settings.autoInstall ? 'on' : 'off'}`}
+Auto-check:    ${settings.autoCheck ? 'on' : 'off'}`}
             </pre>
             <button
               type="button"

@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.72',
+    date: '2026-05-07',
+    tagline: 'The update flow stops fighting itself. One toggle, one button, one mobile-style green badge on the Settings gear that tells you exactly how many releases you\u2019ve missed.',
+    changes: [
+      'Mobile-style update badge on the Settings gear. When a release newer than the one you have lands, the gear shows a small green pill with the number of releases between yours and latest \u2014 the same way iOS and Android show app-icon notification counts. One release behind shows \u201c1\u201d, three behind shows \u201c3\u201d, way-too-many behind shows \u201c99+\u201d. Tooltip on the gear says how many are pending. The badge replaces the previous undifferentiated green dot.',
+      'Auto-download & install toggle removed. The two-toggle setup let the main process and the renderer race for who fired the download first \u2014 with the wrong combination, the manual \u201cDownload New Update\u201d button felt inert because the main process had already silently grabbed it. Updates are now strictly user-driven: the launch check is silent and just populates the badge; clicking Check for Updates runs the scan animation, auto-downloads in the background if a newer release is found, and waits for you to click Install & Restart. Nothing installs without your okay.',
+      'Check for Updates is now a single pipeline. Scan animation \u2192 (if newer found) installer downloads to disk \u2192 \u201cInstall & Restart\u201d action button lights up. No more clicking Check, then waiting, then clicking Download separately, then waiting again, then clicking Install. One button starts the chain; the only second click you make is the explicit install confirmation.',
+      'Diagnostic panel cleaned up. Removed the Auto-install line since the toggle no longer exists. The Last error / Updater mod / Dev mode lines all stay so support tickets still have everything they need.',
+    ],
+  },
+  {
     version: '0.5.71',
     date: '2026-05-07',
     tagline: 'Spread and Single now show the same document, and the Side-by-Side spread slides between pages like Word — including auto-following the cursor onto the next page when you fill the current one.',
@@ -597,4 +608,23 @@ export function entriesUpTo(installedVersion) {
   return CHANGELOG
     .filter((e) => compareVersions(e.version, cap) <= 0)
     .sort((a, b) => compareVersions(b.version, a.version));
+}
+
+// v0.5.72 — count releases between `installedVersion` (exclusive) and
+// `latestVersion` (inclusive). Drives the mobile-style green pill badge on
+// the Settings gear so users see at a glance how many releases they've
+// missed. Returns 0 if no update or no changelog entries match.
+export function pendingReleaseCount(installedVersion, latestVersion) {
+  if (!latestVersion) return 0;
+  const installed = normalize(installedVersion);
+  const latest = normalize(latestVersion);
+  if (!latest) return 0;
+  // If installed is unparseable, treat all entries up to latest as pending.
+  return CHANGELOG.filter((e) => {
+    const v = normalize(e.version);
+    if (!v) return false;
+    if (compareVersions(v, latest) > 0) return false; // newer than latest, ignore
+    if (!installed) return true;
+    return compareVersions(v, installed) > 0; // strictly newer than installed
+  }).length;
 }

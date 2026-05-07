@@ -7,6 +7,7 @@ import SpaceModal from './spaces/SpaceModal';
 import Tooltip from './Tooltip';
 import useFreshlyUpdated from '@/lib/useFreshlyUpdated';
 import PostUpdateToast from './PostUpdateToast';
+import { pendingReleaseCount } from '@/data/changelog';
 
 // NOTE: previous versions polled the local index.html for an etag change as a
 // PWA-style "new build available" signal. Quillosofi is a desktop app — that
@@ -35,20 +36,32 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   // the Update tab. Independent from the in-app updater badge below.
   const { freshlyUpdated, fromVersion, toVersion, dismiss: dismissFreshlyUpdated } = useFreshlyUpdated();
 
-  // Subscribe to the desktop updater so the gear icon shows a dot when an
-  // update is downloaded and ready to install. Falls back to 0 on web/dev.
+  // v0.5.72 — mobile-style green pill on the Settings gear, counting how
+  // many releases the user is behind. Count is derived from the bundled
+  // changelog (pendingReleaseCount(installed, latest)), so a user who is
+  // 3 versions behind sees "3" rather than just "1". Falls back to 0 on
+  // web/dev where the updater bridge isn't present.
   const [updateBadge, setUpdateBadge] = useState(0);
   useEffect(() => {
     if (!window.quillosofi?.updates) return;
     let unsub = null;
+    const computeBadge = (s) => {
+      if (!s) return 0;
+      const ready = s.status === 'available' || s.status === 'downloaded';
+      if (!ready) return 0;
+      const n = pendingReleaseCount(s.currentVersion, s.latestVersion);
+      // Always show at least 1 if an update is actually pending — even if
+      // the changelog is missing entries for whatever reason, the user
+      // should still see a badge.
+      return n > 0 ? n : 1;
+    };
     (async () => {
       try {
         const s = await window.quillosofi.updates.status();
-        if (s?.status === 'available' || s?.status === 'downloaded') setUpdateBadge(1);
+        setUpdateBadge(computeBadge(s));
       } catch (_) {}
       unsub = window.quillosofi.updates.onState((p) => {
-        const ready = p?.status === 'available' || p?.status === 'downloaded';
-        setUpdateBadge(ready ? 1 : 0);
+        setUpdateBadge(computeBadge(p));
       });
     })();
     return () => { if (unsub) unsub(); };
@@ -186,12 +199,25 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
 
         {/* Right fixed buttons: Settings */}
         <div className="flex items-center gap-2 px-3 shrink-0">
-          <Tooltip text="Settings (Ctrl+,)">
+          <Tooltip text={updateBadge > 0
+            ? `${updateBadge} update${updateBadge === 1 ? '' : 's'} available — Settings (Ctrl+,)`
+            : 'Settings (Ctrl+,)'}>
             <button onClick={() => setShowSettings(true)}
               style={{ touchAction: 'manipulation' }}
               className="relative w-11 h-11 md:w-9 md:h-9 shrink-0 rounded-[18px] bg-[hsl(228,7%,42%)] hover:bg-primary hover:rounded-[10px] flex items-center justify-center transition-all duration-150 text-[hsl(220,7%,80%)] hover:text-white active:scale-90 active:brightness-75">
               <Settings className="h-4 w-4" />
-              {(updateBadge > 0 || freshlyUpdated) && (
+              {updateBadge > 0 ? (
+                /* Mobile-style notification pill — green, counted, soft glow.
+                   Sits at top-right of the gear, mirrors how iOS/Android render
+                   app-icon badges. The freshlyUpdated dot is suppressed when a
+                   pending update is showing so we don't double-up indicators. */
+                <span
+                  className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-green-400 text-[10px] font-bold text-[hsl(223,7%,12%)] flex items-center justify-center border-2 border-[hsl(223,7%,16%)] shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_8px_rgba(34,197,94,0.45)] tabular-nums leading-none"
+                  aria-label={`${updateBadge} update${updateBadge === 1 ? '' : 's'} available`}
+                >
+                  {updateBadge > 99 ? '99+' : updateBadge}
+                </span>
+              ) : freshlyUpdated && (
                 <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-green-400 border-2 border-[hsl(223,7%,16%)]" />
               )}
             </button>
