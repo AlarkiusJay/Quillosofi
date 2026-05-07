@@ -98,6 +98,14 @@ function DesktopUpdateView() {
   // the real download-progress events drive the percent display.
   const [scanProgress, setScanProgress] = useState(0);
   const [scanning, setScanning] = useState(false);
+  // v0.5.82 — `scanLabel` lets the same progress bar drive multiple labels
+  // across the manual-check pipeline:
+  //   1. "Scanning for updates…"        (Check for Updates click)
+  //   2. "Fetching latest release from GitHub…" (Download New Update click,
+  //      pre-download phase while we hit the releases feed)
+  // The real download phase ('downloading' status) renders its OWN block
+  // with the live percent, so we just need to cover the two pre-states.
+  const [scanLabel, setScanLabel] = useState('Scanning for updates\u2026');
   const [showDiag, setShowDiag] = useState(false);
   const [diagCopied, setDiagCopied] = useState(false);
   // v0.4.17: Changelog block — collapsed by default to stay calm; expand
@@ -155,9 +163,13 @@ function DesktopUpdateView() {
   // the user clicks "Install & Restart". This matches Alaria's mental
   // model: scan → installing → install. No more autoInstall toggle
   // race — the renderer is the single source of truth for download timing.
-  const handleScanThenCheck = useCallback(async () => {
-    if (scanning || busy) return;
-    armProgressCard();
+  // v0.5.82 — runs the fake progress bar while a network round-trip is in
+  // flight (electron-updater's checkForUpdates / downloadUpdate emit no
+  // granular progress until the actual blob fetch starts, so we ease the
+  // first ~1.8s with a synthetic ramp). Returns once both the request and
+  // the animation have settled. Caller decides what to do next.
+  const runScanWith = useCallback(async (label, work) => {
+    setScanLabel(label);
     setScanning(true);
     setScanProgress(0);
     const start = Date.now();
@@ -168,14 +180,23 @@ function DesktopUpdateView() {
       setScanProgress(pct);
     };
     const interval = setInterval(tick, 60);
-    const result = await window.quillosofi.updates.check().catch(() => null);
+    const result = await Promise.resolve(work()).catch(() => null);
     await new Promise((r) => setTimeout(r, DURATION));
     clearInterval(interval);
     setScanProgress(100);
-    setTimeout(() => {
-      setScanning(false);
-      setScanProgress(0);
-    }, 220);
+    await new Promise((r) => setTimeout(r, 220));
+    setScanning(false);
+    setScanProgress(0);
+    return result;
+  }, []);
+
+  const handleScanThenCheck = useCallback(async () => {
+    if (scanning || busy) return;
+    armProgressCard();
+    const result = await runScanWith(
+      'Scanning for updates\u2026',
+      () => window.quillosofi.updates.check()
+    );
     // If the check turned up a newer version, kick the download right
     // away. The download-progress + downloaded events from main.cjs flip
     // the status block to its 'downloading' / 'downloaded' renderings.
@@ -183,7 +204,7 @@ function DesktopUpdateView() {
     if (info && info.version && info.version !== state.currentVersion) {
       try { await window.quillosofi.updates.download(); } catch (_) {}
     }
-  }, [scanning, busy, armProgressCard, state.currentVersion]);
+  }, [scanning, busy, armProgressCard, state.currentVersion, runScanWith]);
 
   const handleDownload = useCallback(async () => {
     armProgressCard();
@@ -191,21 +212,24 @@ function DesktopUpdateView() {
     try { await window.quillosofi.updates.download(); } finally { setBusy(false); }
   }, [armProgressCard]);
 
-  // Combined "Check + Download" — if the check finds something newer, kick
-  // the download. The main process auto-starts when autoInstall is on, but
-  // we kick it manually too so the toggle being off doesn't strand the user.
+  // v0.5.82 — Combined "Check + Download" with visible progress feedback.
+  // Phase 1: "Fetching latest release from GitHub…" (synthetic bar) while
+  // we hit the releases feed. Phase 2: hand off to electron-updater's real
+  // download-progress events, which the 'downloading' statusBlock renders
+  // with the actual byte-percent. If the check fails or there's nothing
+  // newer, the bar settles and we surface the result (up-to-date / error)
+  // via the regular status block.
   const handleCheckAndDownload = useCallback(async () => {
+    if (scanning || busy) return;
     armProgressCard();
-    setBusy(true);
-    try {
-      const res = await window.quillosofi.updates.check();
-      if (res?.ok && res?.info && res.info.version && res.info.version !== state.currentVersion) {
-        try { await window.quillosofi.updates.download(); } catch (_) {}
-      }
-    } finally {
-      setBusy(false);
+    const res = await runScanWith(
+      'Fetching latest release from GitHub\u2026',
+      () => window.quillosofi.updates.check()
+    );
+    if (res?.ok && res?.info && res.info.version && res.info.version !== state.currentVersion) {
+      try { await window.quillosofi.updates.download(); } catch (_) {}
     }
-  }, [state.currentVersion, armProgressCard]);
+  }, [state.currentVersion, armProgressCard, scanning, busy, runScanWith]);
 
   const handleInstall = useCallback(async () => {
     setBusy(true);
@@ -257,7 +281,7 @@ function DesktopUpdateView() {
         <div className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-2 text-primary">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Scanning for updates…
+            {scanLabel}
           </span>
           <span className="font-mono text-xs text-muted-foreground">{scanProgress}%</span>
         </div>
