@@ -2,8 +2,8 @@
   "name": "quillosofi",
   "productName": "Quillosofi",
   "private": true,
-  "version": "0.4.55",
-  "description": "Quillosofi \u2014 A pure, distraction-free writing studio. By Alarkius Elvya Jay.",
+  "version": "0.5.0",
+  "description": "Quillosofi — A pure, distraction-free writing studio. By Alarkius Elvya Jay.",
   "author": {
     "name": "Alarkius Elvya Jay",
     "email": "alarkiusj2020@gmail.com"
@@ -58,6 +58,15 @@
     "@radix-ui/react-toggle-group": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@tanstack/react-query": "^5.84.1",
+    "@tiptap/extension-color": "^3.22.5",
+    "@tiptap/extension-link": "^3.22.5",
+    "@tiptap/extension-placeholder": "^3.22.5",
+    "@tiptap/extension-text-align": "^3.22.5",
+    "@tiptap/extension-text-style": "^3.22.5",
+    "@tiptap/extension-underline": "^3.22.5",
+    "@tiptap/pm": "^3.22.5",
+    "@tiptap/react": "^3.22.5",
+    "@tiptap/starter-kit": "^3.22.5",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -123,7 +132,7 @@
   "build": {
     "appId": "com.alarkius.quillosofi",
     "productName": "Quillosofi",
-    "copyright": "Copyright \u00a9 2026 Alarkius Elvya Jay",
+    "copyright": "Copyright © 2026 Alarkius Elvya Jay",
     "directories": {
       "output": "release",
       "buildResources": "build"

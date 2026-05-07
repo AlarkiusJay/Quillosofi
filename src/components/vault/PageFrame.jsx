@@ -1,11 +1,12 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef } from 'react';
 import { effectiveDimensions, resolvedMargins, inchToPx } from '@/lib/pageSetup';
 
 // PageFrame — visual paper sheet, sized to the configured paper size + margins.
 //
-// In v0.4.38 only the FIRST page is "live" (hosts the actual Quill editor).
-// Subsequent pages are phantom frames that show the layout but stay empty
-// until v0.4.50 (Tiptap migration) gives us real content flow.
+// v0.5.0: TiptapPagedEditor uses PageFrame for both vertical (visual
+// pagination overlays) and side-to-side (each page is its own editor).
+// The earlier LiveOverflowGuard "page full" chip is gone — side-to-side
+// now has independent typeable pages with an Add Page button instead.
 //
 // Props:
 //   setup       PageSetup
@@ -70,12 +71,9 @@ const PageFrame = forwardRef(function PageFrame(
         </div>
       )}
 
-      {/* Content area */}
-      {/* v0.4.52 — in side-to-side mode (fixedHeight set) the live page now
-          CLIPS instead of scrolling. Until the Tiptap migration in v0.5.0
-          gives us real cross-page flow, this at least matches the "page
-          shouldn't expand" expectation: text past the bottom margin is
-          hidden behind a soft fade with a hint chip. */}
+      {/* Content area — always passes children through as-is. v0.5.0
+          dropped the LiveOverflowGuard "page full" chip because side-to-side
+          now has independent typeable pages with an Add Page button. */}
       <div
         className="page-content"
         style={{
@@ -91,11 +89,7 @@ const PageFrame = forwardRef(function PageFrame(
         }}
       >
         {live ? (
-          fixedHeight != null ? (
-            <LiveOverflowGuard padBottom={padBottom}>{children}</LiveOverflowGuard>
-          ) : (
-            children
-          )
+          children
         ) : (
           <div
             style={{
@@ -112,84 +106,6 @@ const PageFrame = forwardRef(function PageFrame(
     </div>
   );
 });
-
-// LiveOverflowGuard — watches its single child for vertical overflow and
-// shows a soft fade + "page full" chip when the editor's scrollHeight exceeds
-// the page content area. This is a stopgap for side-to-side mode until real
-// pagination ships with Tiptap.
-function LiveOverflowGuard({ children, padBottom }) {
-  const wrapRef = useRef(null);
-  const [overflow, setOverflow] = useState(false);
-
-  useEffect(() => {
-    const root = wrapRef.current;
-    if (!root) return;
-    // The actual scrolling element inside Quill is .ql-editor.
-    const findEditor = () => root.querySelector('.ql-editor');
-    let editor = findEditor();
-    let mounted = true;
-
-    const measure = () => {
-      if (!mounted) return;
-      const e = editor || findEditor();
-      if (!e) return;
-      editor = e;
-      const isOverflowing = e.scrollHeight - e.clientHeight > 2;
-      setOverflow(isOverflowing);
-    };
-
-    const ro = new ResizeObserver(measure);
-    const mo = new MutationObserver(measure);
-    // Watch the wrapper for the editor mounting and for size changes inside.
-    ro.observe(root);
-    mo.observe(root, { childList: true, subtree: true, characterData: true });
-    measure();
-
-    return () => { mounted = false; ro.disconnect(); mo.disconnect(); };
-  }, []);
-
-  return (
-    <div ref={wrapRef} style={{ height: '100%', position: 'relative' }}>
-      {children}
-      {overflow && (
-        <>
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: Math.max(48, padBottom),
-              pointerEvents: 'none',
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(245,245,245,0.9) 75%, hsl(0,0%,96%) 100%)',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: '50%',
-              bottom: 6,
-              transform: 'translateX(-50%)',
-              padding: '2px 8px',
-              fontSize: 9,
-              fontFamily: 'ui-monospace, monospace',
-              color: 'hsl(220, 8%, 38%)',
-              background: 'hsl(0, 0%, 92%)',
-              border: '1px solid hsl(220, 8%, 78%)',
-              borderRadius: 999,
-              pointerEvents: 'none',
-              whiteSpace: 'nowrap',
-            }}
-            title="Cross-page flow lands in v0.5.0 (Tiptap)"
-          >
-            page full · flow lands v0.5.0
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 // Render four small corner-bracket guides at the margin intersections.
 // Matches Word's faint corner marks in print layout.

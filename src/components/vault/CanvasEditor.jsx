@@ -1,14 +1,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { exportTxt, exportMd, exportDocx, exportPdf } from './canvasExportUtils';
-import ReactQuill from 'react-quill';
-import '@/lib/quillFormats'; // side-effect: registers font-size whitelist + line-height
 import { app } from '@/api/localClient';
 import {
   X, Save, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Quote, Code, Link, Heading2, Minus, Star, Pin, Download, Upload,
   ChevronDown, BookPlus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  IndentIncrease, IndentDecrease, Type, MoreVertical,
+  IndentIncrease, IndentDecrease, Type, MoreVertical, Home,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addCustomWord } from '@/lib/customDict';
@@ -18,25 +16,17 @@ import CanvasRuler from './CanvasRuler';
 import ViewMenu from './ViewMenu';
 import PageSetupDialog from './PageSetupDialog';
 import PageView from './PageView';
+import TiptapPagedEditor from './TiptapPagedEditor';
+import { makeLegacyQuillAdapter } from '@/lib/tiptap/legacyQuillAdapter';
 import { loadPageSetup, savePageSetup, saveAsDefaultPageSetup, effectiveDimensions, inchToPx } from '@/lib/pageSetup';
 
-// Tab/Shift-Tab indent bindings are registered IMPERATIVELY in a useEffect
-// below — not via modules.keyboard.bindings here. Quill's keyboard module
-// initializes built-in Tab handlers (lists/code-blocks) BEFORE module-config
-// bindings, so static bindings get pre-empted. Calling quill.keyboard.
-// addBinding() at runtime PREPENDS to the binding chain, guaranteeing our
-// Tab handler fires first.
-// v0.4.55 — paste flicker fix:
-//   matchVisual: false disables Quill's "try to preserve visual styling"
-//   pass that runs after the initial paste insertion. The visual-match pass
-//   is what caused the brief duplicate/ghost line Alaria reported — the
-//   pasted text would render once at the caret, then jump on the next tick.
-const modules = {
-  toolbar: false,
-  clipboard: {
-    matchVisual: false,
-  },
-};
+// v0.5.0 — Tiptap takes the canvas. Quill is gone. The toolbar / ruler /
+// header navigator all keep their existing `quillRef.current.getEditor()`
+// API thanks to the legacy adapter in @/lib/tiptap/legacyQuillAdapter.js.
+// The actual editor instance(s) live inside TiptapPagedEditor; this
+// component owns the chrome (header, toolbar, ruler, footer) and threads
+// the active Tiptap editor through the adapter so existing code keeps
+// working without rewrites.
 
 // Toolbar helpers (font sizes, alignments, line spacing options).
 const FONT_SIZES = [
@@ -57,57 +47,6 @@ const LINE_HEIGHTS = [
   { value: '2.5', label: '2.5' },
   { value: '3', label: '3.0' },
 ];
-
-const editorStyles = `
-  .vault-quill-wrapper { width: 100%; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-  .vault-quill-wrapper .ql-container { background: transparent; border: none; font-size: 14px; color: hsl(220, 14%, 90%); flex: 1; overflow-y: auto; outline: none !important; box-shadow: none !important; }
-  .vault-quill-wrapper .ql-container:focus, .vault-quill-wrapper .ql-container:focus-visible, .vault-quill-wrapper .ql-container *:focus, .vault-quill-wrapper .ql-container *:focus-visible { outline: none !important; box-shadow: none !important; }
-  .vault-quill-wrapper .ql-editor { padding: 24px 32px; word-break: break-word; overflow-wrap: break-word; min-height: 200px; outline: none !important; tab-size: 4; -moz-tab-size: 4; white-space: pre-wrap; }
-  .vault-quill-wrapper .ql-editor:focus, .vault-quill-wrapper .ql-editor:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }
-  .vault-quill-wrapper .ql-editor.ql-blank::before { content: none; }
-
-  /* Page-mode: when wrapped inside a PageFrame, the editor lives ON the
-     paper sheet. Drop the dark background and our own padding (the page
-     frame supplies margins via padding) and switch text colour to dark so it
-     reads against the white sheet. */
-  .vault-quill-wrapper.page-mode { overflow: visible; }
-  .vault-quill-wrapper.page-mode .ql-container { color: hsl(220, 30%, 12%); overflow: visible; }
-  .vault-quill-wrapper.page-mode .ql-editor { padding: 0; min-height: 100%; color: hsl(220, 30%, 12%); }
-  .vault-quill-wrapper.page-mode .ql-editor.ql-blank::before { color: hsl(220, 8%, 55%); }
-  .vault-quill-wrapper.page-mode .ql-editor blockquote { color: hsl(220, 12%, 30%); }
-  .vault-quill-wrapper.page-mode .ql-editor a { color: hsl(235, 80%, 45%); }
-  .vault-quill-wrapper.page-mode .ql-editor hr { border-top-color: hsl(220, 8%, 70%); }
-  .vault-quill-wrapper.page-mode .ql-editor pre.ql-syntax { background: hsl(220, 8%, 92%); color: hsl(220, 30%, 12%); }
-  .vault-quill-wrapper.page-mode .ql-editor code { background: hsl(220, 8%, 92%); color: hsl(220, 30%, 12%); }
-  .vault-quill-wrapper .ql-editor h1 { font-size: 2em; font-weight: 700; margin: 12px 0 6px; }
-  .vault-quill-wrapper .ql-editor h2 { font-size: 1.5em; font-weight: 700; margin: 10px 0 5px; }
-  .vault-quill-wrapper .ql-editor h3 { font-size: 1.2em; font-weight: 700; margin: 8px 0 4px; }
-  .vault-quill-wrapper .ql-editor p { margin: 4px 0; line-height: 1.7; }
-  .vault-quill-wrapper .ql-editor blockquote { border-left: 4px solid hsl(235,86%,65%); padding-left: 14px; margin: 8px 0; color: hsl(220,7%,60%); font-style: italic; }
-  .vault-quill-wrapper .ql-editor pre.ql-syntax { background: hsl(220,8%,14%); border-radius: 6px; padding: 14px; font-family: monospace; font-size: 12px; overflow-x: auto; }
-  .vault-quill-wrapper .ql-editor a { color: hsl(235,86%,75%); text-decoration: underline; }
-  .vault-quill-wrapper .ql-editor ul, .vault-quill-wrapper .ql-editor ol { padding-left: 1.8em; margin: 6px 0; }
-  .vault-quill-wrapper .ql-editor li { margin: 3px 0; line-height: 1.6; }
-  .vault-quill-wrapper .ql-editor hr { border: none; border-top: 1px solid hsl(225,9%,22%); margin: 16px 0; }
-  .vault-quill-wrapper .ql-editor strong { font-weight: 700; }
-  .vault-quill-wrapper .ql-editor em { font-style: italic; }
-  .vault-quill-wrapper .ql-editor u { text-decoration: underline; }
-  .vault-quill-wrapper .ql-editor s { text-decoration: line-through; }
-  .vault-quill-wrapper .ql-editor code { background: hsl(220,8%,14%); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
-  /* Alignment classes Quill emits when you set 'align' format */
-  .vault-quill-wrapper .ql-editor .ql-align-center { text-align: center; }
-  .vault-quill-wrapper .ql-editor .ql-align-right { text-align: right; }
-  .vault-quill-wrapper .ql-editor .ql-align-justify { text-align: justify; }
-  /* Indent classes (Quill stamps ql-indent-1 .. ql-indent-8) */
-  .vault-quill-wrapper .ql-editor .ql-indent-1 { padding-left: 3em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-2 { padding-left: 6em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-3 { padding-left: 9em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-4 { padding-left: 12em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-5 { padding-left: 15em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-6 { padding-left: 18em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-7 { padding-left: 21em; }
-  .vault-quill-wrapper .ql-editor .ql-indent-8 { padding-left: 24em; }
-`;
 
 // v0.4.52 — small wrapper triggers that own their own anchor ref so the
 // portal Menu can position itself relative to the actual button rect.
@@ -220,12 +159,6 @@ function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog
   const Divider = () => <div className="w-px h-4 bg-[hsl(var(--chalk-white-faint)/0.2)] mx-0.5" />;
 
   // Reusable dropdown menu component for font size + line height.
-  // v0.4.52 — toolbar dropdown popovers were rendering inside the toolbar
-  // stacking context with z-50, which lost a z-index war against the page
-  // surface in PageView (Alaria's screenshot showed Headings/Line Spacing
-  // menus appearing BEHIND the editor). Fix: portal them to <body> with a
-  // fixed-position anchor under the trigger button, same pattern as
-  // ViewMenu. min-width=88px preserved.
   const Menu = ({ anchorRef, items, onPick, onClose, label, align = 'left' }) => {
     const [pos, setPos] = useState({ top: 0, left: 0 });
     useLayoutEffect(() => {
@@ -367,67 +300,60 @@ function PageRulerSlot({ setup, children }) {
 // `embedded` mode strips the fixed-overlay/modal chrome so the editor can be
 // dropped into the new Canvas Hub page (with its own tab strip). The same
 // component is still used as a modal from Quillibrary's grid views.
-export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = false }) {
+//
+// `onHome` (optional) — only set in embedded mode. When provided, a small
+// home button appears before the toolbar so the user can hop back to the
+// Canvas Hub landing screen from inside an open canvas (Alaria's v0.5.0
+// ask: "we don't have a way to get back into the Canvas Hub").
+export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = false, onHome }) {
   const [showExport, setShowExport] = useState(false);
   const importRef = useRef(null);
   const [dictToast, setDictToast] = useState('');
 
   const editorContainerRef = useRef(null);
 
-  const handleAddToDictionary = () => {
-    const q = quillRef.current?.getEditor?.();
-    if (!q) return;
-    const range = q.getSelection?.();
-    if (!range || range.length === 0) { setDictToast('Select a word first'); setTimeout(() => setDictToast(''), 2000); return; }
-    const word = q.getText(range.index, range.length).trim();
-    if (!word) return;
-    addCustomWord({ word });
-    setDictToast(`"${word}" added!`);
-    setTimeout(() => setDictToast(''), 2000);
-  };
-
-  const handleExport = async (fmt) => {
-    setShowExport(false);
-    const t = title || 'Untitled Canvas';
-    if (fmt === 'txt') exportTxt(t, content);
-    else if (fmt === 'md') exportMd(t, content);
-    else if (fmt === 'docx') await exportDocx(t, content);
-    else if (fmt === 'pdf') exportPdf(t, content);
-  };
-
-  const handleImport = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
-      // wrap plain text in <p> tags per line
-      const html = text.split('\n').map(l => l.trim() ? `<p>${l}</p>` : '<p><br></p>').join('');
-      setContent(html);
-      clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = setTimeout(() => save(html), 1200);
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
   const [title, setTitle] = useState(canvas.title || 'Untitled Canvas');
   const [editingTitle, setEditingTitle] = useState(false);
   const [content, setContent] = useState(canvas.content || '');
+  const [pages, setPages] = useState(() =>
+    Array.isArray(canvas.pages) && canvas.pages.length ? canvas.pages : null
+  );
   const [savedLabel, setSavedLabel] = useState('');
   const [isPinned, setIsPinned] = useState(canvas.is_pinned || false);
   const [isFavorite, setIsFavorite] = useState(canvas.is_favorite || false);
-  const quillRef = useRef(null);
+
+  // Active Tiptap editor (whichever is focused). The legacy quillRef adapter
+  // resolves through this — every existing piece of code that hits
+  // quillRef.current.getEditor() ends up talking to the focused Tiptap.
+  const [activeEditor, setActiveEditor] = useState(null);
+  const tiptapRef = useRef(null);
+
+  // Mirror activeEditor in a ref so the adapter's getter (called lazily)
+  // always sees the latest editor instance.
+  const activeEditorRef = useRef(null);
+  useEffect(() => { activeEditorRef.current = activeEditor; }, [activeEditor]);
+
+  // Stable adapter — never re-created. The closure captures activeEditor
+  // through the ref so toolbar/ruler/navigator always reach the focused one.
+  const adapterRef = useRef(null);
+  if (!adapterRef.current) {
+    adapterRef.current = makeLegacyQuillAdapter(() => activeEditorRef.current);
+  }
+
+  // The quillRef shape consumers expect: { current: { getEditor() } }
+  const quillRef = useMemo(() => ({
+    current: {
+      getEditor: () => adapterRef.current.getEditor(),
+    },
+  }), []);
+
   const autoSaveTimer = useRef(null);
 
   // ── Page Setup state ───────────────────────────────────────────────────
-  // Loaded from localStorage on mount (per-canvas, falling back to global
-  // default). Changes auto-persist per canvas. "Set As Default" in the
-  // dialog also saves to the global default key.
   const [pageSetup, setPageSetup] = useState(() => loadPageSetup(canvas.id));
   const [showPageSetupDialog, setShowPageSetupDialog] = useState(false);
 
   useEffect(() => {
-    // Reload page setup if a different canvas mounts.
     setPageSetup(loadPageSetup(canvas.id));
   }, [canvas.id]);
 
@@ -447,76 +373,83 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     saveAsDefaultPageSetup(next);
   }, []);
 
-  // Tab / Shift-Tab on Canvas — v0.4.34 behavior:
-  //   • Inserts a literal tab character (\t) at the cursor, jumping to the
-  //     next tab stop just like Microsoft Word. The browser handles spacing
-  //     via CSS `tab-size: 4` on .ql-editor.
-  //   • Shift-Tab deletes the tab character immediately preceding the cursor
-  //     if there is one (otherwise no-op). Mirrors Word's Shift-Tab.
-  //   • Indent markers on the ruler are NEVER touched by Tab. Indents are
-  //     drag-only now. The hourglass stays locked unless you grab it.
-  //   • Lists and code-blocks keep their native Tab behavior (Quill nests
-  //     bullets / inserts a literal tab in code).
-  // Captured in the DOM capture phase so Quill's built-in keyboard module
-  // never sees it.
-  useEffect(() => {
-    let cancelled = false;
-    let tries = 0;
-    let cleanupFn = null;
-    const install = () => {
-      if (cancelled) return;
-      const q = quillRef.current?.getEditor?.();
-      if (!q?.root) {
-        if (tries++ < 30) setTimeout(install, 50);
-        return;
-      }
-      const root = q.root;
-      const handler = (e) => {
-        if (e.key !== 'Tab') return;
-        const sel = q.getSelection();
-        if (!sel) return;
-        const f = q.getFormat(sel);
-        if (f.list || f['code-block']) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.shiftKey) {
-          // Delete preceding tab character, if any.
-          if (sel.index > 0) {
-            const prev = q.getText(sel.index - 1, 1);
-            if (prev === '\t') {
-              q.deleteText(sel.index - 1, 1, 'user');
-            }
-          }
-        } else {
-          // Insert literal tab. Replace any current selection first.
-          if (sel.length > 0) q.deleteText(sel.index, sel.length, 'user');
-          q.insertText(sel.index, '\t', 'user');
-          q.setSelection(sel.index + 1, 0, 'user');
-        }
-      };
-      root.addEventListener('keydown', handler, true);
-      cleanupFn = () => root.removeEventListener('keydown', handler, true);
-    };
-    install();
-    return () => { cancelled = true; cleanupFn?.(); };
-  }, []);
+  // ── Dictionary lookup (uses adapter — Tiptap-backed) ─────────────────────
+  const handleAddToDictionary = () => {
+    const q = quillRef.current?.getEditor?.();
+    if (!q) return;
+    const range = q.getSelection?.();
+    if (!range || range.length === 0) { setDictToast('Select a word first'); setTimeout(() => setDictToast(''), 2000); return; }
+    const word = q.getText(range.index, range.length).trim();
+    if (!word) return;
+    addCustomWord({ word });
+    setDictToast(`"${word}" added!`);
+    setTimeout(() => setDictToast(''), 2000);
+  };
 
-  const save = async (val, extraFields = {}) => {
-    const toSave = val !== undefined ? val : content;
-    const updated = await app.entities.Canvas.update(canvas.id, {
-      content: toSave,
+  // ── Save (auto + manual) ─────────────────────────────────────────────────
+  // v0.5.0 — saves both `content` (vertical / source-of-truth) and `pages`
+  // (side-to-side editor segments). Either may be undefined depending on
+  // mode; we always send what we have.
+  const save = async (overrideContent, overridePages) => {
+    const toSaveContent = overrideContent !== undefined ? overrideContent : content;
+    const toSavePages = overridePages !== undefined ? overridePages : pages;
+    const payload = {
+      content: toSaveContent,
       title,
-      ...extraFields,
-    });
+    };
+    if (Array.isArray(toSavePages)) payload.pages = toSavePages;
+    const updated = await app.entities.Canvas.update(canvas.id, payload);
     setSavedLabel('Saved');
     setTimeout(() => setSavedLabel(''), 1500);
     onUpdate?.(updated);
   };
 
-  const handleChange = (val) => {
-    setContent(val);
+  const scheduleAutoSave = useCallback((nextContent, nextPages) => {
     clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => save(val), 1200);
+    autoSaveTimer.current = setTimeout(() => save(nextContent, nextPages), 1200);
+  }, [title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleContentChange = useCallback((html) => {
+    setContent(html);
+    scheduleAutoSave(html, undefined);
+  }, [scheduleAutoSave]);
+
+  const handlePagesChange = useCallback((nextPages) => {
+    setPages(nextPages);
+    // In side-to-side mode, also keep `content` synced to the joined pages so
+    // exports + Quillibrary previews + non-side-to-side rendering still see
+    // the latest text.
+    const joined = (nextPages || []).join('\n');
+    setContent(joined);
+    scheduleAutoSave(joined, nextPages);
+  }, [scheduleAutoSave]);
+
+  // ── Import (TXT/MD) — wraps lines as <p>; both modes accept HTML ─────────
+  const handleImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const html = text.split('\n').map(l => l.trim() ? `<p>${l}</p>` : '<p></p>').join('');
+      setContent(html);
+      // Imports replace single-page content; if user is in side-to-side they
+      // can split manually from there. Reset pages to one page of imported HTML.
+      setPages([html]);
+      scheduleAutoSave(html, [html]);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleExport = async (fmt) => {
+    setShowExport(false);
+    const t = title || 'Untitled Canvas';
+    const exportContent = pages ? pages.join('\n') : content;
+    if (fmt === 'txt') exportTxt(t, exportContent);
+    else if (fmt === 'md') exportMd(t, exportContent);
+    else if (fmt === 'docx') await exportDocx(t, exportContent);
+    else if (fmt === 'pdf') exportPdf(t, exportContent);
   };
 
   const saveTitle = async (newTitle) => {
@@ -560,7 +493,6 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
             : 'relative z-10 w-full max-w-4xl h-[90vh] rounded-2xl border border-[hsl(225,9%,22%)] shadow-2xl'
         )}
       >
-        <style>{editorStyles}</style>
         <DictionaryContextMenu containerRef={editorContainerRef} />
 
         {/* Header — close button is hidden in embedded mode (tabs handle close) */}
@@ -664,20 +596,25 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           <HeaderNavigator quillRef={quillRef} content={content} />
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Ruler is constrained to the page width so its ticks/markers
-                line up with the actual page content, not the full window. */}
-            <PageRulerSlot setup={pageSetup}>
-              <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
-            </PageRulerSlot>
+                line up with the actual page content, not the full window.
+                Hidden in side-to-side because the ruler is wired to a single
+                editor's geometry — the side-to-side spread has two of them. */}
+            {pageSetup.pageMovement !== 'side-to-side' && (
+              <PageRulerSlot setup={pageSetup}>
+                <CanvasRuler quillRef={quillRef} canvasId={canvas.id} />
+              </PageRulerSlot>
+            )}
             <PageView setup={pageSetup}>
-              <div className="vault-quill-wrapper page-mode">
-                <ReactQuill
-                  ref={quillRef}
-                  value={content}
-                  onChange={handleChange}
-                  modules={modules}
-                  style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                />
-              </div>
+              <TiptapPagedEditor
+                ref={tiptapRef}
+                setup={pageSetup}
+                canvas={canvas}
+                initialContent={content}
+                initialPages={pages}
+                onContentChange={handleContentChange}
+                onPagesChange={handlePagesChange}
+                onActiveEditorChange={(ed) => setActiveEditor(ed)}
+              />
             </PageView>
           </div>
         </div>

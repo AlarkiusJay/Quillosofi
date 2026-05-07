@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { app } from '@/api/localClient';
-import { Plus, FileText, Clock, BookOpen } from 'lucide-react';
+import { Plus, FileText, Clock, BookOpen, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useEditorTabs } from '@/lib/editorTabs';
@@ -105,16 +105,38 @@ export default function CanvasEditorHub() {
     return allCanvases[0] || null;
   }, [allCanvases, tabs]);
 
+  // v0.5.0 — "Canvas Hub" home button. Drops you back to the landing screen
+  // (/canvas, no :id) without closing your open tabs. Alaria's ask:
+  // "we don't have a way to get back into the Canvas Hub".
+  // We clear activeId first so the route-sync effect doesn't bounce us back
+  // into the previously-open canvas.
+  const goHome = useCallback(() => {
+    setActiveId(null);
+    navigate('/canvas');
+  }, [navigate, setActiveId]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(220,8%,13%)]">
-      <TabStrip
-        tabs={tabDescriptors}
-        activeId={activeId}
-        onSelect={setActiveId}
-        onClose={handleCloseTab}
-        onNew={handleNew}
-        placeholder="No canvases open — pick one below or hit + to start fresh"
-      />
+      <div className="flex items-stretch border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,14%)] shrink-0">
+        <button
+          onClick={goHome}
+          title="Canvas Hub"
+          className="px-3 flex items-center gap-1.5 text-[11px] font-medium text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(228,7%,22%)] transition-colors border-r border-[hsl(225,9%,14%)] shrink-0"
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span className="font-mono uppercase tracking-wider">Canvas Hub</span>
+        </button>
+        <div className="flex-1 min-w-0">
+          <TabStrip
+            tabs={tabDescriptors}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onClose={handleCloseTab}
+            onNew={handleNew}
+            placeholder="No canvases open — pick one below or hit + to start fresh"
+          />
+        </div>
+      </div>
 
       {activeCanvas ? (
         <CanvasEditor
@@ -122,6 +144,7 @@ export default function CanvasEditorHub() {
           canvas={activeCanvas}
           embedded
           onUpdate={handleUpdateCanvas}
+          onHome={goHome}
         />
       ) : (
         <Landing

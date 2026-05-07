@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.0',
+    date: '2026-05-06',
+    tagline: 'Quill is gone — Tiptap takes the canvas. Both pages in side-to-side are now typeable, and you can finally jump back to the Canvas Hub from inside an open canvas.',
+    changes: [
+      'Quill → Tiptap. The whole Canvas editor is now Tiptap-based. Existing canvases load and migrate their HTML on first open — bold/italic/headings/lists/alignment/indents/font size/line height all carry over.',
+      'Side-to-Side: both pages are now typeable. Each page is its own independent Tiptap editor, and a dashed "Add page" tile sits at the next slot when you\'re ready for more. The earlier "page full" chip is retired — just keep writing on the next page.',
+      'Vertical mode: visual page-frame overlays now grow with your content (instead of three fixed phantom pages). Single-page mode also stays clean and centered.',
+      'New "Canvas Hub" home button sits before the tabs. One click drops you back to the landing screen — your open tabs stick around so you can hop back in anytime.',
+      'Toolbar formats are unchanged: Bold/Italic/Underline/Strike, headings, lists, blockquote, code block, alignment, indent in/out, font size, line spacing, link, divider — all wired through to the new editor.',
+      'Tab / Shift-Tab still inserts a literal tab and removes the preceding tab. Shipped as a proper Tiptap keymap extension this time, not a DOM-level capture-phase hack.',
+      'Honest scope note: independent pages, not a real cross-page text-flow extension. Vertical mode is one continuous editor with visual page overlays; side-to-side has N independent editors. The earlier "phantom flow" / "page full" copy referencing a v0.5.0 flow extension is gone because that\'s not what shipped.',
+    ],
+  },
+  {
     version: '0.4.55',
     date: '2026-05-06',
     tagline: 'Side-to-side now scrolls vertically when you zoom past fit, and pasting no longer flickers.',
