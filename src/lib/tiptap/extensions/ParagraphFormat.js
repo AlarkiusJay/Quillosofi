@@ -94,6 +94,10 @@ export const ParagraphFormat = Extension.create({
           // Special indent value in inches. Renders text-indent (positive
           // for First line, negative for Hanging) plus the matching extra
           // padding-left for hanging so the runover lines align.
+          // v0.5.81 — hanging-indent renderer combines its own padding-left
+          // with any explicit `indentLeftIn` so the two don't clobber each
+          // other in mergeAttributes (which dedupes same-property style
+          // declarations to last-write-wins).
           specialIndentIn: {
             default: null,
             parseHTML: (el) => el.getAttribute('data-special-indent-in') || null,
@@ -105,7 +109,9 @@ export const ParagraphFormat = Extension.create({
               if (kind === 'firstLine') {
                 out.style = `text-indent: ${v}in`;
               } else if (kind === 'hanging') {
-                out.style = `text-indent: -${v}in; padding-left: ${v}in`;
+                const baseLeft = parseFloat(attrs.indentLeftIn) || 0;
+                const total = baseLeft + parseFloat(v);
+                out.style = `text-indent: -${v}in; padding-left: ${total}in`;
               }
               return out;
             },
@@ -149,12 +155,24 @@ export const ParagraphFormat = Extension.create({
           // Compress start-of-line punctuation.
           ...boolDataAttr('compressStartPunct', 'compress-start-punct',
             'text-spacing-trim: space-first'),
-          // Auto-space between Asian and Latin.
-          ...boolDataAttr('autoSpaceLatin', 'auto-space-latin',
-            'text-autospace: ideograph-alpha'),
-          // Auto-space between Asian and numeric.
-          ...boolDataAttr('autoSpaceNumeric', 'auto-space-numeric',
-            'text-autospace: ideograph-numeric'),
+          // Auto-space between Asian and Latin / numeric. v0.5.81 — these
+          // both wrote to the same `text-autospace` CSS property so only one
+          // ever stuck. The numeric attribute below combines both flags into
+          // a single declaration so they coexist correctly.
+          ...boolDataAttr('autoSpaceLatin', 'auto-space-latin', null),
+          autoSpaceNumeric: {
+            default: null,
+            parseHTML: (el) => (el.getAttribute('data-auto-space-numeric') === '1' ? true : null),
+            renderHTML: (attrs) => {
+              const out = {};
+              if (attrs.autoSpaceNumeric) out['data-auto-space-numeric'] = '1';
+              const flags = [];
+              if (attrs.autoSpaceLatin) flags.push('ideograph-alpha');
+              if (attrs.autoSpaceNumeric) flags.push('ideograph-numeric');
+              if (flags.length) out.style = `text-autospace: ${flags.join(' ')}`;
+              return out;
+            },
+          },
           // Vertical alignment for vertical writing modes.
           // 'auto' | 'top' | 'center' | 'baseline' | 'bottom'
           ...valueDataAttr('verticalAlign', 'vertical-align',

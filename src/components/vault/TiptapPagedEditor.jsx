@@ -46,7 +46,14 @@ function PageEditor({
   onReady,
   onMeasure,
   pageIndex,
+  onSelectAllAcross,
 }) {
+  // Stash the latest onSelectAllAcross in a ref so the editor's keydown
+  // handler — captured once at editor-construction time — always sees the
+  // current callback even if the parent re-renders with a new closure.
+  const selectAllRef = useRef(onSelectAllAcross);
+  useEffect(() => { selectAllRef.current = onSelectAllAcross; }, [onSelectAllAcross]);
+
   const editor = useEditor({
     extensions: buildExtensions({ placeholder }),
     content: seedHtml || '',
@@ -59,6 +66,24 @@ function PageEditor({
       attributes: {
         'aria-label': ariaLabel || `Canvas page ${pageIndex + 1}`,
         spellcheck: 'true',
+      },
+      // v0.5.81 — Spread/multi-page select-all. In paginated modes each page
+      // has its own Tiptap instance, so the default Cmd/Ctrl+A only selects
+      // text on the focused page. Intercept it and let the parent fan-out
+      // a selectAll across every page editor in the registry. The callback
+      // returns true if it handled the key (signalling the parent did the
+      // multi-editor select-all and we shouldn't run the default).
+      handleKeyDown(view, event) {
+        const isMod = event.metaKey || event.ctrlKey;
+        const isA = event.key === 'a' || event.key === 'A' || event.code === 'KeyA';
+        if (isMod && isA && !event.altKey && !event.shiftKey) {
+          const cb = selectAllRef.current;
+          if (cb && cb(pageIndex) === true) {
+            event.preventDefault();
+            return true;
+          }
+        }
+        return false;
       },
       // v0.5.7 — Paste behavior fix.
       // Default Tiptap pastes any HTML containing a block-level element
@@ -345,6 +370,17 @@ const TiptapPagedEditor = forwardRef(function TiptapPagedEditor(
     getActiveEditor: () => activeEditor,
     getVerticalEditor: () => verticalEditorRef.current,
     getPageEditor: (idx) => pageEditorsRef.current[idx] || null,
+    // v0.5.81 — ordered list of all live page editors (paginated modes
+    // only — returns [verticalEditor] when in continuous-single mode).
+    // Used by ParagraphDialog to fan paragraph formats out across pages
+    // when the user has done a cross-page Select-All.
+    getAllEditors: () => {
+      const map = pageEditorsRef.current || {};
+      const indices = Object.keys(map).map((k) => parseInt(k, 10)).sort((a, b) => a - b);
+      const list = indices.map((i) => map[i]).filter(Boolean);
+      if (list.length) return list;
+      return verticalEditorRef.current ? [verticalEditorRef.current] : [];
+    },
   }), [activeEditor]);
 
   useEffect(() => {
@@ -578,6 +614,36 @@ function PaginatedEditor({
     registerEditor(idx, ed);
   }, [registerEditor]);
 
+  // v0.5.81 — Cross-page select-all. When Cmd/Ctrl+A fires on any page
+  // editor, run selectAll on EVERY editor in the registry so the highlight
+  // visually spans the whole document (matching Word / single-editor
+  // behavior). Subsequent format/paragraph commands can fan out to all
+  // editors via a parent callback (see selectAllAcrossPages on the ref).
+  const handleSelectAllAcrossPages = useCallback((focusedIdx) => {
+    const map = pageEditorsLocalRef.current || {};
+    const indices = Object.keys(map).map((k) => parseInt(k, 10)).sort((a, b) => a - b);
+    if (indices.length <= 1) return false; // single page — let default run
+    indices.forEach((i) => {
+      const ed = map[i];
+      if (!ed || ed.isDestroyed) return;
+      try { ed.commands.selectAll(); } catch { /* ignore */ }
+    });
+    // Keep the originally-focused page as the active one so the caret/
+    // formatting toolbar still has a sensible anchor.
+    const anchor = map[focusedIdx];
+    if (anchor && !anchor.isDestroyed) {
+      // selectAll already ran on it; just make sure focus stays put.
+      anchor.view?.focus?.();
+    }
+    return true;
+  }, []);
+
+  // Imperative — expose page-editor registry to parent (TiptapPagedEditor)
+  // so it can fan out paragraph-format ops, ruler measurements, etc.
+  // Mirrors the v0.4.x "all-editors" hook shape.
+  // Note: this is set up via the parent's `registerEditor(idx, ed)` callback
+  // already; this is just a convenience getter.
+
   const renderPage = useCallback((idx, isLive = true) => {
     const html = pages[idx] ?? '';
     return (
@@ -609,6 +675,7 @@ function PaginatedEditor({
             onReady={(ed) => { handleRegisterEditor(idx, ed); }}
             onFocus={(ed) => handlePageFocus(ed, idx)}
             onMeasure={onMeasure}
+            onSelectAllAcross={handleSelectAllAcrossPages}
           />
         </div>
       </PageFrame>

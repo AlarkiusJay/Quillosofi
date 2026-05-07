@@ -620,13 +620,12 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Ruler is constrained to the page width so its ticks/markers
                 line up with the actual page content, not the full window.
-                Hidden in side-to-side because the ruler is wired to a single
-                editor's geometry — the side-to-side spread has two of them. */}
-            {pageSetup.pageMovement !== 'side-to-side' && (
-              <PageRulerSlot setup={pageSetup}>
-                <CanvasRuler quillRef={quillRef} canvasId={canvas.id} editorTick={activeEditor} />
-              </PageRulerSlot>
-            )}
+                v0.5.81 — also rendered in side-to-side spread mode, wired
+                to whichever page editor currently has focus (the ruler
+                tracks `activeEditor` via `editorTick`). */}
+            <PageRulerSlot setup={pageSetup}>
+              <CanvasRuler quillRef={quillRef} canvasId={canvas.id} editorTick={activeEditor} />
+            </PageRulerSlot>
             <PageView setup={pageSetup}>
               <TiptapPagedEditor
                 ref={tiptapRef}
@@ -651,10 +650,14 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           onClose={() => setShowPageSetupDialog(false)}
         />
 
-        {/* v0.5.8 — Word-style Paragraph dialog */}
+        {/* v0.5.8 — Word-style Paragraph dialog
+            v0.5.81 — also receives a getAllEditors getter so it can fan the
+            paragraph format out across every page editor in paginated
+            modes when the user has done a cross-page Select-All. */}
         <ParagraphDialog
           open={showParagraphDialog}
           editor={activeEditor}
+          getAllEditors={() => tiptapRef.current?.getAllEditors?.() || []}
           onClose={() => setShowParagraphDialog(false)}
         />
 

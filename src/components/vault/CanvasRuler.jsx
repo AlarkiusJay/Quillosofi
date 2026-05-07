@@ -101,38 +101,51 @@ export default function CanvasRuler({ quillRef, canvasId, editorTick }) {
   // never observed it and contentWidthPx stayed 0 → the ruler bar collapsed
   // to a thin sliver glued to the left edge regardless of window size.
   //
-  // Two changes:
-  //   1. `editorTick` in deps so the effect re-runs when the active editor
-  //      changes (mount, focus swap in side-to-side, etc).
-  //   2. rAF-polled retry up to ~30 frames — covers the case where the editor
-  //      is mounting but its DOM hasn't been laid out yet, so
-  //      getBoundingClientRect returns 0-width on the first frame.
+  // v0.5.81 fix: the rAF-polled retry was capped at ~30 frames (~500ms),
+  // which wasn't enough when switching to vertical+multiple or spread mode
+  // — the page editors mount lazily and the ProseMirror DOM may not be laid
+  // out within half a second. Once the retry budget ran out we'd freeze at
+  // contentWidthPx=0 forever and ALL four indent markers stacked at the
+  // left edge of the ruler (the bug from Alaria's screenshot). Now:
+  //   • Retry indefinitely while the editor isn't ready (poll every 100ms
+  //     instead of every animation frame to keep the cost negligible).
+  //   • ResizeObserver re-attached to the new active editor's `q.root` on
+  //     every editorTick change, so spread mode page-flips re-measure.
+  //   • Run on every selection-change too — covers the case where the
+  //     active editor swapped (e.g. user clicked between facing pages in a
+  //     spread) and we need to re-anchor immediately.
   useEffect(() => {
     let cancelled = false;
     let raf = 0;
-    let attempts = 0;
+    let pollTimer = 0;
     const measure = () => {
       if (cancelled) return;
       const q = quillRef.current?.getEditor?.();
       const track = trackRef.current;
       if (!q || !track || !q.root) {
-        if (attempts++ < 30) raf = requestAnimationFrame(measure);
+        pollTimer = setTimeout(measure, 100);
         return;
       }
       const editor = q.root;
       const trackRect = track.getBoundingClientRect();
       const editorRect = editor.getBoundingClientRect();
-      if (editorRect.width === 0) {
-        if (attempts++ < 30) raf = requestAnimationFrame(measure);
+      if (editorRect.width === 0 || trackRect.width === 0) {
+        pollTimer = setTimeout(measure, 100);
         return;
       }
       const cs = window.getComputedStyle(editor);
       const padL = parseFloat(cs.paddingLeft) || 0;
       const padR = parseFloat(cs.paddingRight) || 0;
-      setContentLeftPx(editorRect.left - trackRect.left + padL);
-      setContentWidthPx(editorRect.width - padL - padR);
+      const nextLeft = editorRect.left - trackRect.left + padL;
+      const nextWidth = editorRect.width - padL - padR;
+      // Only update if changed (avoid render thrash).
+      setContentLeftPx((prev) => (Math.abs(prev - nextLeft) > 0.5 ? nextLeft : prev));
+      setContentWidthPx((prev) => (Math.abs(prev - nextWidth) > 0.5 ? nextWidth : prev));
+      // Keep polling at low frequency to catch late layout changes
+      // (page-flips in spread mode, font swaps, zoom, etc).
+      pollTimer = setTimeout(measure, 250);
     };
-    measure();
+    raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     if (trackRef.current) ro.observe(trackRef.current);
     const q = quillRef.current?.getEditor?.();
@@ -141,6 +154,7 @@ export default function CanvasRuler({ quillRef, canvasId, editorTick }) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      clearTimeout(pollTimer);
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };

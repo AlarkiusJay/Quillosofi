@@ -231,9 +231,12 @@ function blankDraft() {
 
 // ── Apply draft → editor ────────────────────────────────────────────────
 
-function applyDraftToEditor(editor, d) {
-  if (!editor) return;
-  const chain = editor.chain().focus();
+// Build a single editor.chain() that writes every Paragraph Settings
+// attribute. Reused for both the active-editor path (cursor / single
+// selection) and the fan-out path (apply to every page editor when the
+// user has done a cross-page Select-All in spread or vertical+multiple).
+function buildParagraphChain(editor, d, { focus }) {
+  const chain = focus ? editor.chain().focus() : editor.chain();
 
   // Alignment goes through the existing TextAlign extension.
   chain.setTextAlign(d.align);
@@ -268,7 +271,49 @@ function applyDraftToEditor(editor, d) {
   const lhCss = previewLineHeight(d.lineSpacingKind, d.lineSpacingValue);
   if (lhCss) chain.setLineHeight(lhCss); else chain.unsetLineHeight();
 
-  chain.run();
+  return chain;
+}
+
+// True when EVERY editor in the list has a full-document selection (the
+// signature of a cross-page Cmd/Ctrl+A in paginated mode). Tiptap's empty
+// Selection still returns from===to and gets the format applied to the
+// cursor paragraph, so we only fan out when *all* editors are wholly
+// selected — partial selections stay scoped to the active editor.
+function allEditorsFullySelected(editors) {
+  if (!editors || editors.length < 2) return false;
+  return editors.every((ed) => {
+    if (!ed || ed.isDestroyed) return false;
+    try {
+      const { from, to } = ed.state.selection;
+      const docSize = ed.state.doc.content.size;
+      // ProseMirror's full-doc selection is from=0..docSize (or 1..docSize-1
+      // depending on schema). Accept any selection that covers all but the
+      // outer document node boundaries.
+      return to - from >= Math.max(0, docSize - 2) && to - from > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function applyDraftToEditor(editor, d, allEditors = null) {
+  if (!editor) return;
+
+  // v0.5.81 — Fan-out across pages when the user has done a cross-page
+  // Select-All. Each page editor gets the same paragraph format applied to
+  // its current selection (which spans the whole page after our Mod-A
+  // interceptor). Only the originally-focused editor receives a focus()
+  // chain so we don't yank focus mid-fan-out.
+  if (allEditors && allEditorsFullySelected(allEditors)) {
+    allEditors.forEach((ed) => {
+      if (!ed || ed.isDestroyed) return;
+      const chain = buildParagraphChain(ed, d, { focus: ed === editor });
+      try { chain.run(); } catch { /* skip a page that errored */ }
+    });
+    return;
+  }
+
+  buildParagraphChain(editor, d, { focus: true }).run();
 }
 
 // ── Live preview pane ───────────────────────────────────────────────────
@@ -325,7 +370,7 @@ function PreviewPane({ draft }) {
 
 // ── Main component ──────────────────────────────────────────────────────
 
-export default function ParagraphDialog({ open, editor, onClose }) {
+export default function ParagraphDialog({ open, editor, getAllEditors, onClose }) {
   const [tab, setTab] = useState('spacing');
   const [draft, setDraft] = useState(blankDraft);
 
@@ -346,7 +391,11 @@ export default function ParagraphDialog({ open, editor, onClose }) {
 
   if (!open) return null;
 
-  const apply = () => { applyDraftToEditor(editor, draft); onClose?.(); };
+  const apply = () => {
+    const all = getAllEditors ? getAllEditors() : null;
+    applyDraftToEditor(editor, draft, all);
+    onClose?.();
+  };
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
