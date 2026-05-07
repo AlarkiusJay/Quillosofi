@@ -85,7 +85,6 @@ The desktop app gives you everything the web version has, plus:
 
 - **Frontend:** React 18 + Vite + Tailwind + Radix UI
 - **Editor:** Quill (Tiptap migration parked for the v0.5 epic)
-- **Backend:** Base44 (entities, auth, SDK)
 - **Desktop:** Electron + electron-builder + electron-updater
 - **CI:** GitHub Actions — auto-builds Win/Mac/Linux installers on every `v*` tag
 
