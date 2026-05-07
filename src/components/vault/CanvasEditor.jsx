@@ -26,8 +26,16 @@ import { loadPageSetup, savePageSetup, saveAsDefaultPageSetup, effectiveDimensio
 // bindings, so static bindings get pre-empted. Calling quill.keyboard.
 // addBinding() at runtime PREPENDS to the binding chain, guaranteeing our
 // Tab handler fires first.
+// v0.4.55 — paste flicker fix:
+//   matchVisual: false disables Quill's "try to preserve visual styling"
+//   pass that runs after the initial paste insertion. The visual-match pass
+//   is what caused the brief duplicate/ghost line Alaria reported — the
+//   pasted text would render once at the caret, then jump on the next tick.
 const modules = {
   toolbar: false,
+  clipboard: {
+    matchVisual: false,
+  },
 };
 
 // Toolbar helpers (font sizes, alignments, line spacing options).

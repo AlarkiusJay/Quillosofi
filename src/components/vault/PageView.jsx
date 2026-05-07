@@ -178,10 +178,18 @@ export default function PageView({ setup, children }) {
 
   const finalZoom = fitZoom * setup.zoom;
 
+  // v0.4.55 — when the user zooms past the auto-fit (e.g. 125% default),
+  // the spread is taller than the viewport. Previously we used
+  // overflow-hidden which clipped both top and bottom and made the page
+  // look like it was bleeding into the chrome (Alaria's screenshot showed
+  // text running past the bottom margin into the status footer). Switch to
+  // overflow-auto so the user can scroll vertically when zoom > fit.
+  const overflowsViewport = setup.zoom > 1.0;
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-hidden relative"
+      className={`flex-1 relative ${overflowsViewport ? 'overflow-auto' : 'overflow-hidden'}`}
       style={{ background: 'hsl(220, 12%, 9%)' }}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft' && canPrev) setSpreadIndex(spreadIndex - 1);
@@ -201,15 +209,19 @@ export default function PageView({ setup, children }) {
         }}
       />
 
+      {/* When zoom ≤ 1 the spread fits the viewport and is centered absolutely.
+          When zoom > 1 we switch to flow layout so the scrollbar can do its job. */}
       <div
-        className="absolute inset-0 flex items-center justify-center px-16"
+        className={overflowsViewport
+          ? "min-h-full flex items-start justify-center px-16 py-8"
+          : "absolute inset-0 flex items-center justify-center px-16"}
         style={{ zIndex: 2 }}
       >
         <div
           className="flex items-start justify-center gap-1"
           style={{
             transform: `scale(${finalZoom})`,
-            transformOrigin: 'center center',
+            transformOrigin: overflowsViewport ? 'top center' : 'center center',
           }}
         >
           {renderSpread(spreadIndex)}

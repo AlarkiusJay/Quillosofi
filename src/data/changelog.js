@@ -17,6 +17,15 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.4.55',
+    date: '2026-05-06',
+    tagline: 'Side-to-side now scrolls vertically when you zoom past fit, and pasting no longer flickers.',
+    changes: [
+      'Side-to-Side mode used to clip both top and bottom of the spread when zoom went above the auto-fit (which the new 125% default did by design). Now the viewport switches to vertical scroll above 100% so you can actually reach the bottom of a tall page.',
+      'Pasting into the Canvas no longer briefly shows the pasted text on the next line before snapping back. Disabled Quill\'s post-paste visual-match pass that was causing the ghost render.',
+    ],
+  },
+  {
     version: '0.4.52',
     date: '2026-05-06',
     tagline: 'Canvas bug squash \u2014 dropdowns now sit on top, multi-page view centers properly, side-to-side defaults to a comfier 125% zoom, and full pages stop expanding.',
