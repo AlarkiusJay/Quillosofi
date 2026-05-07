@@ -17,6 +17,21 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.7',
+    date: '2026-05-07',
+    tagline: 'Pagination that actually paginates. Pages spawn automatically when you fill one, blocks reflow back when you delete — no more “+ Add page”, no more text clipping into the void.',
+    changes: [
+      'Overflow-driven pagination. Type past the bottom of a page and the next paragraph migrates onto a fresh page automatically. Delete a page\'s worth of text and content reflows back from the following page to fill the room. Each page is still its own Tiptap editor under the hood — the new piece is a controller that watches every page\'s height and rebalances at top-level block boundaries (paragraphs, headings, lists, blockquotes, etc.).',
+      'No more “+ Add page”. The dashed Add-page tile is gone from Side-by-Side, and the trailing phantom spread that existed only to host that tile is gone too. Pages spawn implicitly when content overflows.',
+      'Side-by-Side always fits the viewport. The spread auto-scales so both facing pages fit on screen at any window size — no more vertical scroll inside a spread. Wheel and arrow keys page between spreads, just like before.',
+      'Single View now paginates too. View → Multiple Pages with Vertical movement is the new paginated single-page experience: stacked page frames with overflow rebalancing between them. View → One Page still gives you the v0.5.0 continuous-scroll layout if that\'s what you prefer.',
+      'Corner brackets inverted to match Word\'s print-layout cropmarks. The L-shaped marks now sit AT the writable-area corners with arms extending outward into the margin, not inward into the writable area. (Per the OTHER_SS screenshot you flagged.)',
+      'Text now starts at the top-left writable corner, Word-style. The page wrapper was double-applying the margin padding (once on the page-frame, again on the editor wrapper), pushing text ~96px below the top brackets and giving short paragraphs a centered look. Removed the duplicate padding so text snaps to the writable-area top-left and fills downward like every other word processor.',
+      'Paste keeps you on the same line. Default Tiptap pastes any HTML containing a block element (which is most clipboard payloads from browsers, docs, and email) as a brand-new paragraph, breaking your sentence onto a new line. Single-block paste content is now unwrapped and inserted inline at the cursor; multi-paragraph pastes still come in as proper paragraphs.',
+      'Honest scope note: this is the first cut of overflow-driven pagination. Migration happens at top-level block boundaries, so a single paragraph that\'s longer than a page can still visibly overflow its frame until you break it (the controller can\'t safely split a paragraph mid-sentence yet). Caret may jump after a migration completes — if you typed at the end of page 1 and the paragraph migrated to page 2, the caret follows the content but you\'ll see a brief blink. These edges will get polished in 0.5.7.x patches as real-world docs surface them. The real flow-pagination rewrite (one editor across all pages) is parked for 0.6.0.',
+    ],
+  },
+  {
     version: '0.5.3',
     date: '2026-05-06',
     tagline: 'The visible progress card now shows up for manual checks too — Check for Updates and Download New Update finally pop the same toast the auto path uses.',

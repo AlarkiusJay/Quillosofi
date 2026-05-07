@@ -107,37 +107,56 @@ const PageFrame = forwardRef(function PageFrame(
   );
 });
 
-// Render four small corner-bracket guides at the margin intersections.
-// Matches Word's faint corner marks in print layout.
+// v0.5.7 — Inverted corner-bracket guides at the margin intersections.
+// Matches Word's print-layout cropmarks: the bracket sits AT the writable
+// area corner with arms extending OUTWARD into the margin (not inward).
+// Pre-v0.5.7 the arms pointed inward into the writable area, which Alaria
+// flagged as the wrong direction in OTHER-SS-4.
 function CornerBrackets({ padTop, padBottom, padLeft, padRight }) {
   const SIZE = 10;
   const COLOR = 'hsl(220, 8%, 60%)';
   const STROKE = 1;
 
+  // Each corner: position the SIZE×SIZE bracket box so its writable-area
+  // corner sits at the writable area's actual corner. Arms extend outward.
+  // We use borderBottom + borderRight for TL (arms point up+left).
+  // The rotations below produce: TL ⌟, TR ⌞, BL ⌝, BR ⌜ — Word style.
   const corners = [
-    { top: padTop - SIZE / 2, left: padLeft - SIZE / 2 },                 // top-left
-    { top: padTop - SIZE / 2, right: padRight - SIZE / 2 },               // top-right
-    { bottom: padBottom - SIZE / 2, left: padLeft - SIZE / 2 },           // bot-left
-    { bottom: padBottom - SIZE / 2, right: padRight - SIZE / 2 },         // bot-right
+    {
+      // top-left: bracket corner is at (padLeft, padTop). Box extends up-left.
+      pos: { top: padTop - SIZE, left: padLeft - SIZE },
+      // borderBottom + borderRight → an L with corner at bottom-right of box
+      // = bracket's elbow at (padLeft, padTop), arms going up + left into margin.
+      borders: { borderBottom: `${STROKE}px solid ${COLOR}`, borderRight: `${STROKE}px solid ${COLOR}` },
+    },
+    {
+      // top-right: bracket corner at (W-padRight, padTop), box extends up-right.
+      pos: { top: padTop - SIZE, right: padRight - SIZE },
+      borders: { borderBottom: `${STROKE}px solid ${COLOR}`, borderLeft: `${STROKE}px solid ${COLOR}` },
+    },
+    {
+      // bot-left: bracket corner at (padLeft, H-padBottom), box extends down-left.
+      pos: { bottom: padBottom - SIZE, left: padLeft - SIZE },
+      borders: { borderTop: `${STROKE}px solid ${COLOR}`, borderRight: `${STROKE}px solid ${COLOR}` },
+    },
+    {
+      // bot-right: bracket corner at (W-padRight, H-padBottom), box extends down-right.
+      pos: { bottom: padBottom - SIZE, right: padRight - SIZE },
+      borders: { borderTop: `${STROKE}px solid ${COLOR}`, borderLeft: `${STROKE}px solid ${COLOR}` },
+    },
   ];
 
   return (
     <>
-      {corners.map((pos, i) => (
+      {corners.map((c, i) => (
         <div
           key={i}
           className="absolute pointer-events-none"
           style={{
-            ...pos,
+            ...c.pos,
             width: SIZE,
             height: SIZE,
-            borderTop: `${STROKE}px solid ${COLOR}`,
-            borderLeft: `${STROKE}px solid ${COLOR}`,
-            // Rotate to face inward depending on which corner this is
-            transform:
-              i === 1 ? 'rotate(90deg)' :
-              i === 3 ? 'rotate(180deg)' :
-              i === 2 ? 'rotate(-90deg)' : 'none',
+            ...c.borders,
           }}
         />
       ))}
