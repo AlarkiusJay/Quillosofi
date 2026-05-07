@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.2',
+    date: '2026-05-06',
+    tagline: 'Auto-install stops being a ghost. When a new release lands and you have auto-install on, you now actually see the download happening — progress card, percent bar, and an “Install now” button when it finishes.',
+    changes: [
+      'New bottom-right progress card surfaces the auto-install flow in real time. Previously the main process silently fired downloadUpdate() in the background and the only indicator was a status line on the Update tab in Settings — you\'d only spot it if you happened to be there. Now you get a non-blocking card that walks through detected → downloading → ready, with a real percent bar fed by the existing download-progress events.',
+      '“Install now” button on the card once the download finishes — lets you land the update mid-session instead of waiting for next launch. “Later” just dismisses the card and the existing 10-second pending-install countdown still fires when you reopen the app, so nothing is lost either way.',
+      'Per-version dismissal: closing the card for v0.5.3 won\'t pop it back open every time the state ticks. A new release with a different version will show the card again.',
+      'Card stays out of the way — 360px wide, bottom-right, backdrop-blur, doesn\'t block typing. Manual checks (auto-install off) are unchanged: those flows still drive the Update tab in Settings.',
+    ],
+  },
+  {
     version: '0.5.1',
     date: '2026-05-06',
     tagline: 'v0.5.0 follow-ups — tabs switch again, the Hub stops gaslighting you about "no canvases yet", the ruler bar fits the page, and side-to-side mode actually fits on screen.',
