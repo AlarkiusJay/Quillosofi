@@ -133,10 +133,19 @@ function DesktopUpdateView() {
     };
   }, []);
 
+  // v0.5.3 — arms the global <AutoUpdateProgressCard /> so manual flows
+  // surface the same bottom-right toast the auto path uses. The card listens
+  // for this window event and flips its `manuallyArmed` flag on. Cleared
+  // when the user dismisses the card.
+  const armProgressCard = useCallback(() => {
+    try { window.dispatchEvent(new CustomEvent('quillosofi:update-card-arm')); } catch (_) {}
+  }, []);
+
   const handleCheck = useCallback(async () => {
+    armProgressCard();
     setBusy(true);
     try { await window.quillosofi.updates.check(); } finally { setBusy(false); }
-  }, []);
+  }, [armProgressCard]);
 
   // v0.4.51 — manual-check path with fake scan animation. Runs the
   // progress bar from 0→100 over ~1.8s, then awaits the real check. We
@@ -144,6 +153,7 @@ function DesktopUpdateView() {
   // electron-updater's check is a single fetch with no granular events.
   const handleScanThenCheck = useCallback(async () => {
     if (scanning || busy) return;
+    armProgressCard();
     setScanning(true);
     setScanProgress(0);
     const start = Date.now();
@@ -166,17 +176,19 @@ function DesktopUpdateView() {
       setScanning(false);
       setScanProgress(0);
     }, 220);
-  }, [scanning, busy]);
+  }, [scanning, busy, armProgressCard]);
 
   const handleDownload = useCallback(async () => {
+    armProgressCard();
     setBusy(true);
     try { await window.quillosofi.updates.download(); } finally { setBusy(false); }
-  }, []);
+  }, [armProgressCard]);
 
   // Combined "Check + Download" — if the check finds something newer, kick
   // the download. The main process auto-starts when autoInstall is on, but
   // we kick it manually too so the toggle being off doesn't strand the user.
   const handleCheckAndDownload = useCallback(async () => {
+    armProgressCard();
     setBusy(true);
     try {
       const res = await window.quillosofi.updates.check();
@@ -186,7 +198,7 @@ function DesktopUpdateView() {
     } finally {
       setBusy(false);
     }
-  }, [state.currentVersion]);
+  }, [state.currentVersion, armProgressCard]);
 
   const handleInstall = useCallback(async () => {
     setBusy(true);

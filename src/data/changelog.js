@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.3',
+    date: '2026-05-06',
+    tagline: 'The visible progress card now shows up for manual checks too — Check for Updates and Download New Update finally pop the same toast the auto path uses.',
+    changes: [
+      'v0.5.2 only surfaced the bottom-right progress card when auto-install was on. Manual flows still buried the action on the Update tab — if you weren\'t looking, you were guessing. v0.5.3 closes that gap: clicking Check for Updates or Download New Update now arms the same card so you actually see what\'s happening.',
+      'Manual mode adds a Download button on the available phase since the main process doesn\'t auto-fire the download in that mode. Click it and the card transitions to the real percent bar exactly like the auto path, then to Install Now when it\'s done.',
+      'Card stays silent when auto-install is OFF and you haven\'t clicked anything. No drive-by pop-ups when the app detects a release on its own — you only see the card if you opted in by clicking, or if auto-install is on.',
+      'Dismissing the card disarms manual mode (and pins per-version dismissal), so closing the toast doesn\'t make it bounce back on the next state tick. Click Check again to re-arm.',
+    ],
+  },
+  {
     version: '0.5.2',
     date: '2026-05-06',
     tagline: 'Auto-install stops being a ghost. When a new release lands and you have auto-install on, you now actually see the download happening — progress card, percent bar, and an “Install now” button when it finishes.',
