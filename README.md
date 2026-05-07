@@ -4,7 +4,7 @@
 
 # Quillosofi
 
-### Your Writing & Worldbuilding Companion — Canvas, Sheets, Spaces, and a Memory That Actually Sticks.
+### Your Writing & Worldbuilding Companion — Canvas, Sheets, & a Quillibrary Actually Sticks.
 
 `Native Desktop App` · `Privacy First` · `Chalkboard Aesthetic` · `Free & Open Source`
 
