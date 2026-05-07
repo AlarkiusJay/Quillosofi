@@ -513,12 +513,51 @@ function PaginatedEditor({
   registerEditor,
   onFocus,
 }) {
+  // Track which page editor is currently active (focused or last edited)
+  // — used by SpreadsLayout for caret-follow auto-scroll.
+  const [activePageIndex, setActivePageIndex] = useState(0);
+  const pageEditorsLocalRef = useRef({});
+
+  // Hook into the migration controller and detect page-spawn events so we
+  // can transfer focus to the newly-spawned page (Word-style cursor follow).
+  const prevPagesLengthRef = useRef(pages.length);
+  const lastFocusedPageRef = useRef(0);
+
   const { onMeasure } = usePaginationController({
     pages,
     setPages: onPagesChange,
     contentHeightPx,
     isPaginated: true,
   });
+
+  // After a pages-array grows (new page spawned by overflow), if the user
+  // was focused on the now-second-to-last page, transfer focus to the new
+  // last page at its start. This makes typing past page N's bottom feel
+  // like Word: caret continues writing on page N+1.
+  useEffect(() => {
+    const prev = prevPagesLengthRef.current;
+    const cur = pages.length;
+    if (cur > prev) {
+      // Page(s) added. The migration only ever spawns ONE new page per
+      // tick, and only at the end of the array. If the focused page is
+      // the page that just lost its tail block (cur - 2), advance focus
+      // to the new page (cur - 1) at its start.
+      const focused = lastFocusedPageRef.current;
+      if (focused === cur - 2 || focused === cur - 1) {
+        const newIdx = cur - 1;
+        // setTimeout 0 — defer until React commits the new editor.
+        setTimeout(() => {
+          const ed = pageEditorsLocalRef.current[newIdx];
+          if (ed) {
+            ed.commands.focus('start');
+            setActivePageIndex(newIdx);
+            lastFocusedPageRef.current = newIdx;
+          }
+        }, 0);
+      }
+    }
+    prevPagesLengthRef.current = cur;
+  }, [pages.length]);
 
   const updatePage = useCallback((idx, html) => {
     // Avoid re-emitting if no actual change (prevents migration-induced loops).
@@ -527,6 +566,17 @@ function PaginatedEditor({
     next[idx] = html;
     onPagesChange(next);
   }, [pages, onPagesChange]);
+
+  const handlePageFocus = useCallback((ed, idx) => {
+    lastFocusedPageRef.current = idx;
+    setActivePageIndex(idx);
+    onFocus?.(ed);
+  }, [onFocus]);
+
+  const handleRegisterEditor = useCallback((idx, ed) => {
+    pageEditorsLocalRef.current[idx] = ed;
+    registerEditor(idx, ed);
+  }, [registerEditor]);
 
   const renderPage = useCallback((idx, isLive = true) => {
     const html = pages[idx] ?? '';
@@ -555,15 +605,15 @@ function PaginatedEditor({
             placeholder={idx === 0 ? '' : ''}
             ariaLabel={`Canvas page ${idx + 1}`}
             pageIndex={idx}
-            onUpdate={(newHtml, ed) => { registerEditor(idx, ed); updatePage(idx, newHtml); }}
-            onReady={(ed) => { registerEditor(idx, ed); }}
-            onFocus={onFocus}
+            onUpdate={(newHtml, ed) => { handleRegisterEditor(idx, ed); updatePage(idx, newHtml); }}
+            onReady={(ed) => { handleRegisterEditor(idx, ed); }}
+            onFocus={(ed) => handlePageFocus(ed, idx)}
             onMeasure={onMeasure}
           />
         </div>
       </PageFrame>
     );
-  }, [pages, setup, pageHeightPx, padTop, padBottom, padLeft, padRight, registerEditor, updatePage, onFocus, onMeasure]);
+  }, [pages, setup, pageHeightPx, padTop, padBottom, padLeft, padRight, handleRegisterEditor, updatePage, handlePageFocus, onMeasure]);
 
   if (mode === 'spreads') {
     return (
@@ -573,6 +623,7 @@ function PaginatedEditor({
         setup={setup}
         pageWidthPx={pageWidthPx}
         pageHeightPx={pageHeightPx}
+        activePageIndex={activePageIndex}
       />
     );
   }
@@ -589,18 +640,58 @@ function PaginatedEditor({
 }
 
 // ── Side-to-Side spreads layout (fit-to-viewport, horizontal scroll) ─────
-function SpreadsLayout({ pages, renderPage, setup, pageWidthPx, pageHeightPx }) {
+// v0.5.71 — Word-style sliding strip:
+//   • Render all spreads in one wide horizontal strip
+//   • Translate the strip by -spreadIndex * (spreadW + gap) with a
+//     cubic-bezier(0.22, 0.61, 0.36, 1) ease over 320ms (matches Word's
+//     page-flip pacing closely)
+//   • All pages stay mounted and measure normally (no -99999 hack)
+//   • Caret-follow: when active page index changes, advance/rewind
+//     spread to the spread containing it
+function SpreadsLayout({
+  pages,
+  renderPage,
+  setup,
+  pageWidthPx,
+  pageHeightPx,
+  activePageIndex,
+}) {
   const [spreadIndex, setSpreadIndex] = useState(0);
+  const [animEnabled, setAnimEnabled] = useState(false);
 
-  const totalSpreads = Math.max(1, Math.ceil(pages.length / 2));
+  // Spread layout:
+  //   spread 0  = { cover, page 0 }
+  //   spread N  = { page (2N - 1), page (2N) } for N ≥ 1
+  // So with P pages, total spreads = ceil((P + 1) / 2). With P=1 we get 1
+  // spread (cover+p0). With P=2 we get 2 spreads (cover+p0, p1+ph). Etc.
+  const totalSpreads = Math.max(1, Math.ceil((pages.length + 1) / 2));
   // Keep spread index in range when pages shrink.
   useEffect(() => {
     setSpreadIndex((s) => Math.min(s, totalSpreads - 1));
   }, [totalSpreads]);
 
-  const leftIdx = spreadIndex * 2 - 1;
-  const rightIdx = spreadIndex * 2;
-  const isFirst = spreadIndex === 0;
+  // Spread layout: spread 0 is { cover, page0 }; spread N (N≥1) is
+  // { page (2N-1), page (2N) }. Compute which spread a given page index
+  // falls into so we can implement caret-follow.
+  const spreadOfPage = (pageIdx) => {
+    if (pageIdx <= 0) return 0;
+    return Math.ceil(pageIdx / 2);
+  };
+
+  // Caret-follow: when a different page becomes active (focused or
+  // newly spawned by overflow), slide to the spread containing it.
+  useEffect(() => {
+    if (activePageIndex == null || activePageIndex < 0) return;
+    const target = Math.min(spreadOfPage(activePageIndex), totalSpreads - 1);
+    setSpreadIndex((cur) => (cur !== target ? target : cur));
+  }, [activePageIndex, totalSpreads]);
+
+  // Enable transitions only AFTER the first paint so the initial render
+  // doesn't slide in from off-screen.
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setAnimEnabled(true));
+    return () => cancelAnimationFrame(t);
+  }, []);
 
   // Wheel/keyboard nav.
   const wheelAccum = useRef(0);
@@ -628,6 +719,7 @@ function SpreadsLayout({ pages, renderPage, setup, pageWidthPx, pageHeightPx }) 
   // scene height (and width), so no vertical scroll inside a spread.
   const sceneRef = useRef(null);
   const SPINE_GAP_PX = 4;
+  const SPREAD_GAP_PX = 64; // gap between adjacent spreads in the strip
   const spreadWidth = pageWidthPx * 2 + SPINE_GAP_PX;
   const spreadHeight = pageHeightPx;
   const [scale, setScale] = useState(1);
@@ -650,6 +742,28 @@ function SpreadsLayout({ pages, renderPage, setup, pageWidthPx, pageHeightPx }) 
     return () => { ro.disconnect(); window.removeEventListener('resize', recompute); };
   }, [spreadWidth, spreadHeight]);
 
+  // Build the spread descriptors. Each spread = [leftPageIdx | null,
+  // rightPageIdx | null]. Spread 0 has a decorative cover on the left.
+  const spreadDescriptors = [];
+  for (let s = 0; s < totalSpreads; s++) {
+    if (s === 0) {
+      spreadDescriptors.push({ left: 'cover', right: 0 in pages ? 0 : 'placeholder' });
+    } else {
+      const li = s * 2 - 1;
+      const ri = s * 2;
+      spreadDescriptors.push({
+        left: li < pages.length ? li : 'placeholder',
+        right: ri < pages.length ? ri : 'placeholder',
+      });
+    }
+  }
+
+  // Translate the strip by -spreadIndex * (spreadWidth + SPREAD_GAP).
+  // The strip is centered horizontally inside the scaled wrapper, so
+  // start with a translateX that puts spread 0 at center, then offset
+  // by spreadIndex.
+  const stripOffset = -spreadIndex * (spreadWidth + SPREAD_GAP_PX);
+
   return (
     <div
       className="flex-1 relative flex flex-col overflow-hidden"
@@ -668,14 +782,8 @@ function SpreadsLayout({ pages, renderPage, setup, pageWidthPx, pageHeightPx }) 
         onWheel={onWheel}
         style={{ zIndex: 2 }}
       >
-        {/* Hidden mount-host: every page editor lives here as long as it's
-            in `pages[]`, so off-screen pages still measure and migrate. We
-            move the visible ones into the spread via portal-like absolute
-            positioning of their wrappers (using `display:none` for the
-            non-visible ones keeps measurement alive — display:none does NOT
-            zero scrollHeight on a contenteditable body in modern browsers,
-            it just hides paint). */}
         <div className="absolute inset-0 flex items-center justify-center">
+          {/* Scale wrapper — fits one spread to the viewport */}
           <div
             style={{
               transform: `scale(${scale})`,
@@ -683,62 +791,107 @@ function SpreadsLayout({ pages, renderPage, setup, pageWidthPx, pageHeightPx }) 
               transition: 'transform 120ms ease-out',
             }}
           >
-            <div className="flex items-start justify-center gap-1 relative">
-              {/* Spine shadow */}
+            {/* Strip wrapper — fixed width = spreadWidth, clips the strip
+                so adjacent spreads (rendered side-by-side in the strip)
+                stay invisible until the strip slides them into view.
+                Off-screen spreads stay mounted so the overflow controller
+                can keep measuring and migrating them in the background. */}
+            <div
+              style={{
+                width: spreadWidth,
+                height: spreadHeight,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
               <div
-                className="absolute inset-y-0 pointer-events-none"
                 style={{
-                  left: '50%',
-                  width: 24,
-                  transform: 'translateX(-50%)',
-                  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',
-                  zIndex: 1,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: SPREAD_GAP_PX,
+                  transform: `translateX(${stripOffset}px)`,
+                  transition: animEnabled
+                    ? 'transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1)'
+                    : 'none',
+                  willChange: 'transform',
                 }}
-              />
-              {/* Render ALL pages — the visible two are positioned in the
-                  flex flow, the rest are absolutely positioned outside the
-                  viewport so they still mount and measure but don't paint. */}
-              {pages.map((_, idx) => {
-                const isVisibleLeft = !isFirst && idx === leftIdx;
-                const isVisibleRight = idx === rightIdx;
-                const isVisible = isVisibleLeft || isVisibleRight;
-                const visibleOrder = isVisibleLeft ? 0 : (isVisibleRight ? 1 : -1);
-                const wrapperStyle = isVisible
-                  ? { order: visibleOrder, width: pageWidthPx, height: pageHeightPx }
-                  : {
-                      position: 'absolute',
-                      left: -99999,
-                      top: 0,
-                      width: pageWidthPx,
-                      height: pageHeightPx,
-                      pointerEvents: 'none',
-                      opacity: 0,
-                    };
-                return (
-                  <div key={`page-${idx}`} style={wrapperStyle}>
-                    {renderPage(idx, true)}
+              >
+                {spreadDescriptors.map((sd, sIdx) => (
+                  <div
+                    key={`spread-${sIdx}`}
+                    style={{
+                      width: spreadWidth,
+                      height: spreadHeight,
+                      flexShrink: 0,
+                      position: 'relative',
+                    }}
+                  >
+                    {/* Spine shadow */}
+                    <div
+                      className="absolute inset-y-0 pointer-events-none"
+                      style={{
+                        left: '50%',
+                        width: 24,
+                        transform: 'translateX(-50%)',
+                        background:
+                          'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',
+                        zIndex: 1,
+                      }}
+                    />
+                    <div
+                      className="flex items-start justify-center gap-1 relative"
+                      style={{ width: spreadWidth, height: spreadHeight }}
+                    >
+                      {/* LEFT slot */}
+                      <div style={{ width: pageWidthPx, height: pageHeightPx }}>
+                        {sd.left === 'cover' ? (
+                          <PageFrame
+                            setup={setup}
+                            pageIndex={1}
+                            live={false}
+                            number={null}
+                            fixedHeight={pageHeightPx}
+                          />
+                        ) : sd.left === 'placeholder' ? (
+                          <PageFrame
+                            setup={setup}
+                            pageIndex={sIdx * 2 - 1}
+                            live={false}
+                            number={null}
+                            fixedHeight={pageHeightPx}
+                          />
+                        ) : (
+                          renderPage(sd.left, true)
+                        )}
+                      </div>
+                      {/* RIGHT slot */}
+                      <div style={{ width: pageWidthPx, height: pageHeightPx }}>
+                        {sd.right === 'placeholder' ? (
+                          <PageFrame
+                            setup={setup}
+                            pageIndex={sIdx * 2}
+                            live={false}
+                            number={null}
+                            fixedHeight={pageHeightPx}
+                          />
+                        ) : (
+                          renderPage(sd.right, true)
+                        )}
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
-              {/* Cover decorative page on first spread (left side) */}
-              {isFirst && (
-                <div style={{ order: 0, width: pageWidthPx, height: pageHeightPx }}>
-                  <PageFrame setup={setup} pageIndex={1} live={false} number={null} fixedHeight={pageHeightPx} />
-                </div>
-              )}
-              {/* Placeholder right page when only one real page exists (so spread looks balanced). */}
-              {rightIdx >= pages.length && (
-                <div style={{ order: 1, width: pageWidthPx, height: pageHeightPx }}>
-                  <PageFrame setup={setup} pageIndex={rightIdx} live={false} number={null} fixedHeight={pageHeightPx} />
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Spread navigation footer */}
-      <div className="px-3 py-1.5 flex items-center justify-center gap-3 border-t border-[hsl(var(--chalk-white-faint)/0.15)] bg-[hsl(var(--chalk-deep)/0.55)] shrink-0" style={{ zIndex: 3 }}>
+      <div
+        className="px-3 py-1.5 flex items-center justify-center gap-3 border-t border-[hsl(var(--chalk-white-faint)/0.15)] bg-[hsl(var(--chalk-deep)/0.55)] shrink-0"
+        style={{ zIndex: 3 }}
+      >
         <button
           onClick={() => setSpreadIndex((s) => Math.max(0, s - 1))}
           disabled={spreadIndex === 0}

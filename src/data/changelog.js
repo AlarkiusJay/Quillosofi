@@ -17,6 +17,16 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.5.71',
+    date: '2026-05-07',
+    tagline: 'Spread and Single now show the same document, and the Side-by-Side spread slides between pages like Word — including auto-following the cursor onto the next page when you fill the current one.',
+    changes: [
+      'Format preserved across mode switches. Switching between Single View and Side-by-Side used to silently drift the document because the two modes wrote into separate stores (`content` vs `pages[]`). Both stores are now mirrored on every keystroke, so the doc you see in Spread is the exact same doc you see in Single — same paragraphs, same indents, same everything. Whichever mode you were just typing in is the canonical source.',
+      'Side-by-Side now slides between spreads like Word. Replaced the old swap-positioning hack (which jammed the off-screen pages at left:-99999) with a single horizontal strip that translates with a 320ms cubic-bezier(0.22, 0.61, 0.36, 1) ease — the same pacing Word uses for its page transitions. Off-screen spreads stay mounted so the overflow controller can keep measuring and migrating in the background.',
+      'Caret follows you onto the next page. When you type past the bottom of the current page and overflow spawns a new page, the cursor now jumps to that new page at its start — and the spread auto-advances to show it. No more typing into the void on page 1 while the new page sits invisible on the right side of spread 2. Same logic when you click into a different page: the spread containing that page slides into view automatically.',
+    ],
+  },
+  {
     version: '0.5.7',
     date: '2026-05-07',
     tagline: 'Pagination that actually paginates. Pages spawn automatically when you fill one, blocks reflow back when you delete — no more “+ Add page”, no more text clipping into the void.',

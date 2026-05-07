@@ -409,17 +409,30 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     autoSaveTimer.current = setTimeout(() => save(nextContent, nextPages), 1200);
   }, [title]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // v0.5.71 — bidirectional sync. Whenever EITHER `content` or `pages`
+  // changes, the OTHER must be updated to match so that mode-switching
+  // (continuous-single ↔ paginated) shows the same canonical document
+  // with formatting preserved. The two stores are always equivalent:
+  //   • content === pages.join('') for paginated docs
+  //   • content === pages[0] for single-page (or freshly continuous) docs
   const handleContentChange = useCallback((html) => {
     setContent(html);
-    scheduleAutoSave(html, undefined);
+    // Mirror to pages so a future spread mount reads the same HTML. Single
+    // page is fine — the overflow controller will repaginate on first paint
+    // if the doc is too tall for one page.
+    const mirroredPages = [html];
+    setPages(mirroredPages);
+    scheduleAutoSave(html, mirroredPages);
   }, [scheduleAutoSave]);
 
   const handlePagesChange = useCallback((nextPages) => {
     setPages(nextPages);
-    // In side-to-side mode, also keep `content` synced to the joined pages so
-    // exports + Quillibrary previews + non-side-to-side rendering still see
-    // the latest text.
-    const joined = (nextPages || []).join('\n');
+    // Pages are already complete HTML blobs; concatenate without a
+    // separator (a raw '\n' between two block-level HTML strings is
+    // semantically harmless but creates phantom whitespace text-nodes
+    // when re-parsed by a continuous editor — which was the v0.5.7
+    // formatting drift between modes).
+    const joined = (nextPages || []).join('');
     setContent(joined);
     scheduleAutoSave(joined, nextPages);
   }, [scheduleAutoSave]);
