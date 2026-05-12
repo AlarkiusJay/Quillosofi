@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Settings, Home, Pencil, BookOpen, FileText, Table2 } from 'lucide-react';
+import { Settings, Home, Pencil, BookOpen, FileText, Table2, ChevronRight } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -98,6 +98,22 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
   const isSheetsHub = location.pathname === '/sheets' || location.pathname.startsWith('/sheets/');
   const activeSpaceId = location.pathname.startsWith('/space/') ? location.pathname.split('/space/')[1] : null;
 
+  // v0.6.10-Alpha1 — Breadcrumb in the middle of the top bar.
+  // The currently-open canvas dispatches `quillscript:breadcrumb` events
+  // with its title + space name so the rail can render "Space › Title".
+  // When no canvas is open the existing spaces strip still renders.
+  const [breadcrumb, setBreadcrumb] = useState(null);
+  useEffect(() => {
+    const onCrumb = (e) => setBreadcrumb(e.detail || null);
+    window.addEventListener('quillscript:breadcrumb', onCrumb);
+    return () => window.removeEventListener('quillscript:breadcrumb', onCrumb);
+  }, []);
+  // Clear breadcrumb whenever we navigate off a canvas detail route.
+  useEffect(() => {
+    const onCanvasRoute = location.pathname.startsWith('/canvas/');
+    if (!onCanvasRoute) setBreadcrumb(null);
+  }, [location.pathname]);
+
   const railBtn = (active) => cn(
     'w-11 h-11 md:w-9 md:h-9 rounded-[18px] flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 active:brightness-75',
     active ? 'bg-primary rounded-[10px]' : 'bg-[hsl(228,7%,42%)] hover:bg-primary hover:rounded-[10px]'
@@ -118,13 +134,17 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             </Link>
           </Tooltip>
 
-          <Tooltip text="Canvas — writing editor">
+          {/* v0.6.10-Alpha1 — Canvas renamed to Quillscript (Notion-style
+              writing hub). Same route, same data; the rename is purely
+              the hub identity. Icon swaps FileText → Pencil to lean into
+              the "write" affordance. */}
+          <Tooltip text="Quillscript — writing hub">
             <button
               onClick={() => navigate('/canvas')}
               style={{ touchAction: 'manipulation' }}
               className={railBtn(isCanvasHub)}
             >
-              <FileText className="h-4 w-4 text-white" />
+              <Pencil className="h-4 w-4 text-white" />
             </button>
           </Tooltip>
 
@@ -151,8 +171,22 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
           <div className="h-6 w-px bg-[hsl(220,7%,25%)] mx-1" />
         </div>
 
-        {/* Scrollable spaces section — always visible in v0.4.46+, since
-            spaces are now a pure writing organisation feature. */}
+        {/* Middle section.
+            v0.6.10-Alpha1: when a canvas is open, render a "Space › Title"
+            breadcrumb so the user always knows where they are. Otherwise
+            (default), show the horizontally-scrolling spaces strip from
+            v0.4.46+. */}
+        {breadcrumb ? (
+          <div className="flex-1 min-w-0 px-3 flex items-center gap-1.5 text-xs">
+            <span className="text-[hsl(220,7%,55%)] font-mono uppercase tracking-wider shrink-0">
+              {breadcrumb.space || 'Unsorted'}
+            </span>
+            <ChevronRight className="h-3 w-3 text-[hsl(220,7%,40%)] shrink-0" />
+            <span className="text-white font-medium truncate" title={breadcrumb.title}>
+              {breadcrumb.title || 'Untitled'}
+            </span>
+          </div>
+        ) : (
         <div
           ref={scrollRef}
           className="flex items-center gap-2 overflow-x-auto spacerail-scroll flex-1 px-2"
@@ -196,6 +230,7 @@ export default function SpaceRail({ spaces, onSpaceCreated }) {
             );
           })}
         </div>
+        )}
 
         {/* Right fixed buttons: Settings */}
         <div className="flex items-center gap-2 px-3 shrink-0">

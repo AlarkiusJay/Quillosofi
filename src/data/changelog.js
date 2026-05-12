@@ -17,6 +17,29 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.35-Alpha1',
+    date: '2026-05-12',
+    tagline: 'Quillscript hub lands. Single-editor architecture kills the cross-page select-all bug at the root, the toolbar moves to a sticky bottom redux bar, a Notion-style left sidebar tree organizes canvases by Space, and a per-canvas Quillginate toggle parks the v0.5.82 paginator behind an opt-in switch.',
+    changes: [
+      'Quillscript is now the default writing mode. One Tiptap editor instance per canvas — not one per page. Cmd/Ctrl+A and drag-select cross any boundary the way Word and Notion do, because the boundaries are pure CSS now, not separate editors.',
+      'Notion-style page header at the top of every canvas: a large emoji, a serif title input (Oldenburg, locked-in display face), and the body underneath. Enter from the title hops focus to the body the way Notion does.',
+      'Sticky bottom redux bar hosts every formatting control that used to sit at the top in v0.5.82: font size, B/I/U/S, alignment, indent in/out, line spacing, lists, blockquote, code block, link, divider, ¶ Paragraph dialog, and View menu. Same commands, same shortcuts, just always-visible at the foot of the editor.',
+      'New left sidebar: Pinned section, per-Space groups, Unsorted, with collapsible sections persisted in localStorage. The sidebar reflects the Canvas store directly so it stays in sync with Quillibrary regardless of Quillginate state. Drag-reorder and inline rename are queued for Alpha 2.',
+      'New Quillginate toggle (the parchment-scroll icon next to Save in the canvas header). Per-canvas, persisted. Off by default — no paginator, no overflow controller, no per-page editors. Flip it on and the v0.5.82 paginated layout takes over verbatim (chalkboard pages, ruler, outline rail, top toolbar) so layout-review still works pixel-identically to before.',
+      'Top bar gains a breadcrumb. When a canvas is open, the middle of the bar shows “Space › Title” instead of the spaces strip. The spaces strip still renders everywhere else. Canvas rail button renamed to Quillscript and reskinned to a pencil glyph.',
+      'Silent migration shim merges legacy pages[] into a single doc:html blob when a v0.5.x canvas opens in Quillscript for the first time. The legacy stores are left untouched so flipping Quillginate back on still picks up the original paginated layout where applicable.',
+      'Alaria-internal: this is the first of four alphas in the v0.6 cycle. Alpha 2 (~v0.6.65) wires up Quillginate proper — lifecycle teardown when off, tri-hub sync ring when on, page frames + ruler + spread mode + hard page breaks. Alpha 3 (~v0.6.95) is bugfix-only and becomes the v0.6 final.',
+    ],
+  },
+  {
+    version: '0.6.10-base0',
+    date: '2026-05-12',
+    tagline: 'Title commit — opens the v0.6 rewrite cycle. Functionally identical to v0.5.82.',
+    changes: [
+      'Version flag for the start of the v0.6 cycle. No behavior change — every byte of code from v0.5.82 still ships untouched. The bump exists so the v0.6 alphas have a clean ancestor on main.',
+    ],
+  },
+  {
     version: '0.5.8',
     date: '2026-05-07',
     tagline: 'A real Word-style Paragraph dialog lives next to the View button now \u2014 indents, spacing, line spacing, page-break-before, hyphenation, and a full multilingual Asian Typography tab that adapts to whichever CJK or other Asian script you\u2019re actually writing in.',

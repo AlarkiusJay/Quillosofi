@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { useEditorTabs } from '@/lib/editorTabs';
 import TabStrip from '@/components/editors/TabStrip';
 import CanvasEditor from '@/components/vault/CanvasEditor';
+// v0.6.10-Alpha1 — Notion-style left sidebar for Quillscript
+import QuillscriptSidebar from '@/components/quillscript/QuillscriptSidebar';
 
 // CanvasEditorHub — full-page editor hub for canvases.
 //   /canvas         → landing (Resume Last + Recent grid + New Blank)
@@ -134,47 +136,60 @@ export default function CanvasEditorHub() {
   }, [navigate, setActiveId]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(220,8%,13%)]">
-      <div className="flex items-stretch border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,14%)] shrink-0">
-        <button
-          onClick={goHome}
-          title="Canvas Hub"
-          className="px-3 flex items-center gap-1.5 text-[11px] font-medium text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(228,7%,22%)] transition-colors border-r border-[hsl(225,9%,14%)] shrink-0"
-        >
-          <Home className="h-3.5 w-3.5" />
-          <span className="font-mono uppercase tracking-wider">Canvas Hub</span>
-        </button>
-        <div className="flex-1 min-w-0">
-          <TabStrip
-            tabs={tabDescriptors}
-            activeId={activeId}
-            onSelect={setActiveId}
-            onClose={handleCloseTab}
-            onNew={handleNew}
-            placeholder="No canvases open — pick one below or hit + to start fresh"
-          />
-        </div>
-      </div>
+    <div className="flex-1 flex overflow-hidden bg-[hsl(220,8%,13%)]">
+      {/* v0.6.10-Alpha1 — Notion-style left sidebar. Persistent across
+          canvases (not per-tab), shows pinned + spaces + unsorted. */}
+      <QuillscriptSidebar
+        canvases={allCanvases}
+        activeId={activeId}
+        openTabIds={tabs}
+        onOpen={handleOpen}
+        onNew={handleNew}
+        onOpenQuillibrary={() => navigate('/quillibrary')}
+      />
 
-      {activeCanvas ? (
-        <CanvasEditor
-          key={activeCanvas.id}
-          canvas={activeCanvas}
-          embedded
-          onUpdate={handleUpdateCanvas}
-          onHome={goHome}
-        />
-      ) : (
-        <Landing
-          loading={loading}
-          lastOpenCard={lastOpenCard}
-          recent={recent}
-          openTabSet={openTabSet}
-          onOpen={handleOpen}
-          onNew={handleNew}
-          navigate={navigate}
-        />
-      )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-stretch border-b border-[hsl(225,9%,14%)] bg-[hsl(220,8%,14%)] shrink-0">
+          <button
+            onClick={goHome}
+            title="Quillscript Hub"
+            className="px-3 flex items-center gap-1.5 text-[11px] font-medium text-[hsl(220,7%,55%)] hover:text-white hover:bg-[hsl(228,7%,22%)] transition-colors border-r border-[hsl(225,9%,14%)] shrink-0"
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span className="font-mono uppercase tracking-wider">Quillscript</span>
+          </button>
+          <div className="flex-1 min-w-0">
+            <TabStrip
+              tabs={tabDescriptors}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onClose={handleCloseTab}
+              onNew={handleNew}
+              placeholder="No canvases open — pick one from the sidebar or hit + to start fresh"
+            />
+          </div>
+        </div>
+
+        {activeCanvas ? (
+          <CanvasEditor
+            key={activeCanvas.id}
+            canvas={activeCanvas}
+            embedded
+            onUpdate={handleUpdateCanvas}
+            onHome={goHome}
+          />
+        ) : (
+          <Landing
+            loading={loading}
+            lastOpenCard={lastOpenCard}
+            recent={recent}
+            openTabSet={openTabSet}
+            onOpen={handleOpen}
+            onNew={handleNew}
+            navigate={navigate}
+          />
+        )}
+      </div>
     </div>
   );
 }

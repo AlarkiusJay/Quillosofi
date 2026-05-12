@@ -20,6 +20,12 @@ import PageView from './PageView';
 import TiptapPagedEditor from './TiptapPagedEditor';
 import { makeLegacyQuillAdapter } from '@/lib/tiptap/legacyQuillAdapter';
 import { loadPageSetup, savePageSetup, saveAsDefaultPageSetup, effectiveDimensions, inchToPx } from '@/lib/pageSetup';
+// v0.6.10-Alpha1 — Quillscript hub additions
+import QuillscriptEditor from '@/components/quillscript/QuillscriptEditor';
+import BottomReduxBar from '@/components/quillscript/BottomReduxBar';
+import { isQuillginateActive, setQuillginateActive } from '@/lib/quillginate';
+import { joinPagesToDoc } from '@/lib/tiptap/joinPagesToDoc';
+import { ScrollText } from 'lucide-react';
 
 // v0.5.0 — Tiptap takes the canvas. Quill is gone. The toolbar / ruler /
 // header navigator all keep their existing `quillRef.current.getEditor()`
@@ -321,10 +327,31 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
 
   const [title, setTitle] = useState(canvas.title || 'Untitled Canvas');
   const [editingTitle, setEditingTitle] = useState(false);
-  const [content, setContent] = useState(canvas.content || '');
+  // v0.6.10-Alpha1 — Quillscript reads a single HTML blob derived from
+  // the legacy `content` / `pages[]` pair via the migration shim. The
+  // shim is lossless: if `pages` carries the freshest data it's joined,
+  // otherwise `content` is used as-is.
+  const [content, setContent] = useState(() => joinPagesToDoc(canvas));
   const [pages, setPages] = useState(() =>
     Array.isArray(canvas.pages) && canvas.pages.length ? canvas.pages : null
   );
+
+  // Quillginate toggle (per-canvas, persisted in localStorage). When OFF
+  // (default), the Quillscript single-editor renders and no paginator
+  // mounts at all. When ON, the v0.5.82 paginated editor takes over —
+  // visually identical to v0.5.82 so Alaria's chalkboard aesthetic is
+  // preserved verbatim.
+  const [quillginateOn, setQuillginateOn] = useState(() => isQuillginateActive(canvas.id));
+  useEffect(() => {
+    setQuillginateOn(isQuillginateActive(canvas.id));
+  }, [canvas.id]);
+  const toggleQuillginate = useCallback(() => {
+    setQuillginateOn((prev) => {
+      const next = !prev;
+      setQuillginateActive(canvas.id, next);
+      return next;
+    });
+  }, [canvas.id]);
   const [savedLabel, setSavedLabel] = useState('');
   const [isPinned, setIsPinned] = useState(canvas.is_pinned || false);
   const [isFavorite, setIsFavorite] = useState(canvas.is_favorite || false);
@@ -418,6 +445,25 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     autoSaveTimer.current = setTimeout(() => save(nextContent, nextPages), 1200);
   }, [title]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // v0.6.10-Alpha1 — Quillscript inline title edits aren't gated by a
+  // blur handler (the input is just a controlled text field inside the
+  // editor body). Debounce-save whenever the title changes so the new
+  // title persists without a manual save click. Skipped on the very
+  // first render to avoid a no-op save on canvas open.
+  const titleSaveTimer = useRef(null);
+  const titleHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!titleHydratedRef.current) { titleHydratedRef.current = true; return; }
+    clearTimeout(titleSaveTimer.current);
+    titleSaveTimer.current = setTimeout(() => {
+      const trimmed = (title || '').trim() || 'Untitled Canvas';
+      app.entities.Canvas.update(canvas.id, { title: trimmed }).then((updated) => {
+        onUpdate?.(updated);
+      }).catch(() => { /* swallow — next autosave retries */ });
+    }, 900);
+    return () => clearTimeout(titleSaveTimer.current);
+  }, [title, canvas.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // v0.5.71 — bidirectional sync. Whenever EITHER `content` or `pages`
   // changes, the OTHER must be updated to match so that mode-switching
   // (continuous-single ↔ paginated) shows the same canonical document
@@ -503,6 +549,23 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     };
   }, []);
 
+  // v0.6.10-Alpha1 — Broadcast "Space › Title" breadcrumb to the top
+  // rail so the user always knows where they are. Fires whenever the
+  // title or space changes, and clears on unmount so navigating off the
+  // canvas hub doesn't leave a stale crumb.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('quillscript:breadcrumb', {
+      detail: {
+        title: title || 'Untitled',
+        space: canvas.space_name || 'Unsorted',
+        canvasId: canvas.id,
+      },
+    }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('quillscript:breadcrumb', { detail: null }));
+    };
+  }, [title, canvas.space_name, canvas.id]);
+
   // Inner shell — header, toolbar, editor, footer. Modal mode wraps this in a
   // fixed overlay; embedded mode renders it as a flex child of the hub.
   const shell = (
@@ -517,32 +580,45 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
       >
         <DictionaryContextMenu containerRef={editorContainerRef} />
 
-        {/* Header — close button is hidden in embedded mode (tabs handle close) */}
+        {/* Header — close button is hidden in embedded mode (tabs handle close).
+            v0.6.10-Alpha1: in Quillscript mode the title input is rendered
+            inline at the top of the editor body (Notion-style header), so
+            the header only shows the breadcrumb-style label + the canvas
+            chrome buttons. In Quillginate mode the legacy title chip is
+            kept for parity with v0.5.82. */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[hsl(225,9%,18%)] bg-[hsl(220,8%,15%)] shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="text-lg">📄</span>
-            {editingTitle ? (
-              <input
-                autoFocus
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => saveTitle(title)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveTitle(title);
-                  if (e.key === 'Escape') { setTitle(canvas.title || 'Untitled Canvas'); setEditingTitle(false); }
-                }}
-                className="text-base font-semibold bg-[hsl(228,8%,22%)] border border-primary/50 rounded px-2 py-0.5 text-white focus:outline-none w-64"
-              />
+            {quillginateOn ? (
+              <>
+                <span className="text-lg">📄</span>
+                {editingTitle ? (
+                  <input
+                    autoFocus
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={() => saveTitle(title)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveTitle(title);
+                      if (e.key === 'Escape') { setTitle(canvas.title || 'Untitled Canvas'); setEditingTitle(false); }
+                    }}
+                    className="text-base font-semibold bg-[hsl(228,8%,22%)] border border-primary/50 rounded px-2 py-0.5 text-white focus:outline-none w-64"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setEditingTitle(true)}
+                    className="text-base font-semibold text-white hover:text-primary transition-colors truncate"
+                    title="Click to rename"
+                  >
+                    {title}
+                  </button>
+                )}
+              </>
             ) : (
-              <button
-                onClick={() => setEditingTitle(true)}
-                className="text-base font-semibold text-white hover:text-primary transition-colors truncate"
-                title="Click to rename"
-              >
-                {title}
-              </button>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[hsl(220,7%,55%)] truncate">
+                Quillscript · {canvas.space_name || 'Unsorted'} · {title || 'Untitled'}
+              </span>
             )}
-            {canvas.space_name && (
+            {quillginateOn && canvas.space_name && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium shrink-0">
                 {canvas.space_name}
               </span>
@@ -597,6 +673,24 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
             <button onClick={() => save()} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-white transition-colors" title="Save now">
               <Save className="h-4 w-4" />
             </button>
+            {/* v0.6.10-Alpha1 — Quillginate toggle.
+                Per-canvas, persisted. When ON, the paginated layout
+                editor mounts; when OFF, Quillscript single-editor
+                renders. Tooltip + active styling makes the current
+                state obvious without a separate label. */}
+            <button
+              onClick={toggleQuillginate}
+              title={quillginateOn ? 'Quillginate ON — click to switch to Quillscript' : 'Quillginate OFF — click to activate page layout'}
+              className={cn(
+                'h-7 px-2 rounded flex items-center gap-1 text-xs font-mono uppercase tracking-wider transition-colors',
+                quillginateOn
+                  ? 'text-[hsl(var(--chalk-yellow))] bg-[hsl(var(--chalk-deep)/0.7)]'
+                  : 'text-[hsl(220,7%,45%)] hover:text-white'
+              )}
+            >
+              <ScrollText className="h-4 w-4" />
+              <span>{quillginateOn ? 'Quillginate' : 'Off'}</span>
+            </button>
             {!embedded && (
               <button onClick={onClose} className="h-7 w-7 rounded flex items-center justify-center text-[hsl(220,7%,45%)] hover:text-white transition-colors">
                 <X className="h-4 w-4" />
@@ -605,41 +699,71 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           </div>
         </div>
 
-        {/* Toolbar */}
-        <Toolbar
-          quillRef={quillRef}
-          pageSetup={pageSetup}
-          onPageSetupChange={updatePageSetup}
-          onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
-          onOpenParagraphDialog={() => setShowParagraphDialog(true)}
-        />
-
-        {/* Editor + outline rail (rail on the LEFT, ruler bar above editor — v0.4.30) */}
-        <div className="flex flex-1 overflow-hidden relative">
-          <HeaderNavigator quillRef={quillRef} content={content} />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Ruler is constrained to the page width so its ticks/markers
-                line up with the actual page content, not the full window.
-                v0.5.81 — also rendered in side-to-side spread mode, wired
-                to whichever page editor currently has focus (the ruler
-                tracks `activeEditor` via `editorTick`). */}
-            <PageRulerSlot setup={pageSetup}>
-              <CanvasRuler quillRef={quillRef} canvasId={canvas.id} editorTick={activeEditor} />
-            </PageRulerSlot>
-            <PageView setup={pageSetup}>
-              <TiptapPagedEditor
-                ref={tiptapRef}
-                setup={pageSetup}
+        {/* Editor surface — mode swap:
+              • Quillginate ON  → v0.5.82 paginated layout (TiptapPagedEditor +
+                                  ruler + outline rail + top toolbar)
+              • Quillginate OFF → Quillscript single-editor (bottom redux
+                                  bar, Notion-style page header)
+            By spec (Alaria): "Quillginate (off mode) will NOT run as
+            background task" — in OFF mode TiptapPagedEditor is fully
+            unmounted and no paginator process exists. */}
+        {quillginateOn ? (
+          <>
+            {/* Quillginate top toolbar (preserved verbatim from v0.5.82) */}
+            <Toolbar
+              quillRef={quillRef}
+              pageSetup={pageSetup}
+              onPageSetupChange={updatePageSetup}
+              onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
+              onOpenParagraphDialog={() => setShowParagraphDialog(true)}
+            />
+            <div className="flex flex-1 overflow-hidden relative">
+              <HeaderNavigator quillRef={quillRef} content={content} />
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <PageRulerSlot setup={pageSetup}>
+                  <CanvasRuler quillRef={quillRef} canvasId={canvas.id} editorTick={activeEditor} />
+                </PageRulerSlot>
+                <PageView setup={pageSetup}>
+                  <TiptapPagedEditor
+                    ref={tiptapRef}
+                    setup={pageSetup}
+                    canvas={canvas}
+                    initialContent={content}
+                    initialPages={pages}
+                    onContentChange={handleContentChange}
+                    onPagesChange={handlePagesChange}
+                    onActiveEditorChange={(ed) => setActiveEditor(ed)}
+                  />
+                </PageView>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-1 overflow-hidden relative">
+              <QuillscriptEditor
+                key={canvas.id}
                 canvas={canvas}
-                initialContent={content}
-                initialPages={pages}
-                onContentChange={handleContentChange}
-                onPagesChange={handlePagesChange}
+                initialHtml={content}
+                title={title}
+                onTitleChange={(t) => setTitle(t)}
+                onContentChange={(html) => {
+                  setContent(html);
+                  scheduleAutoSave(html, undefined);
+                }}
                 onActiveEditorChange={(ed) => setActiveEditor(ed)}
               />
-            </PageView>
-          </div>
-        </div>
+            </div>
+            {/* Sticky bottom redux bar — hosts all v0.5.82 formatting controls */}
+            <BottomReduxBar
+              quillRef={quillRef}
+              pageSetup={pageSetup}
+              onPageSetupChange={updatePageSetup}
+              onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
+              onOpenParagraphDialog={() => setShowParagraphDialog(true)}
+            />
+          </>
+        )}
 
         {/* Page Setup dialog */}
         <PageSetupDialog
