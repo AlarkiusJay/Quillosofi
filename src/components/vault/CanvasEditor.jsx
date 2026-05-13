@@ -24,8 +24,11 @@ import { loadPageSetup, savePageSetup, saveAsDefaultPageSetup, effectiveDimensio
 import QuillscriptEditor from '@/components/quillscript/QuillscriptEditor';
 import BottomReduxBar from '@/components/quillscript/BottomReduxBar';
 import { isQuillginateActive, setQuillginateActive } from '@/lib/quillginate';
-import { joinPagesToDoc } from '@/lib/tiptap/joinPagesToDoc';
+import { joinPagesToDoc, splitDocToBlocks } from '@/lib/tiptap/joinPagesToDoc';
 import { ScrollText } from 'lucide-react';
+// v0.6.65-Alpha2 — tri-hub sync ring + Recents picker in Quillginate
+import { emitCanvasChange } from '@/lib/canvasBus';
+import RecentsPicker from '@/components/quillscript/RecentsPicker';
 
 // v0.5.0 — Tiptap takes the canvas. Quill is gone. The toolbar / ruler /
 // header navigator all keep their existing `quillRef.current.getEditor()`
@@ -318,7 +321,7 @@ function PageRulerSlot({ setup, children }) {
 // home button appears before the toolbar so the user can hop back to the
 // Canvas Hub landing screen from inside an open canvas (Alaria's v0.5.0
 // ask: "we don't have a way to get back into the Canvas Hub").
-export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = false, onHome }) {
+export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = false, onHome, onOpenCanvas }) {
   const [showExport, setShowExport] = useState(false);
   const importRef = useRef(null);
   const [dictToast, setDictToast] = useState('');
@@ -345,13 +348,39 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
   useEffect(() => {
     setQuillginateOn(isQuillginateActive(canvas.id));
   }, [canvas.id]);
+  // v0.6.65-Alpha2 — Real Quillginate lifecycle.
+  //
+  // When turning ON: split the current `content` into top-level blocks so
+  // the paginator gets a fresh, paginatable starting point (previously the
+  // pages[] could contain a single mega-block from Quillscript edits).
+  //
+  // When turning OFF: snap `content` to the joined pages[] so anything
+  // typed inside Quillginate flows back into Quillscript without loss.
+  //
+  // Also clears the autosave queue across the boundary — the new pages /
+  // content shape will trigger its own save via the editor's onUpdate.
   const toggleQuillginate = useCallback(() => {
     setQuillginateOn((prev) => {
       const next = !prev;
       setQuillginateActive(canvas.id, next);
+      if (next) {
+        // Activating Quillginate — split single doc into blocks for the
+        // paginator. The overflow controller will measure + reflow.
+        try {
+          const blocks = splitDocToBlocks(content);
+          if (blocks && blocks.length) setPages(blocks);
+        } catch { /* swallow — paginator can recover from raw content */ }
+      } else {
+        // Deactivating Quillginate — collapse pages back into a single
+        // continuous HTML doc for the Quillscript single editor.
+        try {
+          const joined = joinPagesToDoc({ content, pages });
+          if (joined) setContent(joined);
+        } catch { /* swallow */ }
+      }
       return next;
     });
-  }, [canvas.id]);
+  }, [canvas.id, content, pages]);
   const [savedLabel, setSavedLabel] = useState('');
   const [isPinned, setIsPinned] = useState(canvas.is_pinned || false);
   const [isFavorite, setIsFavorite] = useState(canvas.is_favorite || false);
@@ -438,6 +467,9 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     setSavedLabel('Saved');
     setTimeout(() => setSavedLabel(''), 1500);
     onUpdate?.(updated);
+    // v0.6.65-Alpha2 — broadcast on the canvas bus so Quillounge +
+    // Quillibrary refresh their lists live.
+    emitCanvasChange('updated', { id: canvas.id, canvas: updated });
   };
 
   const scheduleAutoSave = useCallback((nextContent, nextPages) => {
@@ -459,6 +491,7 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
       const trimmed = (title || '').trim() || 'Untitled Canvas';
       app.entities.Canvas.update(canvas.id, { title: trimmed }).then((updated) => {
         onUpdate?.(updated);
+        emitCanvasChange('updated', { id: canvas.id, patch: { title: trimmed }, canvas: updated });
       }).catch(() => { /* swallow — next autosave retries */ });
     }, 900);
     return () => clearTimeout(titleSaveTimer.current);
@@ -524,23 +557,52 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
     const trimmed = newTitle.trim() || 'Untitled Canvas';
     setTitle(trimmed);
     setEditingTitle(false);
-    await app.entities.Canvas.update(canvas.id, { title: trimmed });
+    const updated = await app.entities.Canvas.update(canvas.id, { title: trimmed });
     onUpdate?.({ ...canvas, title: trimmed });
+    emitCanvasChange('updated', { id: canvas.id, patch: { title: trimmed }, canvas: updated });
   };
 
   const togglePin = async () => {
     const next = !isPinned;
     setIsPinned(next);
-    await app.entities.Canvas.update(canvas.id, { is_pinned: next });
+    const updated = await app.entities.Canvas.update(canvas.id, { is_pinned: next });
     onUpdate?.({ ...canvas, is_pinned: next });
+    emitCanvasChange('updated', { id: canvas.id, patch: { is_pinned: next }, canvas: updated });
   };
 
   const toggleFavorite = async () => {
     const next = !isFavorite;
     setIsFavorite(next);
-    await app.entities.Canvas.update(canvas.id, { is_favorite: next });
+    const updated = await app.entities.Canvas.update(canvas.id, { is_favorite: next });
     onUpdate?.({ ...canvas, is_favorite: next });
+    emitCanvasChange('updated', { id: canvas.id, patch: { is_favorite: next }, canvas: updated });
   };
+
+  // v0.6.65-Alpha2 — emoji + cover state (Notion-style page icon + cover).
+  // Both are per-canvas, persisted via Canvas.update with new fields.
+  // The migration is forward-only: legacy canvases without these fields
+  // simply default to 📄 + no cover.
+  const [emoji, setEmojiState] = useState(canvas.emoji || '📄');
+  const [coverId, setCoverIdState] = useState(canvas.cover_id || null);
+  useEffect(() => {
+    setEmojiState(canvas.emoji || '📄');
+    setCoverIdState(canvas.cover_id || null);
+  }, [canvas.id, canvas.emoji, canvas.cover_id]);
+
+  const handleEmojiChange = useCallback(async (next) => {
+    const value = next || '📄';
+    setEmojiState(value);
+    const updated = await app.entities.Canvas.update(canvas.id, { emoji: value });
+    onUpdate?.({ ...canvas, emoji: value });
+    emitCanvasChange('updated', { id: canvas.id, patch: { emoji: value }, canvas: updated });
+  }, [canvas, onUpdate]);
+
+  const handleCoverChange = useCallback(async (nextId) => {
+    setCoverIdState(nextId);
+    const updated = await app.entities.Canvas.update(canvas.id, { cover_id: nextId });
+    onUpdate?.({ ...canvas, cover_id: nextId });
+    emitCanvasChange('updated', { id: canvas.id, patch: { cover_id: nextId }, canvas: updated });
+  }, [canvas, onUpdate]);
 
   // Auto-save on unmount
   useEffect(() => {
@@ -678,6 +740,12 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
                 editor mounts; when OFF, Quillscript single-editor
                 renders. Tooltip + active styling makes the current
                 state obvious without a separate label. */}
+            {quillginateOn && (
+              <RecentsPicker
+                currentCanvasId={canvas.id}
+                onPick={(id) => { if (id !== canvas.id) onOpenCanvas?.(id); }}
+              />
+            )}
             <button
               onClick={toggleQuillginate}
               title={quillginateOn ? 'Quillginate ON — click to switch to Quillscript' : 'Quillginate OFF — click to activate page layout'}
@@ -746,7 +814,11 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
                 canvas={canvas}
                 initialHtml={content}
                 title={title}
+                emoji={emoji}
+                coverId={coverId}
                 onTitleChange={(t) => setTitle(t)}
+                onEmojiChange={handleEmojiChange}
+                onCoverChange={handleCoverChange}
                 onContentChange={(html) => {
                   setContent(html);
                   scheduleAutoSave(html, undefined);

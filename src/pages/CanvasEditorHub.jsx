@@ -9,6 +9,8 @@ import TabStrip from '@/components/editors/TabStrip';
 import CanvasEditor from '@/components/vault/CanvasEditor';
 // v0.6.10-Alpha1 — Notion-style left sidebar for Quillscript
 import QuillscriptSidebar from '@/components/quillscript/QuillscriptSidebar';
+// v0.6.65-Alpha2 — tri-hub sync ring + sort-order persistence
+import { emitCanvasChange, subscribeCanvasBus } from '@/lib/canvasBus';
 
 // CanvasEditorHub — full-page editor hub for canvases.
 //   /canvas         → landing (Resume Last + Recent grid + New Blank)
@@ -36,6 +38,19 @@ export default function CanvasEditorHub() {
   }, [pruneTabs]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // v0.6.65-Alpha2 — Hub is the sidebar's data source. Listen to the bus
+  // so renames, emoji changes, pins, drag-reorder, etc. surface live.
+  // Debounced to coalesce bursts of save events from active typing.
+  useEffect(() => {
+    let pending = false;
+    const unsub = subscribeCanvasBus(() => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => { pending = false; reload(); }, 150);
+    });
+    return unsub;
+  }, [reload]);
 
   // Sync URL ↔ active tab.
   //
@@ -75,8 +90,31 @@ export default function CanvasEditorHub() {
     const c = await app.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });
     setAllCanvases(prev => [c, ...prev]);
     setOpenCanvasMap(prev => ({ ...prev, [c.id]: c }));
+    emitCanvasChange('created', { id: c.id, canvas: c });
     openTab(c.id);
   };
+
+  // v0.6.65-Alpha2 — sidebar drag-reorder writes sort_order patches
+  // through the bus. The order map is also persisted to localStorage so
+  // the sidebar can apply it before Canvas.update round-trips return.
+  const handleReorder = useCallback(async (orderedIds) => {
+    // Write sort_order to each canvas. Lower = higher in list.
+    const updates = orderedIds.map((id, idx) =>
+      app.entities.Canvas.update(id, { sort_order: idx }).catch(() => null)
+    );
+    await Promise.all(updates);
+    emitCanvasChange('reordered', { ids: orderedIds });
+  }, []);
+
+  // v0.6.65-Alpha2 — sidebar inline rename. Saves through the bus so
+  // every consumer (Quillibrary, Quillounge, Recents picker) sees it.
+  const handleRename = useCallback(async (id, nextTitle) => {
+    const trimmed = (nextTitle || '').trim() || 'Untitled Canvas';
+    setAllCanvases(prev => prev.map(c => c.id === id ? { ...c, title: trimmed } : c));
+    setOpenCanvasMap(prev => prev[id] ? { ...prev, [id]: { ...prev[id], title: trimmed } } : prev);
+    const updated = await app.entities.Canvas.update(id, { title: trimmed });
+    emitCanvasChange('updated', { id, patch: { title: trimmed }, canvas: updated });
+  }, []);
 
   const handleOpen = (id) => {
     openTab(id);
@@ -145,6 +183,8 @@ export default function CanvasEditorHub() {
         openTabIds={tabs}
         onOpen={handleOpen}
         onNew={handleNew}
+        onRename={handleRename}
+        onReorder={handleReorder}
         onOpenQuillibrary={() => navigate('/quillibrary')}
       />
 
@@ -177,6 +217,7 @@ export default function CanvasEditorHub() {
             embedded
             onUpdate={handleUpdateCanvas}
             onHome={goHome}
+            onOpenCanvas={handleOpen}
           />
         ) : (
           <Landing

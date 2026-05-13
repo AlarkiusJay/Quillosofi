@@ -1,4 +1,4 @@
-// QuillscriptEditor — v0.6.10-Alpha1
+// QuillscriptEditor — v0.6.10-Alpha1 → v0.6.65-Alpha2
 //
 // Single-Tiptap-instance editor for Quillscript (the default writing hub
 // in v0.6). One editor per canvas, infinite scroll, no page frames, no
@@ -7,20 +7,25 @@
 // lives in ONE editor instance, so the browser's native selection
 // crosses any block boundary the way Word's does.
 //
-// Notion-style page header (emoji + cover + title) renders as a non-
-// editable block above the editor body. The body is a single Tiptap
-// instance using the same extensions as v0.5.82 (so all existing
-// formatting — fonts, sizes, alignment, indentation, paragraph dialog —
-// works unchanged).
+// Notion-style page header (cover + emoji + title) renders as a non-
+// editable block above the editor body.
+//
+// Alpha 2 additions:
+//   • Emoji picker (click the 📄 → curated 120-emoji popover)
+//   • Cover swatch picker (12-swatch chalkboard palette, NO AI / external imagery)
+//   • Inline title rename works via direct input (committed onBlur via parent autosave)
 //
 // Pagination is OFF by default. When Quillginate (the togglable
 // paginator) is ON for this canvas, this editor is unmounted in favour
 // of the v0.5.82 TiptapPagedEditor. See CanvasEditor.jsx for the swap.
 
-import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import { Image as ImageIcon } from 'lucide-react';
 import { buildExtensions, TIPTAP_BASE_CSS } from '@/lib/tiptap/editorConfig';
 import { migrateLegacyContent } from '@/lib/tiptap/migrateContent';
+import EmojiPicker from './EmojiPicker';
+import CoverPicker, { getCoverBg } from './CoverPicker';
 
 const QuillscriptEditor = forwardRef(function QuillscriptEditor(
   {
@@ -29,7 +34,11 @@ const QuillscriptEditor = forwardRef(function QuillscriptEditor(
     onContentChange,
     onActiveEditorChange,
     onTitleChange,
+    onEmojiChange,
+    onCoverChange,
     title,
+    emoji,
+    coverId,
   },
   ref,
 ) {
@@ -96,21 +105,64 @@ const QuillscriptEditor = forwardRef(function QuillscriptEditor(
   );
 
   const titleInputRef = useRef(null);
+  const emojiBtnRef = useRef(null);
+  const coverBtnRef = useRef(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showCover, setShowCover] = useState(false);
+
+  const coverBg = getCoverBg(coverId);
 
   return (
     <div className="quillscript-shell flex-1 overflow-y-auto">
       <style>{TIPTAP_BASE_CSS}</style>
       <style>{QUILLSCRIPT_HEADER_CSS}</style>
       <div className="quillscript-doc">
-        {/* Notion-style page header block — emoji + title. Cover image
-            is intentionally deferred to a later alpha (Alaria asked not
-            to push AI/generated imagery and we don't have an asset
-            picker yet). Emoji defaults to 📄, can be edited inline by
-            clicking it (handled via a tiny inline picker — TODO Alpha 2). */}
-        <header className="quillscript-header">
-          <div className="quillscript-emoji" role="img" aria-label="Page emoji">
-            {canvas?.emoji || '📄'}
+        {/* Cover banner — Alpha 2. Curated CSS-gradient swatches only.
+            Renders above emoji+title; click hover-state to swap or remove. */}
+        {coverBg && (
+          <div
+            className="quillscript-cover"
+            style={{ background: coverBg }}
+            ref={coverBtnRef}
+          >
+            <button
+              type="button"
+              onClick={() => setShowCover((v) => !v)}
+              className="quillscript-cover-edit"
+              title="Change cover"
+            >
+              <ImageIcon className="h-3 w-3" />
+              <span>Change cover</span>
+            </button>
           </div>
+        )}
+
+        {/* Notion-style page header — emoji + title + add-cover affordance. */}
+        <header className={`quillscript-header ${coverBg ? 'with-cover' : ''}`}>
+          <button
+            ref={emojiBtnRef}
+            type="button"
+            onClick={() => setShowEmoji((v) => !v)}
+            className="quillscript-emoji"
+            aria-label="Change emoji"
+            title="Click to pick a different emoji"
+          >
+            {emoji || canvas?.emoji || '📄'}
+          </button>
+
+          {!coverBg && (
+            <button
+              ref={coverBtnRef}
+              type="button"
+              onClick={() => setShowCover((v) => !v)}
+              className="quillscript-add-cover"
+              title="Add a cover"
+            >
+              <ImageIcon className="h-3 w-3" />
+              <span>Add cover</span>
+            </button>
+          )}
+
           <input
             ref={titleInputRef}
             className="quillscript-title-input"
@@ -133,6 +185,23 @@ const QuillscriptEditor = forwardRef(function QuillscriptEditor(
           <EditorContent editor={editor} />
         </div>
       </div>
+
+      {showEmoji && (
+        <EmojiPicker
+          anchorRef={emojiBtnRef}
+          onPick={(e) => onEmojiChange?.(e)}
+          onClose={() => setShowEmoji(false)}
+        />
+      )}
+      {showCover && (
+        <CoverPicker
+          anchorRef={coverBtnRef}
+          currentCoverId={coverId}
+          onPick={(id) => onCoverChange?.(id)}
+          onRemove={() => onCoverChange?.(null)}
+          onClose={() => setShowCover(false)}
+        />
+      )}
     </div>
   );
 });
@@ -147,27 +216,79 @@ const QUILLSCRIPT_HEADER_CSS = `
   .quillscript-doc {
     max-width: 740px;
     margin: 0 auto;
-    padding: 64px 56px 240px;
+    padding: 0 56px 240px;
     color: hsl(220, 30%, 12%);
     background: hsl(43, 36%, 92%);
     min-height: 100%;
     box-shadow: 0 0 0 1px hsl(220, 8%, 22%) inset;
+    position: relative;
   }
+  .quillscript-cover {
+    margin: 0 -56px 16px;
+    height: 160px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 8px;
+  }
+  .quillscript-cover-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: ui-monospace, 'Menlo', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: white;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .quillscript-cover:hover .quillscript-cover-edit { opacity: 1; }
   .quillscript-header {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    align-items: flex-start;
+    gap: 8px;
     margin-bottom: 28px;
+    padding-top: 64px;
   }
+  .quillscript-header.with-cover { padding-top: 0; }
   .quillscript-emoji {
     font-size: 64px;
     line-height: 1;
     cursor: pointer;
     user-select: none;
     width: max-content;
+    background: transparent;
+    border: none;
+    padding: 0;
     transition: transform 0.12s ease;
   }
   .quillscript-emoji:hover { transform: scale(1.08); }
+  .quillscript-add-cover {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: ui-monospace, 'Menlo', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: hsl(220, 30%, 35%);
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .quillscript-header:hover .quillscript-add-cover { opacity: 1; }
+  .quillscript-add-cover:hover { color: hsl(220, 30%, 12%); }
   .quillscript-title-input {
     font-family: 'Oldenburg', serif;
     font-size: 40px;

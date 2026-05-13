@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Pin, Hash } from 'lucide-react';
 import { app } from '@/api/localClient';
+// v0.6.65-Alpha2 — live refresh on the tri-hub sync ring
+import { subscribeCanvasBus } from '@/lib/canvasBus';
 
 export default function PinnedRecentWidget() {
   const navigate = useNavigate();
@@ -11,7 +13,8 @@ export default function PinnedRecentWidget() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let pending = false;
+    const reload = async () => {
       try {
         const data = await app.entities.Canvas.list('-updated_date', 50);
         if (cancelled) return;
@@ -23,13 +26,22 @@ export default function PinnedRecentWidget() {
           return sum + (text ? text.split(/\s+/).length : 0);
         }, 0);
         setStats({ totalWords, totalCanvases: list.length });
-      } catch (e) {
+      } catch {
         if (!cancelled) setCanvases([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    reload();
+    // v0.6.65-Alpha2 — listen for canvas changes (rename, pin, emoji, etc.)
+    // and live-refresh. Debounced so a burst of saves coalesces into one
+    // reload.
+    const unsub = subscribeCanvasBus(() => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => { pending = false; reload(); }, 200);
+    });
+    return () => { cancelled = true; unsub(); };
   }, []);
 
   const pinned = canvases.filter(c => c.is_pinned).slice(0, 3);

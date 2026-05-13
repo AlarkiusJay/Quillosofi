@@ -17,6 +17,21 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.65-Alpha2',
+    date: '2026-05-12',
+    tagline: 'Quillginate finally lives and dies on demand, and the canvas store gets a heartbeat so every hub that shows your work refreshes itself the instant you save. Quillscript sidebar grows the QoL you would expect from Notion: drag to reorder, double-click to rename, pick an emoji, pick a cover.',
+    changes: [
+      'Quillginate is now a real lifecycle, not just a CSS swap. Off means the paginator is not mounted at all — zero overflow controllers, zero per-page editors, zero compute. Flip it on and the current Quillscript HTML is split into pages via the paginator measure pass. Flip it off and the pages are joined back into a single doc so editing in Quillscript picks up exactly where you left layout-review.',
+      'Tri-hub sync ring: a tiny event bus emits canvas:change whenever you save, pin, favorite, rename, change emoji, change cover, or delete. Quillibrary (canvas list), Quillounge (Pinned and Recents widget), the Quillscript sidebar, and the in-Quillginate Recents picker all subscribe and refresh debounced — no more stale lists waiting for a route change. Storage events propagate the same beat across tabs.',
+      'Quillscript sidebar gets drag-reorder powered by @hello-pangea/dnd. Drag inside Pinned, inside any Space group, or inside Unsorted to set sort order; the new sort_order field persists per canvas and Quillibrary respects it everywhere.',
+      'Inline rename in the sidebar: double-click any canvas entry and the title becomes an editable input on the spot. Enter commits, Esc cancels, blur commits. Same shortcut works on the canvas header title in the editor.',
+      'New emoji picker on the canvas header. Click the page emoji and a chalk-styled popover opens with six tabs (Pages, Writing, Fantasy, Nature, Faces, Symbols), Reset clears back to the default 📄. The pick is saved to the canvas and broadcast through the sync ring so every list refreshes immediately.',
+      'New cover picker. Hover the canvas header in Quillscript and an Add cover button appears; pick from twelve curated chalkboard swatches (deep emerald, chalk dusk, parchment, inkwell, crimson, sunmark, midnight, forest, amethyst, sea mist, rosewood, slate). Pure CSS gradients tuned to the dark green chalkboard palette — no external imagery, no AI art, nothing to download.',
+      'New Recents picker dropdown in the Quillginate header. While paginated layout is on, the sidebar collapses out of the way, so a compact recents menu sits next to the Quillginate toggle for one-click hop between recent canvases. Stays live via the sync ring.',
+      'Hard page break and spread-mode toggle inside Quillginate are queued for Alpha 3 — Alpha 3 is bugfix-only and final for v0.6, so these slot in there.',
+    ],
+  },
+  {
     version: '0.6.35-Alpha1',
     date: '2026-05-12',
     tagline: 'Quillscript hub lands. Single-editor architecture kills the cross-page select-all bug at the root, the toolbar moves to a sticky bottom redux bar, a Notion-style left sidebar tree organizes canvases by Space, and a per-canvas Quillginate toggle parks the v0.5.82 paginator behind an opt-in switch.',

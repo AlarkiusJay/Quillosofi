@@ -4,6 +4,8 @@ import { app } from '@/api/localClient';
 import { Search, LayoutGrid, List, Table, Image, Star, Pin, Trash2, Plus, ChevronDown, SortAsc, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+// v0.6.65-Alpha2 — tri-hub sync ring
+import { emitCanvasChange, subscribeCanvasBus } from '@/lib/canvasBus';
 
 const SORT_OPTIONS = [
   { id: 'updated_desc', label: 'Last Edited' },
@@ -132,12 +134,26 @@ export default function CanvasList({ filter, spaces, compact = false }) {
 
   useEffect(() => { load(); }, []);
 
+  // v0.6.65-Alpha2 — tri-hub sync ring. Any canvas mutation broadcast on
+  // the bus refreshes Quillibrary immediately so it never shows stale
+  // titles, pins, favorites, emojis, or covers.
+  useEffect(() => {
+    let pending = false;
+    const unsub = subscribeCanvasBus(() => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => { pending = false; load(); }, 100);
+    });
+    return unsub;
+  }, []);
+
   const pinnedCount = canvases.filter(c => c.is_pinned).length;
 
   // New canvas — create the entity and route into the editor hub.
   const handleCreate = async () => {
     const c = await app.entities.Canvas.create({ title: 'Untitled Canvas', content: '' });
     setCanvases(prev => [c, ...prev]);
+    emitCanvasChange('created', { id: c.id, canvas: c });
     navigate(`/canvas/${c.id}`);
   };
 
@@ -145,13 +161,15 @@ export default function CanvasList({ filter, spaces, compact = false }) {
     const next = !canvas.is_pinned;
     if (next && pinnedCount >= 7) return;
     setCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, is_pinned: next } : c));
-    await app.entities.Canvas.update(canvas.id, { is_pinned: next });
+    const updated = await app.entities.Canvas.update(canvas.id, { is_pinned: next });
+    emitCanvasChange('updated', { id: canvas.id, patch: { is_pinned: next }, canvas: updated });
   };
 
   const handleToggleFavorite = async (canvas) => {
     const next = !canvas.is_favorite;
     setCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, is_favorite: next } : c));
-    await app.entities.Canvas.update(canvas.id, { is_favorite: next });
+    const updated = await app.entities.Canvas.update(canvas.id, { is_favorite: next });
+    emitCanvasChange('updated', { id: canvas.id, patch: { is_favorite: next }, canvas: updated });
   };
 
   // Quillibrary is pure storage — every "open" action routes to the Canvas
@@ -164,6 +182,7 @@ export default function CanvasList({ filter, spaces, compact = false }) {
     if (!confirm(`Delete "${canvas.title}"?`)) return;
     setCanvases(prev => prev.filter(c => c.id !== canvas.id));
     await app.entities.Canvas.delete(canvas.id);
+    emitCanvasChange('deleted', { id: canvas.id });
   };
 
   const filtered = useMemo(() => {
