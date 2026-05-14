@@ -211,6 +211,26 @@ function isPageEffectivelyEmpty(html) {
   return false;
 }
 
+// v0.6.95-Alpha3 — hard page break helpers.
+//
+// A hard page break marker is `<hr class="hard-page-break" ...>` inserted
+// by the HardPageBreak Tiptap extension (Mod-Enter). We detect it by
+// checking the literal block HTML for that class.
+function isHardPageBreak(blockHtml) {
+  if (typeof blockHtml !== 'string') return false;
+  // Cheap match — the class is always set verbatim by the extension's
+  // renderHTML. We don't need a full DOM parse for this hot path.
+  return /<hr\b[^>]*class="[^"]*hard-page-break/.test(blockHtml);
+}
+
+// Returns the index of the first hard-break block in `blocks`, or -1.
+function findHardBreakIndex(blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    if (isHardPageBreak(blocks[i])) return i;
+  }
+  return -1;
+}
+
 function usePaginationController({
   pages,
   setPages,
@@ -235,11 +255,67 @@ function usePaginationController({
   const pagesRef = useRef(pages);
   useEffect(() => { pagesRef.current = pages; }, [pages]);
 
+  // v0.6.95-Alpha3 — Forced-break detection is independent of scrollHeight.
+  // The RAF measurement loop in PageEditor only fires `onMeasure` when
+  // scrollHeight changes, which is the right gate for overflow/underflow
+  // passes but the WRONG gate for forced page breaks: a writer can press
+  // Mod-Enter without changing the page's pixel height, and we'd never
+  // schedule a rebalance. To cover that case, schedule a rebalance whenever
+  // the `pages` array reference changes (any content edit).
+  useEffect(() => {
+    if (!isPaginated) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      runRebalance();
+    }, 80);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages, isPaginated]);
+
   function runRebalance() {
     const current = pagesRef.current;
     if (!Array.isArray(current) || current.length === 0) return;
     const heights = heightsRef.current;
     const SLACK = 4;
+
+    // 0) FORCED BREAK pass — v0.6.95-Alpha3.
+    //
+    // If any page contains a hard-page-break marker that isn't at its
+    // very end, split the page at the marker: the marker (and the empty
+    // paragraph it ships with) closes out the current page, and every
+    // block after it moves to the next page. This pass runs ONCE per
+    // tick and short-circuits before overflow/underflow run, exactly
+    // like the existing migration passes.
+    for (let i = 0; i < current.length; i++) {
+      const blocks = splitTopLevelBlocks(current[i]);
+      const hardIdx = findHardBreakIndex(blocks);
+      // No marker, or marker is at the tail (already serving as a page
+      // terminator) — nothing to do.
+      if (hardIdx === -1) continue;
+      if (hardIdx >= blocks.length - 1) continue;
+
+      // Keep everything up to and including the marker on page i.
+      // The marker stays on page i so the user can see/select it on
+      // the page it terminates. The block immediately after the
+      // marker leads page i+1.
+      const keep = blocks.slice(0, hardIdx + 1);
+      const move = blocks.slice(hardIdx + 1);
+
+      const next = current.slice();
+      next[i] = joinTopLevelBlocks(keep);
+
+      if (i + 1 < next.length) {
+        if (isPageEffectivelyEmpty(next[i + 1])) {
+          next[i + 1] = joinTopLevelBlocks(move);
+        } else {
+          const nextBlocks = splitTopLevelBlocks(next[i + 1]);
+          next[i + 1] = joinTopLevelBlocks(move) + joinTopLevelBlocks(nextBlocks);
+        }
+      } else {
+        next.push(joinTopLevelBlocks(move));
+      }
+      setPages(next);
+      return;
+    }
 
     // 1) OVERFLOW pass — first overflowing page wins.
     for (let i = 0; i < current.length; i++) {
@@ -254,7 +330,19 @@ function usePaginationController({
           // be split safely without losing structure).
           continue;
         }
-        const lastBlock = blocks.pop();
+        // v0.6.95-Alpha3 — if the trailing block is a hard-page-break marker,
+        // we can't migrate it (that would move the writer's committed break).
+        // Pull the block BEFORE the marker instead, leaving the marker as the
+        // page terminator on page i.
+        let lastBlock;
+        if (isHardPageBreak(blocks[blocks.length - 1])) {
+          if (blocks.length < 2) continue; // only the marker remains — nothing to migrate.
+          const marker = blocks.pop();
+          lastBlock = blocks.pop();
+          blocks.push(marker);
+        } else {
+          lastBlock = blocks.pop();
+        }
         const newPageI = joinTopLevelBlocks(blocks);
         const next = current.slice();
         next[i] = newPageI;
@@ -284,10 +372,22 @@ function usePaginationController({
       const room = contentHeightPx - h;
       if (room < contentHeightPx * 0.2) continue;
 
+      // v0.6.95-Alpha3 — never pull across a hard page break. If page i
+      // ends in a hard-break marker, the writer has committed to ending
+      // the page there. Respect that even when there's room to spare.
+      const myBlocksGuard = splitTopLevelBlocks(current[i]);
+      const lastOfMine = myBlocksGuard[myBlocksGuard.length - 1];
+      if (isHardPageBreak(lastOfMine || '')) continue;
+
       const nextBlocks = splitTopLevelBlocks(current[i + 1]);
       if (nextBlocks.length === 0) continue;
       // Don't pull if the next page only has one empty paragraph.
       if (isPageEffectivelyEmpty(current[i + 1])) continue;
+      // Don't pull if the next page leads with the trailing paragraph
+      // belonging to a hard break — i.e. the very first block on i+1
+      // is itself the hard-break marker (shouldn't happen because the
+      // FORCED BREAK pass keeps the marker on page i, but guard anyway).
+      if (isHardPageBreak(nextBlocks[0] || '')) continue;
 
       const firstNextBlock = nextBlocks.shift();
       const next = current.slice();

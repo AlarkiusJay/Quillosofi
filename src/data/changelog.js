@@ -17,6 +17,22 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-Alpha3',
+    date: '2026-05-13',
+    tagline: 'Final v0.6 — the two carryovers from Alpha 2 land, plus polish across the cycle. Quillginate now has a writer-controlled hard page break (Mod-Enter) and a one-click spread toggle right in its header, and switching Quillginate on from a fresh canvas drops you straight into paginated layout instead of continuous-single.',
+    changes: [
+      'Hard page break (Mod-Enter / Ctrl+Enter). Inserts a dashed chalkboard PAGE BREAK marker exactly where you commit it. The paginator\'s overflow controller treats the marker as a forced break: blocks before stay on the current page, blocks after lead the next. Auto-overflow still runs as before — hard breaks layer on top, never fight with it. The marker is visible in Quillscript too, so you can see your committed breaks even when paginated layout is off.',
+      'Spread-mode toggle in the Quillginate header. One click flips between single-page paginated and side-by-side book spread. When switching back from spread we land on vertical+multiple (the paginated tower), never vertical+one (that\'s Quillscript\'s lane). The toggle only renders while Quillginate is on — in Quillscript the toolbar stays minimal.',
+      'Quillginate first-activation now promotes default vertical+one canvases to vertical+multiple, so flipping the toggle from a fresh canvas drops you into the paginator instead of accidentally landing in the continuous-single layout that belongs to Quillscript.',
+      'Paginator never pulls blocks across a hard page break during the underflow pass. If you\'ve committed a break, it stays committed even when there\'s room on the previous page — your layout intent wins over auto-fit.',
+      'Paginator never migrates a hard-break marker during the overflow pass. If a page overflows and ends in a hard break, the block BEFORE the marker is pulled instead, keeping the marker pinned as the page terminator.',
+      'Forced-break detection runs on any pages-array change, not just on height changes. Pre-fix, a Mod-Enter that didn\'t reflow the page could leave the marker stranded mid-page because the rebalance loop was only scheduled by the height-delta measurement. Now any edit reschedules the rebalance, so the forced-break pass always fires.',
+      'HardPageBreak parseHTML priority bumped above StarterKit\'s HorizontalRule. Pre-fix, `chain().insertContent({type: "hardPageBreak"})` round-tripped through HTML and the generic `tag: "hr"` rule from HorizontalRule won the parse, rebirthing the node as a plain HR — which the paginator\'s regex would then miss. Priority 100 vs 50 keeps our node intact.',
+      'HardPageBreak owns its DOM through a tiny NodeView with explicit selectNode/deselectNode handlers. ProseMirror\'s default atom-selection path overwrites className wholesale, which was wiping our `hard-page-break` class the moment the marker was selected. Toggling the selectednode class via classList preserves both classes side-by-side.',
+      'Alaria-internal: Alpha 3 is the final v0.6 release. v0.7.0 opens next — spread animation lives there. v1.0.0 is when QoL features like Find & Replace land, not earlier.',
+    ],
+  },
+  {
     version: '0.6.65-Alpha2',
     date: '2026-05-12',
     tagline: 'Quillginate finally lives and dies on demand, and the canvas store gets a heartbeat so every hub that shows your work refreshes itself the instant you save. Quillscript sidebar grows the QoL you would expect from Notion: drag to reorder, double-click to rename, pick an emoji, pick a cover.',

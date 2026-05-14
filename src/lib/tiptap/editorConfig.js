@@ -14,6 +14,7 @@ import LineHeight from './extensions/LineHeight';
 import Indent from './extensions/Indent';
 import ParagraphFormat from './extensions/ParagraphFormat';
 import LiteralTab from './extensions/LiteralTab';
+import HardPageBreak from './extensions/HardPageBreak';
 
 export function buildExtensions({ placeholder = '' } = {}) {
   return [
@@ -42,6 +43,7 @@ export function buildExtensions({ placeholder = '' } = {}) {
       includeChildren: false,
     }),
     LiteralTab,
+    HardPageBreak,
   ];
 }
 
@@ -114,6 +116,37 @@ export const TIPTAP_BASE_CSS = `
     border: none;
     border-top: 1px solid hsl(220, 8%, 70%);
     margin: 14px 0;
+  }
+  /* Hard page break — explicit writer-controlled break.
+     Dashed chalkboard rule with a small caps label. Visible in
+     Quillscript and Quillginate alike so writers always see where
+     they've committed a forced break. */
+  .canvas-tiptap-wrapper .tiptap hr.hard-page-break {
+    border: none;
+    border-top: 1.5px dashed hsl(150, 22%, 40%);
+    margin: 18px 0;
+    position: relative;
+    overflow: visible;
+    height: 0;
+    cursor: pointer;
+  }
+  .canvas-tiptap-wrapper .tiptap hr.hard-page-break::after {
+    content: 'PAGE BREAK';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsl(150, 22%, 96%);
+    color: hsl(150, 22%, 36%);
+    font-family: ui-monospace, 'Menlo', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    padding: 1px 8px;
+    border-radius: 2px;
+  }
+  .canvas-tiptap-wrapper .tiptap hr.hard-page-break.ProseMirror-selectednode::after {
+    background: hsl(45, 80%, 60%);
+    color: hsl(150, 30%, 14%);
   }
   .canvas-tiptap-wrapper .tiptap a {
     color: hsl(235, 80%, 45%);

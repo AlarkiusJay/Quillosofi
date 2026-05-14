@@ -25,7 +25,7 @@ import QuillscriptEditor from '@/components/quillscript/QuillscriptEditor';
 import BottomReduxBar from '@/components/quillscript/BottomReduxBar';
 import { isQuillginateActive, setQuillginateActive } from '@/lib/quillginate';
 import { joinPagesToDoc, splitDocToBlocks } from '@/lib/tiptap/joinPagesToDoc';
-import { ScrollText } from 'lucide-react';
+import { ScrollText, Columns2, FileText } from 'lucide-react';
 // v0.6.65-Alpha2 — tri-hub sync ring + Recents picker in Quillginate
 import { emitCanvasChange } from '@/lib/canvasBus';
 import RecentsPicker from '@/components/quillscript/RecentsPicker';
@@ -370,6 +370,18 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           const blocks = splitDocToBlocks(content);
           if (blocks && blocks.length) setPages(blocks);
         } catch { /* swallow — paginator can recover from raw content */ }
+        // v0.6.95-Alpha3 — ensure Quillginate lands in a paginated layout.
+        // Quillscript owns vertical+one (continuous single); Quillginate
+        // needs vertical+multiple or side-to-side. If the canvas is still
+        // on the default vertical+one, promote it to multiple so the
+        // paginator mounts and the spread toggle has somewhere to flip
+        // back to.
+        setPageSetup((prev) => {
+          if (prev.pageMovement === 'vertical' && prev.pageLayout === 'one') {
+            return { ...prev, pageLayout: 'multiple' };
+          }
+          return prev;
+        });
       } else {
         // Deactivating Quillginate — collapse pages back into a single
         // continuous HTML doc for the Quillscript single editor.
@@ -745,6 +757,41 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
                 currentCanvasId={canvas.id}
                 onPick={(id) => { if (id !== canvas.id) onOpenCanvas?.(id); }}
               />
+            )}
+            {/* v0.6.95-Alpha3 — Spread mode toggle.
+                Only renders when Quillginate is ON. Flips pageMovement
+                between 'vertical' (single-page paginated) and 'side-to-side'
+                (book spread). When switching back to vertical from spread
+                we force pageLayout to 'multiple' so we land in the paginated
+                tower, not the continuous-single mode that belongs to
+                Quillscript. */}
+            {quillginateOn && (
+              <button
+                onClick={() => {
+                  const goingSpread = pageSetup.pageMovement !== 'side-to-side';
+                  updatePageSetup(
+                    goingSpread
+                      ? { pageMovement: 'side-to-side' }
+                      : { pageMovement: 'vertical', pageLayout: 'multiple' }
+                  );
+                }}
+                title={
+                  pageSetup.pageMovement === 'side-to-side'
+                    ? 'Spread mode — click to switch to single page'
+                    : 'Single page — click to switch to spread mode'
+                }
+                className={cn(
+                  'h-7 px-2 rounded flex items-center gap-1 text-xs font-mono uppercase tracking-wider transition-colors',
+                  pageSetup.pageMovement === 'side-to-side'
+                    ? 'text-[hsl(var(--chalk-yellow))] bg-[hsl(var(--chalk-deep)/0.7)]'
+                    : 'text-[hsl(220,7%,45%)] hover:text-white'
+                )}
+              >
+                {pageSetup.pageMovement === 'side-to-side'
+                  ? <Columns2 className="h-4 w-4" />
+                  : <FileText className="h-4 w-4" />}
+                <span>{pageSetup.pageMovement === 'side-to-side' ? 'Spread' : 'Single'}</span>
+              </button>
             )}
             <button
               onClick={toggleQuillginate}
