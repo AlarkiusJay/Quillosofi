@@ -71,29 +71,6 @@ Quillosofi is **free and stays free** — no Pro tier, no subscriptions, no payw
 
 ---
 
-## Desktop edition
-
-The desktop app gives you everything the web version has, plus:
-
-- **System tray** — runs quietly in the background, click to summon
-- **Hide-to-tray** — close the window without quitting
-- **Global hotkey** — `Ctrl/Cmd+Shift+Q` to bring Quillosofi forward
-- **Single-instance lock** — one Quillosofi at a time, focuses the existing window
-- **Branded native installer** with the mint feather icon
-- **External links** open in your OS browser instead of hijacking the app window
-- **Local-first storage** — your data lives on your PC, not in someone else's cloud
-
----
-
-## Stack
-
-- **Frontend:** React 18 + Vite + Tailwind + Radix UI
-- **Editor:** Quill (Tiptap migration parked for the v0.5 epic)
-- **Desktop:** Electron + electron-builder + electron-updater
-- **CI:** GitHub Actions — auto-builds Win/Mac/Linux installers on every `v*` tag
-
----
-
 ## Local development
 
 ```bash
