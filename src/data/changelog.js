@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-Alpha5',
+    date: '2026-05-14',
+    tagline: 'Formatting bar parity. Quillscript mode’s redux bar was still mounted at the bottom of the editor while Quillginate’s sat at the top — same buttons, opposite gravity. Now both modes share the same top slot, so muscle memory survives the toggle.',
+    changes: [
+      'Quillscript formatting redux bar moved from the bottom of the editor to the top, matching Quillginate exactly. CanvasEditor now mounts the bar above the QuillscriptEditor render block instead of below it.',
+      'BottomReduxBar border-t → border-b so the visual boundary sits between the bar and the editor surface below (not the title chrome above).',
+      'Popover menus (font size, line spacing) drop downward from the bar by default now — `openUpward` prop removed from the TriggerWithMenu wrapper, since the bar is no longer bottom-anchored.',
+      '¶ (Paragraph dialog) + View menu restored to the right edge of the Quillscript formatting bar with `ml-auto`. They were stripped in Alpha 4 because the View popover got clipped against the editor surface when the bar was at the bottom; with the bar at the top, the popover has full downward room — identical layout to Quillginate.',
+      'File name (`BottomReduxBar.jsx`) kept for this patch to avoid an import sweep — conceptually it’s now a top bar; rename deferred to a later cleanup.',
+    ],
+  },
+  {
     version: '0.6.95-Alpha4',
     date: '2026-05-14',
     tagline: 'Auto-updater actually works now. The version suffix (-AlphaN) was being silently rejected as a prerelease and the updater was quietly bailing every time — fixed by allowing prereleases unconditionally so every tag, no matter the suffix, is a valid upgrade target. Plus the ¶ (Paragraph) + View buttons land on the right edge of the formatting toolbar (which itself moves to the top of the editor), giving the View popover full room to open downward, and the Update tab grows an event-log diagnostic panel so the next time anything goes wrong we can see why.',

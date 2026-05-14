@@ -1,17 +1,23 @@
-// BottomReduxBar — v0.6.10-Alpha1
+// BottomReduxBar — v0.6.10-Alpha1 (repositioned in v0.6.95-Alpha5)
 //
-// Sticky bottom formatting bar for Quillscript. Hosts the formatting
-// controls that used to live in CanvasEditor's top toolbar in v0.5.82
-// — font size, B/I/U/S, alignment, indent, line height, lists, link,
-// divider, ¶ Paragraph dialog launcher, and the View menu.
+// Quillscript's formatting redux bar. Hosts the formatting controls that
+// used to live in CanvasEditor's top toolbar in v0.5.82 — font size,
+// B/I/U/S, alignment, indent, line height, lists, link, divider,
+// ¶ Paragraph dialog launcher, and the View menu.
 //
 // The bar talks to the editor through the legacy quillRef adapter that
 // CanvasEditor already maintains, so every command is identical to
-// v0.5.82. The only visual change is the position (bottom, sticky) and
-// the surface (chalkboard bar, sits inside the editor pane).
+// v0.5.82. The only visual change is the surface (chalkboard bar, sits
+// inside the editor pane).
 //
-// Notion-style: subtle, always-visible, ignores scroll. Hovers over the
-// editor surface with a soft backdrop blur.
+// v0.6.95-Alpha5: moved from the bottom of the editor to the top so both
+// Quillscript and Quillginate modes share the same formatting-bar slot.
+// Border switched from border-t to border-b; popover Menu opens downward
+// from the bar instead of upward. File name (BottomReduxBar) is now
+// legacy — kept to avoid an import sweep this patch; rename deferred.
+//
+// Notion-style: subtle, always-visible, ignores scroll. Sits at the top
+// of the editor pane with a soft backdrop blur.
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -64,7 +70,8 @@ function TriggerWithMenu({ icon: Icon, title, items, onPick, Menu }) {
           items={items}
           onPick={onPick}
           onClose={() => setShow(false)}
-          openUpward
+          /* v0.6.95-Alpha5: bar is now at the top of the editor, so the
+             popover opens downward by default (openUpward prop removed). */
         />
       )}
     </div>
@@ -166,7 +173,7 @@ export default function BottomReduxBar({
   };
 
   return (
-    <div className="border-t border-[hsl(var(--chalk-white-faint)/0.15)] px-4 py-1.5 flex items-center gap-0.5 flex-wrap bg-[hsl(var(--chalk-deep)/0.85)] backdrop-blur-md shrink-0">
+    <div className="border-b border-[hsl(var(--chalk-white-faint)/0.15)] px-4 py-1.5 flex items-center gap-0.5 flex-wrap bg-[hsl(var(--chalk-deep)/0.85)] backdrop-blur-md shrink-0">
       <Btn icon={Heading2} title="Headings" onClick={() => setShowHeadings((v) => !v)} />
 
       <TriggerWithMenu icon={Type} title="Font size" items={FONT_SIZES} onPick={(v) => setFmt('size', v)} Menu={Menu} />
@@ -206,12 +213,20 @@ export default function BottomReduxBar({
         q.insertText(range.index, '────────────────────────');
       }} />
 
-      {/* v0.6.95-Alpha4 — ¶ + View menu moved to the top toolbar in CanvasEditor.
-          Used to live here at the right edge of the redux bar, but the popover
-          got clipped against the editor surface. The props are still received
-          (onOpenParagraphDialog / onPageSetupChange / onOpenPageSetupDialog) but
-          no longer wired to UI here — keeping the signature stable so callers
-          don't need a sweep. */}
+      {/* v0.6.95-Alpha5 — ¶ + View restored to the right edge of the bar
+          (with ml-auto). Was removed in Alpha4 because the popover clipped
+          against the editor when the bar was at the bottom; now that the
+          bar sits at the top, popovers open downward with full room —
+          identical pattern to Quillginate's Toolbar. */}
+      <div className="ml-auto flex items-center gap-0.5">
+        <Divider />
+        <Btn icon={Pilcrow} title="Paragraph…" onClick={() => onOpenParagraphDialog?.()} />
+        <ViewMenu
+          setup={pageSetup}
+          onChange={onPageSetupChange}
+          onOpenPageSetup={onOpenPageSetupDialog}
+        />
+      </div>
 
       {showHeadings && (
         <div className="flex items-center gap-1 w-full pt-1.5 flex-wrap">

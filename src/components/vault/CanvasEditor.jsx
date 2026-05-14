@@ -859,6 +859,21 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
           </>
         ) : (
           <>
+            {/* v0.6.95-Alpha5 — Quillscript's formatting bar (still imported
+                under its legacy `BottomReduxBar` name) is now mounted ABOVE
+                the editor instead of below it, matching Quillginate mode
+                exactly. The component is unchanged behaviorally; only its
+                slot position swapped. ¶ + View live on its right edge now,
+                same as Quillginate's Toolbar, since the popover has full
+                downward room from the top of the editor. File rename for
+                BottomReduxBar → FormatReduxBar deferred — internal name only. */}
+            <BottomReduxBar
+              quillRef={quillRef}
+              pageSetup={pageSetup}
+              onPageSetupChange={updatePageSetup}
+              onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
+              onOpenParagraphDialog={() => setShowParagraphDialog(true)}
+            />
             <div className="flex flex-1 overflow-hidden relative">
               <QuillscriptEditor
                 key={canvas.id}
@@ -877,14 +892,6 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
                 onActiveEditorChange={(ed) => setActiveEditor(ed)}
               />
             </div>
-            {/* Sticky bottom redux bar — hosts all v0.5.82 formatting controls */}
-            <BottomReduxBar
-              quillRef={quillRef}
-              pageSetup={pageSetup}
-              onPageSetupChange={updatePageSetup}
-              onOpenPageSetupDialog={() => setShowPageSetupDialog(true)}
-              onOpenParagraphDialog={() => setShowParagraphDialog(true)}
-            />
           </>
         )}
 
