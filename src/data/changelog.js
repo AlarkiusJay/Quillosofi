@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.7',
+    date: '2026-05-14',
+    tagline: 'Quillginate pagination, fixed. Activating Quillginate on an existing multi-block doc was shoving every block onto its own page with vast empty space below — the underflow pass that’s supposed to reflow blocks back together couldn’t see the empty space because the editor’s `min-height: 100%` (a UX rule so clicking the empty page area focuses the editor) was clamping `scrollHeight` UP to the page’s writable height. The pager now measures the natural span between the first and last block instead, so empty space is actually visible to the controller. Doubles as the live test for the auto-updater fix shipped in alpha.6 — if you’re reading this in-app via Settings → Update, the updater works.',
+    changes: [
+      'Quillginate Mode no longer fragments content into one-block-per-page when activated on an existing document. The pagination controller’s underflow detection now sees real empty space and pulls subsequent blocks back to fill the page until it’s honestly full. Single Mode AND Spread Mode both fixed.',
+      'Root cause: editor DOM’s `min-height: 100%` CSS rule (kept for the UX affordance of clicking empty page area to focus the editor) was making `scrollHeight` always equal the page’s writable area. The OVERFLOW pass still worked (real overflow pushed scrollHeight past the clamp) but the UNDERFLOW pass computed `room = 0` no matter how empty the page actually was. Pre-Alpha 3 this didn’t bite because Quillginate didn’t auto-split docs into per-block pages on activation; Alpha 3’s `splitDocToBlocks` made it visible.',
+      'Fix landed in `TiptapPagedEditor.PageEditor` measurement loop. New helper `measureNaturalContentHeight(dom)` returns the pixel span from the first block’s top to the last block’s bottom (plus outer-edge margins), independent of the editor’s min-height. Quillscript (continuous-single) mode is unaffected — its measurement path is separate.',
+      'Quillscript Mode pagination unchanged — already worked correctly because it doesn’t use the per-page overflow controller.',
+      'Also: this release is the live test for the auto-updater fix from alpha.6. If your installed Quillosofi auto-detected and installed alpha.7, the channel-filter fix held.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.6',
     date: '2026-05-14',
     tagline: 'Auto-updater fix, for real this time. Alpha 4 set allowPrerelease=true but the tag format was wrong — electron-updater’s GitHubProvider channel-filter is case-sensitive (`["alpha","beta"]`) and our `-AlphaN` suffix never matched, so Alpha 4 installs would silently pick themselves as the latest. Switching the tag format to standard semver prerelease form (`-alpha.N`, lowercase + dot + number) makes the filter pass and unlocks any-direction forward progression: alpha installs find future alphas AND future stable, stable installs find future stable, no downgrades. Plus the download progress bar now reflects real bytes instead of a 1.8s synthetic ramp — speed in KB/s or MB/s, transferred-of-total in bytes/KB/MB, live from electron-updater’s download-progress event.',

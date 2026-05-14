@@ -148,6 +148,29 @@ function PageEditor({
     measureRef.current = node;
   }, []);
 
+  // v0.6.95-alpha.7 — Natural content height (NOT scrollHeight).
+  //
+  // Regression context: the editor DOM (`.tiptap`) carries `min-height: 100%`
+  // (see TIPTAP_BASE_CSS) so clicking the empty page area below the last
+  // paragraph still focuses the editor — UX requirement preserved from v0.5.x.
+  // Side effect: `dom.scrollHeight` is CLAMPED UP to the page's writable
+  // area height. That works fine for the OVERFLOW pass (real overflow still
+  // pushes scrollHeight past the clamp), but it BREAKS the UNDERFLOW pass:
+  // a tiny one-block page reports scrollHeight === contentHeightPx → `room`
+  // computes as 0 → no pull-back happens, ever.
+  //
+  // The visible bug (filed by Alaria, alpha.6→alpha.7): activating Quillginate
+  // on an existing multi-block doc runs `splitDocToBlocks` which seeds the
+  // pages array with one top-level block per page. The underflow pass should
+  // immediately reflow them back together, but with clamped scrollHeight it
+  // never could — so every block stayed on its own page with vast empty
+  // space below it. Pre-Alpha 3 this didn't trip because Quillginate didn't
+  // auto-split on activate.
+  //
+  // Fix: report the NATURAL block-content height — measured from the top of
+  // the first block to the bottom of the last block (including their margins),
+  // which is independent of the parent's min-height. Empty editor falls back
+  // to 0 (forces the underflow pass to pull blocks back from the next page).
   useEffect(() => {
     if (!editor) return;
     let raf = 0;
@@ -155,7 +178,7 @@ function PageEditor({
     const tick = () => {
       const dom = editor.view?.dom;
       if (dom) {
-        const h = dom.scrollHeight;
+        const h = measureNaturalContentHeight(dom);
         if (h !== lastReported) {
           lastReported = h;
           onMeasure?.(pageIndex, h);
@@ -172,6 +195,40 @@ function PageEditor({
       <EditorContent editor={editor} className="h-full" />
     </div>
   );
+}
+
+// v0.6.95-alpha.7 — Natural content height, independent of parent min-height.
+//
+// Returns the pixel span from the top of the first child block to the bottom
+// of the last child block, plus the first child's collapsed top margin and
+// the last child's collapsed bottom margin (since getBoundingClientRect()
+// excludes margins). For an empty editor returns 0.
+//
+// This deliberately ignores the editor DOM's own min-height: 100% — that
+// rule is a UX affordance (so clicking the empty page area focuses the
+// editor) and must not influence overflow/underflow detection. Using
+// scrollHeight would inherit the clamp and break the underflow pass.
+function measureNaturalContentHeight(dom) {
+  if (!dom) return 0;
+  const children = dom.children;
+  if (!children || children.length === 0) return 0;
+  const first = children[0];
+  const last = children[children.length - 1];
+  const firstRect = first.getBoundingClientRect();
+  const lastRect = last.getBoundingClientRect();
+  // Add margins on the outer edges (block margins on inner children collapse
+  // naturally into the rect span, so we only need the outer two).
+  let topMargin = 0;
+  let bottomMargin = 0;
+  try {
+    const cs1 = window.getComputedStyle(first);
+    const cs2 = window.getComputedStyle(last);
+    topMargin = parseFloat(cs1.marginTop) || 0;
+    bottomMargin = parseFloat(cs2.marginBottom) || 0;
+  } catch { /* ignore — SSR/jsdom fallback */ }
+  const span = (lastRect.bottom - firstRect.top) + topMargin + bottomMargin;
+  // Floor to avoid sub-pixel oscillation triggering the RAF loop.
+  return Math.max(0, Math.round(span));
 }
 
 // ── Overflow controller — rebalances pages[] based on per-page heights ────
