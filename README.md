@@ -49,7 +49,7 @@ Write, format, and save rich-text canvases as full-fledged documents.
 - Build your own personal vocabulary: words, definitions, categories.
 - **Pin** words to passively inject them into the writing context — perfect for character names, lore terms, made-up languages, or specialised vocabulary.
 
-### Customisation
+### Customization
 - **Themes** with full theme propagation across the app.
 - **Fonts** — Oldenburg humanist slab serif by default, Lora as a backward-compatible fallback, plus everything else you'd expect.
 - **Custom Keybinds** — every shortcut is editable in Settings → Keybinds.
