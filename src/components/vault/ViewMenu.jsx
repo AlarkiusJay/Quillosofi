@@ -21,12 +21,25 @@ export default function ViewMenu({ setup, onChange, onOpenPageSetup }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   // Position the portal-rendered popover under the button.
+  //
+  // v0.6.95-Alpha3 fix — The View button lives in the bottom status bar of
+  // the editor frame. Opening downward (r.bottom + 4) pushed the popover
+  // off-screen or behind the page-bottom strip, so the panel header was
+  // clipped by the toolbar above it. Estimate the popover's height and
+  // flip upward when the anchor is too close to the viewport bottom.
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
     const POPOVER_W = 224;
+    const POPOVER_H_EST = 360; // generous estimate (4 sections, ~9 rows)
+    const vh = window.innerHeight;
+    const spaceBelow = vh - r.bottom;
+    const flipUp = spaceBelow < POPOVER_H_EST + 16;
+    const top = flipUp
+      ? Math.max(8, r.top - POPOVER_H_EST - 4)
+      : r.bottom + 4;
     setPos({
-      top: r.bottom + 4,
+      top,
       // anchor right edge of popover to right edge of button
       left: Math.max(8, r.right - POPOVER_W),
     });

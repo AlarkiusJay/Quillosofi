@@ -29,6 +29,7 @@ export const CHANGELOG = [
       'Forced-break detection runs on any pages-array change, not just on height changes. Pre-fix, a Mod-Enter that didn\'t reflow the page could leave the marker stranded mid-page because the rebalance loop was only scheduled by the height-delta measurement. Now any edit reschedules the rebalance, so the forced-break pass always fires.',
       'HardPageBreak parseHTML priority bumped above StarterKit\'s HorizontalRule. Pre-fix, `chain().insertContent({type: "hardPageBreak"})` round-tripped through HTML and the generic `tag: "hr"` rule from HorizontalRule won the parse, rebirthing the node as a plain HR — which the paginator\'s regex would then miss. Priority 100 vs 50 keeps our node intact.',
       'HardPageBreak owns its DOM through a tiny NodeView with explicit selectNode/deselectNode handlers. ProseMirror\'s default atom-selection path overwrites className wholesale, which was wiping our `hard-page-break` class the moment the marker was selected. Toggling the selectednode class via classList preserves both classes side-by-side.',
+      'View menu popover flips upward when the View button sits near the viewport bottom. The button lives in the editor\'s bottom status bar; opening straight down was pushing the Page Movement / Show / Zoom panel partway off-screen and getting clipped by the strip above it.',
       'Alaria-internal: Alpha 3 is the final v0.6 release. v0.7.0 opens next — spread animation lives there. v1.0.0 is when QoL features like Find & Replace land, not earlier.',
     ],
   },
