@@ -25,15 +25,23 @@ Quillosofi is an all-in-one writing & thinking studio for creators — draft, or
 ## What Quillosofi Can Do
 
 ### Canvas — a real document editor
-Write, format, and save rich-text canvases as full-fledged documents.
+Write, format, and save rich-text canvases as full-fledged documents. Two modes, one document, one toggle between them.
+- **Quillscript** (default) — single Tiptap editor for the whole canvas. Cmd/Ctrl+A and drag-select cross any boundary the way Word and Notion do. Notion-style page header with emoji, cover, and a serif Oldenburg title.
+- **Quillginate** — flip the parchment-scroll toggle and the same document re-flows into paginated layout: chalkboard page frames, Word-style ruler, outline rail, top toolbar. Flip it off and the pages join back into a continuous doc with zero loss.
+- **Overflow-driven pagination** in Quillginate — type past the bottom of a page and the next paragraph migrates to a fresh page automatically. Delete a page's worth of text and content reflows back to fill the room. Underflow detection measures the natural span between the first and last block, independent of editor min-height.
+- **Hard page break** (Mod-Enter / Ctrl+Enter) — drops a dashed chalkboard PAGE BREAK marker exactly where you commit it. Auto-overflow respects it; the paginator never migrates blocks across a committed break.
+- **Spread-mode toggle** in the Quillginate header — one click flips between single-page paginated and side-by-side book spread. Mouse-wheel flips spreads.
 - **Visual page-frame pagination** — pick US Letter, A4, A5, KDP trim sizes (5×8, 5.25×8, 5.5×8.5, 6×9, 7×10, 8×10), or define a custom trim. Pages render as actual sheets behind the editor.
 - **Page Setup dialog** — Margins, Paper, and Layout tabs. Mirrored margins, gutter, custom inches/cm.
-- **View modes** — Vertical scroll, Side-to-Side spreads, One Page, or Multiple Pages. Mouse-wheel flips spreads in book view.
-- **Word-style toolbar** — font size, alignment, line spacing, indent, outline, lists.
-- **Word-style ruler** — three independent indent markers (first-line, hanging, left), draggable tab stops, real Left-Tab glyph, right-indent triangle.
+- **View modes** — Vertical scroll, Side-to-Side spreads, One Page, or Multiple Pages.
+- **Word-style top toolbar** — font size, alignment, line spacing, indent, outline, lists. Same slot in both modes — muscle memory survives the Quillscript ↔ Quillginate toggle.
+- **Word-style ruler** (Quillginate) — three independent indent markers (first-line, hanging, left), draggable tab stops, real Left-Tab glyph, right-indent triangle.
+- **¶ Paragraph dialog** — three-tab Word-faithful modal (Indents and Spacing, Line and Page Breaks, Asian Typography) with a live preview pane. The Asian Typography toggles map to native browser CSS so they adapt to whichever CJK or other Asian script you're writing in.
 - **Tab key actually indents** — proper DOM capture, no keyboard race conditions.
 - **Outline rail** on the left side of Canvas for jumping around long documents.
 - **Multi-doc tabs** with a Canvas Editor Hub and Resume Last to pick up where you stopped.
+- **Notion-style left sidebar** — Pinned section, per-Space groups, Unsorted. Drag to reorder, double-click to rename, pick an emoji from a six-tab chalk-styled picker, pick from twelve curated chalkboard cover swatches (no external imagery, pure CSS gradients).
+- **Tri-hub sync ring** — Quillibrary, Quillounge, the sidebar, and the in-Quillginate Recents picker all refresh the instant you save, pin, favorite, rename, change emoji, change cover, or delete. Works across browser tabs too.
 - **Export** to TXT, MD, DOCX, or PDF.
 
 ### Sheets — live spreadsheets in your workflow
@@ -57,10 +65,15 @@ Write, format, and save rich-text canvases as full-fledged documents.
 - Export or delete everything at any time from Settings → Data & Security.
 
 ### Auto-Updates Done Right
-- `electron-updater` checks GitHub Releases and (optionally) installs in the background.
-- **Post-update toast** on first launch after a silent install — tells you which version you came from and which you're on, with a "See what's new" jump straight to the Update tab.
-- **Auto-install heads-up chip** in Settings so you know when updates will apply silently.
-- Friendlier error messaging when CI hasn't finished publishing a release manifest yet.
+- `electron-updater` checks GitHub Releases on every launch and downloads new versions in the background.
+- **In-session install prompt** — when a download finishes while the app is open, a modal pops with a 5-second countdown, the release tagline, and three buttons: Install Now (fires immediately), Pause (holds the countdown so you can read the tagline), Later (defers to next launch). No more silently closing-and-reinstalling under you.
+- **Next-launch fallback** — if you hit Later or quit before the countdown finishes, the pending install fires on your next launch via a 10-second countdown toast. Nothing is lost.
+- **Post-update toast** on first launch after an install — tells you which version you came from and which you're on, with a "See what's new" jump straight to the Update tab.
+- **Real download progress** — percent, transferred / total bytes, and live KB/s or MB/s speed from electron-updater's `download-progress` event. No synthetic ramp.
+- **Update tab status badge** — UPDATE AVAILABLE (green), DOWNLOADING X% (chalk yellow), UPDATE READY (amber).
+- **Settings gear badge** — mobile-style green pill on the Settings gear showing how many releases you're behind (1, 3, 99+).
+- **Diagnostic panel** — rolling buffer of the last 20 electron-updater events with timestamps, color-coded by kind. Surfaces silent failures in-app so support tickets actually have data.
+- Alpha and Beta channels supported via standard semver prerelease tags (`-alpha.N`, `-beta.N`).
 
 ### Donate, Not Upgrade
 Quillosofi is **free and stays free** — no Pro tier, no subscriptions, no paywalls. Settings → Donate has a real Ko-Fi link that helps cover the [quillosofi.com](https://www.quillosofi.com) domain + Spaceship hosting renewal and buys time to keep shipping features.
@@ -84,7 +97,8 @@ The desktop app gives you everything the web version has, plus:
 ## Stack
 
 - **Frontend:** React 18 + Vite + Tailwind + Radix UI
-- **Editor:** Quill (Tiptap migration parked for the v0.5 epic)
+- **Editor:** Tiptap (single-editor architecture — one instance per canvas, cross-page selection works natively)
+- **Drag & drop:** @hello-pangea/dnd for sidebar reorder
 - **Desktop:** Electron + electron-builder + electron-updater
 - **CI:** GitHub Actions — auto-builds Win/Mac/Linux installers on every `v*` tag
 
