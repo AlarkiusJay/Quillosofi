@@ -7,11 +7,13 @@
 ### Your Writing & Worldbuilding Companion — Canvas, Sheets, & a Quillibrary Actually Sticks.
 
 `Native Desktop App` · `Privacy First` · `Chalkboard Aesthetic` · `Free & Open Source`
-`This app is still in  Development! Stuff may change, break or improve over time.`
+
 
 By **Alarkius Elvya Jay** · [quillosofi.com](https://www.quillosofi.com)
 
 </div>
+
+`This app is still in  Development! Stuff may change, break or improve over time.`
 
 ---
 
