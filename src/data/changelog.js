@@ -17,6 +17,19 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-Alpha4',
+    date: '2026-05-14',
+    tagline: 'Auto-updater actually works now. The version suffix (-AlphaN) was being silently rejected as a prerelease and the updater was quietly bailing every time — fixed by allowing prereleases unconditionally so every tag, no matter the suffix, is a valid upgrade target. Plus the ¶ (Paragraph) + View buttons land on the right edge of the formatting toolbar (which itself moves to the top of the editor), giving the View popover full room to open downward, and the Update tab grows an event-log diagnostic panel so the next time anything goes wrong we can see why.',
+    changes: [
+      'Auto-updater now detects, downloads, and installs Alpha / Beta releases instead of silently doing nothing. Root cause was `allowPrerelease = false` in electron/main.cjs combined with version tags like `0.6.95-Alpha4` — semver treats the `-AlphaN` suffix as a prerelease, so the updater was filtering out literally every release we have ever published. Now allowPrerelease is true unconditionally; the channel is "every tag, regardless of suffix."',
+      'Auto-download wired in. Click Check for Updates and electron-updater starts the download the instant the manifest comes back — you no longer have to click a second button to begin fetching. Matches MultiRP\'s UX exactly.',
+      'Update tab status badge mirrors MultiRP: UPDATE AVAILABLE — vX.X.X (green) while we know there\'s an update, DOWNLOADING… X% (chalk yellow) while the bytes come down, UPDATE READY — vX.X.X (amber) once the installer is on disk and waiting.',
+      '"Download New Update" renamed to Restart & Install when the installer is ready. Click it once — quitAndInstall fires, the app vanishes, the installer runs in place, the new version launches itself. No external NSIS wizard popup; nothing outside the app to chase.',
+      'New event-log diagnostic panel under Settings › Update › Diagnostic. Rolling buffer of the last 20 electron-updater events with timestamps, color-coded by kind (info / warn / error / named-event). Surfaces silent failures in-app instead of forcing you to read stderr or guess. Copy diagnostic now includes the full event log too.',
+      '¶ (Paragraph dialog) and View menu buttons relocated to the right edge of the formatting toolbar with `ml-auto` so they sit as their own group, separate from the formatting cluster. The formatting bar itself moved to the top of the editor in this release, so the View popover now opens downward with full room — no more clipping against the page surface. The Quillscript bottom redux bar stops hosting these buttons; it keeps only the line/word counters and zoom.',
+    ],
+  },
+  {
     version: '0.6.95-Alpha3',
     date: '2026-05-13',
     tagline: 'Final v0.6 — the two carryovers from Alpha 2 land, plus polish across the cycle. Quillginate now has a writer-controlled hard page break (Mod-Enter) and a one-click spread toggle right in its header, and switching Quillginate on from a fresh canvas drops you straight into paginated layout instead of continuous-single.',

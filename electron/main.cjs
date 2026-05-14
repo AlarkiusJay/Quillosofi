@@ -144,7 +144,21 @@ const updateState = {
   downloadPercent: 0,
   error: null,
   lastChecked: null,
+  // v0.6.95-Alpha4 — rolling buffer of the last 20 updater events for the
+  // Diagnostics panel. Each entry: { ts, kind, message }. We push from the
+  // logger AND from the event handlers so the panel surfaces both the silent
+  // electron-updater chatter and the high-level state transitions.
+  events: [],
+  feedUrl: 'https://github.com/AlarkiusJay/Quillosofi/releases',
 };
+
+function logUpdaterEvent(kind, message) {
+  try {
+    const entry = { ts: Date.now(), kind, message: String(message || '').slice(0, 800) };
+    updateState.events.push(entry);
+    if (updateState.events.length > 20) updateState.events.shift();
+  } catch (_) {}
+}
 
 function emitUpdateState() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -155,9 +169,19 @@ function emitUpdateState() {
 function wireAutoUpdater() {
   if (!autoUpdater || isDev) return;
 
-  autoUpdater.autoDownload = false;            // we control download timing
+  // v0.6.95-Alpha4 — auto-download on detection so the UX matches MultiRP:
+  //   1. user clicks "Check for Updates"
+  //   2. badge shows UPDATE AVAILABLE
+  //   3. download starts immediately, badge swaps to DOWNLOADING X%
+  //   4. badge swaps to UPDATE READY, button transforms into "Restart & Install"
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = false;    // v0.5.72 — install only on explicit user action
-  autoUpdater.allowPrerelease = false;
+  // v0.6.95-Alpha4 — THE fix. Our versions are tagged `0.6.95-AlphaN` which
+  // semver treats as prerelease, so with allowPrerelease=false electron-updater
+  // was silently rejecting every release we've ever published. Flip it true
+  // unconditionally — Alaria's release channel is "all of them, regardless of
+  // version suffix".
+  autoUpdater.allowPrerelease = true;
 
   // Explicit feed URL — belt-and-suspenders so even older installs whose
   // bundled app-update.yml predates the public-repo rename can still find
@@ -173,14 +197,28 @@ function wireAutoUpdater() {
     console.warn('setFeedURL failed (will fall back to bundled yml):', e && e.message);
   }
 
-  // Pipe verbose updater logs to stderr so 'Not checked yet' failures stop
-  // being silent. Surfaced in the Update tab via the 'error' event below.
+  // Pipe verbose updater logs to stderr AND into the rolling events buffer
+  // so the Diagnostics panel in the Update tab surfaces them in-app.
   try {
     autoUpdater.logger = {
-      info: (...args) => console.log('[updater]', ...args),
-      warn: (...args) => console.warn('[updater]', ...args),
-      error: (...args) => console.error('[updater]', ...args),
-      debug: (...args) => console.log('[updater:debug]', ...args),
+      info: (...args) => {
+        console.log('[updater]', ...args);
+        logUpdaterEvent('info', args.join(' '));
+        emitUpdateState();
+      },
+      warn: (...args) => {
+        console.warn('[updater]', ...args);
+        logUpdaterEvent('warn', args.join(' '));
+        emitUpdateState();
+      },
+      error: (...args) => {
+        console.error('[updater]', ...args);
+        logUpdaterEvent('error', args.join(' '));
+        emitUpdateState();
+      },
+      debug: (...args) => {
+        console.log('[updater:debug]', ...args);
+      },
     };
   } catch (_) {}
 
@@ -188,6 +226,7 @@ function wireAutoUpdater() {
     updateState.status = 'checking';
     updateState.error = null;
     updateState.lastChecked = Date.now();
+    logUpdaterEvent('event', 'checking-for-update');
     emitUpdateState();
   });
 
@@ -197,6 +236,7 @@ function wireAutoUpdater() {
     updateState.releaseDate = info.releaseDate || null;
     updateState.releaseNotes =
       typeof info.releaseNotes === 'string' ? info.releaseNotes : info.releaseNotes || null;
+    logUpdaterEvent('event', `update-available v${info.version}`);
     emitUpdateState();
     // v0.5.72 — the renderer drives downloads explicitly. The old
     // `autoInstall` toggle is gone (it raced the manual flow and made the
@@ -208,12 +248,17 @@ function wireAutoUpdater() {
     updateState.status = 'not-available';
     updateState.latestVersion = info.version;
     updateState.error = null;
+    logUpdaterEvent('event', `update-not-available (latest v${info.version})`);
     emitUpdateState();
   });
 
   autoUpdater.on('download-progress', (progress) => {
     updateState.status = 'downloading';
     updateState.downloadPercent = Math.round(progress.percent || 0);
+    // Only log every 10% so we don't flood the event buffer
+    if (updateState.downloadPercent % 10 === 0) {
+      logUpdaterEvent('event', `download-progress ${updateState.downloadPercent}%`);
+    }
     emitUpdateState();
   });
 
@@ -221,6 +266,7 @@ function wireAutoUpdater() {
     updateState.status = 'downloaded';
     updateState.latestVersion = info.version;
     updateState.downloadPercent = 100;
+    logUpdaterEvent('event', `update-downloaded v${info.version}`);
     emitUpdateState();
     // v0.5.72 — no auto-install path anymore. The downloaded installer
     // sits on disk and the "Install & Restart" button in the Update tab
@@ -231,6 +277,7 @@ function wireAutoUpdater() {
   autoUpdater.on('error', (err) => {
     updateState.status = 'error';
     updateState.error = err && err.message ? err.message : String(err);
+    logUpdaterEvent('error', updateState.error);
     emitUpdateState();
   });
 }

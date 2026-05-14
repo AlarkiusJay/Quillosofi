@@ -277,14 +277,14 @@ function Toolbar({ quillRef, pageSetup, onPageSetupChange, onOpenPageSetupDialog
         </div>
       )}
 
-      {/* Paragraph dialog launcher (¶) + View menu — pushed to the far right.
-          v0.5.8: Word-faithful Paragraph dialog opens via ¶, sits next to View. */}
-      <div className="ml-auto flex items-center gap-1">
-        <Btn
-          icon={Pilcrow}
-          title="Paragraph…"
-          onClick={() => onOpenParagraphDialog?.()}
-        />
+      {/* v0.6.95-Alpha4 (revised) — ¶ (Paragraph dialog) + View menu live at
+          the right edge of the formatting toolbar. `ml-auto` pushes them away
+          from the formatting cluster so they read as a separate group, and
+          since this bar is now mounted at the top of the editor, the View
+          popover has full room to open downward without clipping. */}
+      <div className="ml-auto flex items-center gap-0.5">
+        <Divider />
+        <Btn icon={Pilcrow} title="Paragraph…" onClick={() => onOpenParagraphDialog?.()} />
         <ViewMenu
           setup={pageSetup}
           onChange={onPageSetupChange}
@@ -741,6 +741,10 @@ export default function CanvasEditor({ canvas, onClose, onUpdate, embedded = fal
               )}
             </div>
             {dictToast && <span className="text-[10px] text-green-400 whitespace-nowrap">{dictToast}</span>}
+            {/* v0.6.95-Alpha4 (revised by Alaria) — ¶ + View moved back into the
+                formatting Toolbar's right edge (with ml-auto). The top toolbar
+                here keeps only Custom Dictionary + Save; ¶/View are colocated
+                with the rest of the formatting controls where they belong. */}
             <button onClick={handleAddToDictionary} title="Add selected text to Custom Dictionary" className="h-7 px-2 rounded flex items-center gap-1 text-[hsl(220,7%,45%)] hover:text-white transition-colors">
               <BookPlus className="h-4 w-4" />
             </button>

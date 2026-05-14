@@ -206,15 +206,12 @@ export default function BottomReduxBar({
         q.insertText(range.index, '────────────────────────');
       }} />
 
-      {/* Pilcrow + View menu pinned right */}
-      <div className="ml-auto flex items-center gap-1">
-        <Btn icon={Pilcrow} title="Paragraph…" onClick={() => onOpenParagraphDialog?.()} />
-        <ViewMenu
-          setup={pageSetup}
-          onChange={onPageSetupChange}
-          onOpenPageSetup={onOpenPageSetupDialog}
-        />
-      </div>
+      {/* v0.6.95-Alpha4 — ¶ + View menu moved to the top toolbar in CanvasEditor.
+          Used to live here at the right edge of the redux bar, but the popover
+          got clipped against the editor surface. The props are still received
+          (onOpenParagraphDialog / onPageSetupChange / onOpenPageSetupDialog) but
+          no longer wired to UI here — keeping the signature stable so callers
+          don't need a sweep. */}
 
       {showHeadings && (
         <div className="flex items-center gap-1 w-full pt-1.5 flex-wrap">

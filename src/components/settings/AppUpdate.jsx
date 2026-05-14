@@ -244,22 +244,34 @@ function DesktopUpdateView() {
   }, []);
 
   const handleCopyDiag = useCallback(async () => {
-    const diag = [
+    const header = [
       `Quillosofi Update Diagnostic`,
       `------------------------------`,
-      `Installed:     v${state.currentVersion}`,
-      `Latest seen:   ${state.latestVersion ? 'v' + state.latestVersion : '(not yet seen)'}`,
-      `Status:        ${state.status}`,
-      `Updater mod:   ${state.updaterAvailable ? 'loaded' : 'NOT LOADED'}`,
-      `Updater error: ${state.updaterLoadError || '(none)'}`,
-      `Dev mode:      ${state.isDev ? 'yes (auto-update disabled in dev)' : 'no'}`,
-      `Last checked:  ${formatChecked(state.lastChecked)}`,
-      `Last error:    ${state.error || '(none)'}`,
-      `Feed:          ${FEED_URL}`,
-      `Download %:    ${state.downloadPercent}`,
-      `Auto-check:    ${state.settings?.autoCheck ? 'on' : 'off'}`,
-      `Channel:       ${state.settings?.channel || 'stable'}`,
-    ].join('\n');
+      `Installed:        v${state.currentVersion}`,
+      `Latest seen:      ${state.latestVersion ? 'v' + state.latestVersion : '(not yet seen)'}`,
+      `Status:           ${state.status}`,
+      `Updater mod:      ${state.updaterAvailable ? 'loaded' : 'NOT LOADED'}`,
+      `Updater error:    ${state.updaterLoadError || '(none)'}`,
+      `Dev mode:         ${state.isDev ? 'yes (auto-update disabled in dev)' : 'no'}`,
+      `Allow prerelease: true (Alpha/Beta enabled)`,
+      `Last checked:     ${formatChecked(state.lastChecked)}`,
+      `Last error:       ${state.error || '(none)'}`,
+      `Feed:             ${state.feedUrl || FEED_URL}`,
+      `Download %:       ${state.downloadPercent}`,
+      `Auto-check:       ${state.settings?.autoCheck ? 'on' : 'off'}`,
+      `Channel:          ${state.settings?.channel || 'stable'}`,
+    ];
+    // v0.6.95-Alpha4 — append the rolling events buffer so support
+    // tickets carry the actual electron-updater trail, not just the
+    // summary snapshot.
+    const evs = state.events || [];
+    const eventLines = evs.length === 0
+      ? [``, `Recent updater events (0):`, `  (none)`]
+      : [``, `Recent updater events (${evs.length}):`, ...evs.map((ev) => {
+          const ts = ev.ts ? new Date(ev.ts).toISOString() : '';
+          return `  [${ts}] ${(ev.kind || 'info').padEnd(5)} ${ev.message}`;
+        })];
+    const diag = [...header, ...eventLines].join('\n');
     try {
       await navigator.clipboard.writeText(diag);
       setDiagCopied(true);
@@ -314,7 +326,7 @@ function DesktopUpdateView() {
         <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <div className="text-xs">
           <p className="font-medium text-primary">v{latestVersion} is ready to install.</p>
-          <p className="text-muted-foreground mt-0.5">Click Install &amp; Restart to finish, or it'll apply on next quit.</p>
+          <p className="text-muted-foreground mt-0.5">Click Restart &amp; Install to finish, or it'll apply on next quit.</p>
         </div>
       </div>
     );
@@ -370,17 +382,22 @@ function DesktopUpdateView() {
 
   // Real action button is purely the legitimate Install/Download CTA —
   // never hijacked by easter eggs. (v0.4.14: prank twin removed entirely.)
+  // v0.6.95-Alpha4 — button morphs to match MultiRP exactly:
+  //   idle        → Download Update     (kicks check + auto-download)
+  //   available   → Starting download…  (brief, autoDownload fires immediately)
+  //   downloading → Downloading X%      (disabled, spinner, percent in label)
+  //   downloaded  → Restart & Install   (primary CTA — fires quitAndInstall)
   const action = (() => {
     if (installable) {
-      return { label: 'Install & Restart', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
+      return { label: 'Restart & Install', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
     }
     if (downloading) {
-      return { label: 'Downloading\u2026', icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
+      return { label: `Downloading ${downloadPercent}%`, icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
     }
     if (downloadable) {
-      return { label: `Download v${latestVersion}`, icon: <Download className="h-4 w-4" />, onClick: handleDownload, disabled: busy, variant: 'default' };
+      return { label: 'Starting download\u2026', icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
     }
-    return { label: 'Download New Update', icon: <Download className="h-4 w-4" />, onClick: handleCheckAndDownload, disabled: checking, variant: 'default' };
+    return { label: 'Download Update', icon: <Download className="h-4 w-4" />, onClick: handleCheckAndDownload, disabled: checking, variant: 'default' };
   })();
 
   return (
@@ -397,14 +414,32 @@ function DesktopUpdateView() {
 
         <div className="border-t border-border" />
 
-        {/* Latest */}
+        {/* Latest + MultiRP-style status badge */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Latest Version</p>
           {latestVersion ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-mono font-medium text-foreground">v{latestVersion}</span>
               {isUpToDate && <CheckCircle2 className="h-4 w-4 text-green-400" />}
               {hasUpdate && <Sparkles className="h-4 w-4 text-primary" />}
+              {/* v0.6.95-Alpha4 — MultiRP-style state badge. Sits inline with
+                  the latest-version row so it's the first thing the eye lands
+                  on when the user checks back in after kicking off a download. */}
+              {status === 'available' && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-green-300 bg-green-500/15 border border-green-500/30 rounded px-2 py-0.5">
+                  Update Available — v{latestVersion}
+                </span>
+              )}
+              {status === 'downloading' && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/15 border border-primary/30 rounded px-2 py-0.5">
+                  Downloading… {downloadPercent}%
+                </span>
+              )}
+              {status === 'downloaded' && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-200 bg-amber-500/15 border border-amber-500/30 rounded px-2 py-0.5">
+                  Update Ready — v{latestVersion}
+                </span>
+              )}
             </div>
           ) : (
             <span className="text-xs text-muted-foreground">
@@ -506,12 +541,12 @@ function DesktopUpdateView() {
         {/* v0.5.72 — "Auto-download & install" toggle removed. The flow is
             now strictly user-driven: silent check on launch (the toggle
             above) populates the Settings-gear badge; the user clicks
-            Check for Updates, then Install & Restart, when they're ready.
+            Check for Updates, then Restart & Install, when they're ready.
             See AppUpdate.jsx history for the previous racy two-toggle setup. */}
         <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
           <span className="text-muted-foreground text-xs leading-tight mt-0.5" aria-hidden="true">ℹ</span>
           <p className="text-xs text-muted-foreground leading-snug">
-            Updates download automatically when you click <span className="font-medium text-foreground">Check for Updates</span>, then wait for you to click <span className="font-medium text-foreground">Install &amp; Restart</span>. Nothing installs without your okay.
+            Updates download automatically when you click <span className="font-medium text-foreground">Check for Updates</span>, then wait for you to click <span className="font-medium text-foreground">Restart &amp; Install</span>. Nothing installs without your okay.
           </p>
         </div>
       </div>
@@ -527,19 +562,55 @@ function DesktopUpdateView() {
           {showDiag ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         {showDiag && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <pre className="bg-muted/40 border border-border rounded-lg p-3 text-[11px] font-mono text-foreground/80 overflow-auto leading-relaxed whitespace-pre-wrap break-all">
-{`Installed:     v${currentVersion}
-Latest seen:   ${latestVersion ? 'v' + latestVersion : '(not yet seen)'}
-Status:        ${status}
-Updater mod:   ${updaterAvailable ? 'loaded' : 'NOT LOADED'}
-Updater error: ${updaterLoadError || '(none)'}
-Dev mode:      ${isDev ? 'yes (auto-update disabled in dev)' : 'no'}
-Last checked:  ${formatChecked(lastChecked)}
-Last error:    ${error || '(none)'}
-Feed:          ${FEED_URL}
-Auto-check:    ${settings.autoCheck ? 'on' : 'off'}`}
+{`Installed:        v${currentVersion}
+Latest seen:      ${latestVersion ? 'v' + latestVersion : '(not yet seen)'}
+Status:           ${status}
+Updater mod:      ${updaterAvailable ? 'loaded' : 'NOT LOADED'}
+Updater error:    ${updaterLoadError || '(none)'}
+Dev mode:         ${isDev ? 'yes (auto-update disabled in dev)' : 'no'}
+Allow prerelease: true (Alpha/Beta enabled)
+Last checked:     ${formatChecked(lastChecked)}
+Last error:       ${error || '(none)'}
+Feed:             ${state.feedUrl || FEED_URL}
+Auto-check:       ${settings.autoCheck ? 'on' : 'off'}`}
             </pre>
+
+            {/* v0.6.95-Alpha4 — rolling log of the last ~20 updater events.
+                Mirrors the MultiRP diagnostic panel: every electron-updater
+                signal + logger line flows through main.cjs's logUpdaterEvent
+                into state.events, so support tickets can see exactly what
+                the underlying library is doing. */}
+            <div className="bg-muted/40 border border-border rounded-lg p-3 space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Recent updater events ({(state.events || []).length})
+              </p>
+              {(state.events || []).length === 0 ? (
+                <p className="text-[11px] font-mono text-muted-foreground/70 italic">
+                  No events yet — try checking for updates.
+                </p>
+              ) : (
+                <ul className="space-y-0.5 max-h-48 overflow-auto text-[11px] font-mono">
+                  {state.events.slice().reverse().map((ev, idx) => {
+                    const tone =
+                      ev.kind === 'error' ? 'text-amber-300' :
+                      ev.kind === 'warn'  ? 'text-amber-200/80' :
+                      ev.kind === 'event' ? 'text-primary/90' :
+                                            'text-foreground/70';
+                    const ts = ev.ts ? new Date(ev.ts).toLocaleTimeString() : '';
+                    return (
+                      <li key={idx} className={`${tone} break-all leading-relaxed`}>
+                        <span className="text-muted-foreground/60">[{ts}]</span>{' '}
+                        <span className="text-muted-foreground/80">{(ev.kind || 'info').padEnd(5)}</span>{' '}
+                        {ev.message}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={handleCopyDiag}
