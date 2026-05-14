@@ -142,6 +142,13 @@ const updateState = {
   releaseNotes: null,
   releaseDate: null,
   downloadPercent: 0,
+  // v0.6.95-alpha.6 — surface real-byte progress alongside the percent so
+  // the diagnostic panel + status block can show speed/size, and (more
+  // importantly) so the renderer can distinguish a *real* download in flight
+  // from the synthetic checking-phase ramp.
+  downloadBytesPerSecond: 0,
+  downloadTransferred: 0,
+  downloadTotal: 0,
   error: null,
   lastChecked: null,
   // v0.6.95-Alpha4 — rolling buffer of the last 20 updater events for the
@@ -176,11 +183,22 @@ function wireAutoUpdater() {
   //   4. badge swaps to UPDATE READY, button transforms into "Restart & Install"
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = false;    // v0.5.72 — install only on explicit user action
-  // v0.6.95-Alpha4 — THE fix. Our versions are tagged `0.6.95-AlphaN` which
-  // semver treats as prerelease, so with allowPrerelease=false electron-updater
-  // was silently rejecting every release we've ever published. Flip it true
-  // unconditionally — Alaria's release channel is "all of them, regardless of
-  // version suffix".
+  // v0.6.95-alpha.6 — THE REAL fix. Alpha4 set allowPrerelease=true but the
+  // tag format was still `v0.6.95-AlphaN` (capital A, no dot). electron-
+  // updater's GitHubProvider runs:
+  //   currentChannel = semver.prerelease(version)?.[0]   // "Alpha4"
+  //   shouldFetchVersion = !currentChannel || ["alpha","beta"].includes(currentChannel);
+  //                                                       // false (case-sensitive!)
+  //   isNextPreRelease = hrefChannel === currentChannel; // "Alpha5" !== "Alpha4" → false
+  // Result: an Alpha4 install would loop the feed, reject Alpha5 (wrong
+  // channel), and pick Alpha4 itself as the "latest matching" entry. Hence
+  // the "You're up to date" lie even with a newer Alpha sitting in the feed.
+  //
+  // The fix: tag with standard semver prerelease form — `v0.6.95-alpha.6`.
+  // semver.prerelease() then returns ["alpha", 6], currentChannel="alpha",
+  // which is in the whitelist, so shouldFetchVersion=true and the highest
+  // semver wins. Forward-only progression with any-prerelease, exactly what
+  // Alaria wanted: alpha users get future alphas + future stable.
   autoUpdater.allowPrerelease = true;
 
   // Explicit feed URL — belt-and-suspenders so even older installs whose
@@ -255,9 +273,14 @@ function wireAutoUpdater() {
   autoUpdater.on('download-progress', (progress) => {
     updateState.status = 'downloading';
     updateState.downloadPercent = Math.round(progress.percent || 0);
+    // v0.6.95-alpha.6 — capture real byte/speed metrics from electron-updater
+    // so the renderer can show actual download speed instead of guessing.
+    updateState.downloadBytesPerSecond = Math.round(progress.bytesPerSecond || 0);
+    updateState.downloadTransferred = progress.transferred || 0;
+    updateState.downloadTotal = progress.total || 0;
     // Only log every 10% so we don't flood the event buffer
     if (updateState.downloadPercent % 10 === 0) {
-      logUpdaterEvent('event', `download-progress ${updateState.downloadPercent}%`);
+      logUpdaterEvent('event', `download-progress ${updateState.downloadPercent}% (${updateState.downloadTransferred}/${updateState.downloadTotal}B)`);
     }
     emitUpdateState();
   });

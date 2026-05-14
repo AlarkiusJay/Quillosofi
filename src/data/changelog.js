@@ -17,6 +17,20 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.6',
+    date: '2026-05-14',
+    tagline: 'Auto-updater fix, for real this time. Alpha 4 set allowPrerelease=true but the tag format was wrong — electron-updater’s GitHubProvider channel-filter is case-sensitive (`["alpha","beta"]`) and our `-AlphaN` suffix never matched, so Alpha 4 installs would silently pick themselves as the latest. Switching the tag format to standard semver prerelease form (`-alpha.N`, lowercase + dot + number) makes the filter pass and unlocks any-direction forward progression: alpha installs find future alphas AND future stable, stable installs find future stable, no downgrades. Plus the download progress bar now reflects real bytes instead of a 1.8s synthetic ramp — speed in KB/s or MB/s, transferred-of-total in bytes/KB/MB, live from electron-updater’s download-progress event.',
+    changes: [
+      'Version tag format changed to standard semver prerelease form: `v0.6.95-alpha.6` instead of `v0.6.95-Alpha6`. semver.prerelease() now returns ["alpha", 6] so the channel is "alpha" (matches electron-updater’s hardcoded `["alpha","beta"]` whitelist). All future tags follow this convention: `0.7.0-alpha.1`, `0.7.0-beta.1`, `0.7.0`, etc.',
+      'Root cause of the Alpha-4 → Alpha-5 “You’re up to date” lie identified and documented in electron/main.cjs: electron-updater’s GitHubProvider runs `currentChannel = semver.prerelease(version)?.[0]` — for `0.6.95-Alpha4` that returns `"Alpha4"` (case-sensitive!), which is NOT in the `["alpha","beta"]` whitelist. Fallback matcher requires exact-string channel equality, so `"Alpha5" === "Alpha4"` is false. Loop picks Alpha 4 as its own latest — silent self-match.',
+      'Real download progress replaces the synthetic 1.8s ramp. The progress bar shown during the download phase now reflects actual electron-updater download-progress events: real percent, real bytes transferred, real bytes per second.',
+      'New progress label under the download bar: shows `transferred / total` (formatted as B/KB/MB) on the left and instantaneous speed (KB/s or MB/s) on the right. Disappears between downloads.',
+      'Diagnostic copy block grows two new lines: `Download speed: <KB/s>` and `Download size: <transferred> / <total>`. Live during the download phase, `(idle)` otherwise.',
+      'Scanning overlay (the synthetic “Fetching latest release from GitHub…” bar) now yields the moment a real download-progress event lands. Pre-fix, the synthetic ramp would mask the real percent for up to 1.8s after the actual download had started. Now the handoff is instant — you see real bytes the moment they start flowing.',
+      'Migration note for users on Alpha4/Alpha5: this is a one-time manual install. Capital-A tags can’t find the new lowercase-dot tag automatically (different channel). From alpha.6 forward, the updater actually works.',
+    ],
+  },
+  {
     version: '0.6.95-Alpha5',
     date: '2026-05-14',
     tagline: 'Formatting bar parity. Quillscript mode’s redux bar was still mounted at the bottom of the editor while Quillginate’s sat at the top — same buttons, opposite gravity. Now both modes share the same top slot, so muscle memory survives the toggle.',

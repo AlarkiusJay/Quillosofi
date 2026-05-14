@@ -11,7 +11,7 @@
  * running outside electron) we render a clear notice instead of pretending
  * to be a PWA.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw,
   CheckCircle2,
@@ -85,10 +85,20 @@ function DesktopUpdateView() {
     releaseNotes: null,
     releaseDate: null,
     downloadPercent: 0,
+    // v0.6.95-alpha.6 — real byte/speed metrics piped from electron-updater's
+    // download-progress event via main.cjs. Drives the speed label under the
+    // download progress bar.
+    downloadBytesPerSecond: 0,
+    downloadTransferred: 0,
+    downloadTotal: 0,
     error: null,
     lastChecked: null,
     settings: { autoInstall: false, autoCheck: true, channel: 'stable' },
   });
+  // v0.6.95-alpha.6 — ref mirror of state.status so runScanWith can bail out
+  // the synthetic ramp the instant a real download-progress event lands
+  // (without re-running the callback on every state change).
+  const statusRef = useRef('idle');
   const [busy, setBusy] = useState(false);
   // v0.5.72 — the manual "Check for Updates" button now runs a single
   // pipeline: scan animation → (if newer found) auto-fire downloadUpdate →
@@ -124,9 +134,10 @@ function DesktopUpdateView() {
         const initial = await window.quillosofi.updates.status();
         if (!cancelled) setState((s) => ({ ...s, ...initial }));
       } catch (_) {}
-      unsub = window.quillosofi.updates.onState((payload) =>
-        setState((s) => ({ ...s, ...payload }))
-      );
+      unsub = window.quillosofi.updates.onState((payload) => {
+        if (payload && payload.status) statusRef.current = payload.status;
+        setState((s) => ({ ...s, ...payload }));
+      });
       // If we've never checked (or the last check is stale), fire one.
       try {
         const initial = await window.quillosofi.updates.status();
@@ -168,23 +179,46 @@ function DesktopUpdateView() {
   // granular progress until the actual blob fetch starts, so we ease the
   // first ~1.8s with a synthetic ramp). Returns once both the request and
   // the animation have settled. Caller decides what to do next.
+  // v0.6.95-alpha.6 — the synthetic ramp now bails out the moment a real
+  // download-progress event lands. The scanning overlay was masking the
+  // real percent (the `if (scanning)` branch in statusBlock won the race
+  // against `status === 'downloading'`). Now: if statusRef flips to
+  // 'downloading' or 'downloaded' mid-ramp, we hand off immediately so the
+  // real-byte progress takes over the bar.
   const runScanWith = useCallback(async (label, work) => {
     setScanLabel(label);
     setScanning(true);
     setScanProgress(0);
     const start = Date.now();
     const DURATION = 1800;
+    let bailed = false;
     const tick = () => {
+      const s = statusRef.current;
+      if (s === 'downloading' || s === 'downloaded') {
+        bailed = true;
+        return;
+      }
       const elapsed = Date.now() - start;
       const pct = Math.min(100, Math.round((elapsed / DURATION) * 100));
       setScanProgress(pct);
     };
     const interval = setInterval(tick, 60);
     const result = await Promise.resolve(work()).catch(() => null);
-    await new Promise((r) => setTimeout(r, DURATION));
+    // Wait until either the synthetic duration elapses OR the real download
+    // takes over — whichever comes first. Polling at 60ms keeps the handoff
+    // snappy without busy-waiting.
+    const waitUntilDone = new Promise((resolve) => {
+      const poll = setInterval(() => {
+        if (bailed || Date.now() - start >= DURATION) {
+          clearInterval(poll);
+          resolve();
+        }
+      }, 60);
+    });
+    await waitUntilDone;
     clearInterval(interval);
     setScanProgress(100);
-    await new Promise((r) => setTimeout(r, 220));
+    if (!bailed) await new Promise((r) => setTimeout(r, 220));
     setScanning(false);
     setScanProgress(0);
     return result;
@@ -258,6 +292,8 @@ function DesktopUpdateView() {
       `Last error:       ${state.error || '(none)'}`,
       `Feed:             ${state.feedUrl || FEED_URL}`,
       `Download %:       ${state.downloadPercent}`,
+      `Download speed:   ${fmtSpeed(state.downloadBytesPerSecond) || '(idle)'}`,
+      `Download size:    ${state.downloadTotal ? `${fmtBytes(state.downloadTransferred)} / ${fmtBytes(state.downloadTotal)}` : '(idle)'}`,
       `Auto-check:       ${state.settings?.autoCheck ? 'on' : 'off'}`,
       `Channel:          ${state.settings?.channel || 'stable'}`,
     ];
@@ -279,15 +315,30 @@ function DesktopUpdateView() {
     } catch (_) {}
   }, [state]);
 
-  const { status, currentVersion, latestVersion, downloadPercent, error, releaseNotes, settings, lastChecked, updaterAvailable, updaterLoadError, isDev } = state;
+  const { status, currentVersion, latestVersion, downloadPercent, downloadBytesPerSecond = 0, downloadTransferred = 0, downloadTotal = 0, error, releaseNotes, settings, lastChecked, updaterAvailable, updaterLoadError, isDev } = state;
+  // v0.6.95-alpha.6 — friendly speed/size formatter for the real download
+  // progress label. Speed in KB/s or MB/s depending on rate; size as
+  // transferred / total MB. Silently no-ops when bytes haven't arrived yet.
+  const fmtBytes = (n) => {
+    if (!n || n < 1024) return `${Math.max(0, Math.round(n))} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  const fmtSpeed = (bps) => {
+    if (!bps) return '';
+    if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`;
+    return `${(bps / (1024 * 1024)).toFixed(2)} MB/s`;
+  };
   const isUpToDate = status === 'not-available' || (latestVersion && latestVersion === currentVersion);
   const hasUpdate = status === 'available' || status === 'downloading' || status === 'downloaded';
 
   // ---------- Status block ----------
   // v0.4.51 — manual scan animation takes precedence over the regular
   // 'checking' state when active, so the user sees the progress bar.
+  // v0.6.95-alpha.6 — EXCEPT when a real download is in flight; in that case
+  // the real-byte progress wins. Otherwise the synthetic bar mask the truth.
   let statusBlock;
-  if (scanning) {
+  if (scanning && status !== 'downloading' && status !== 'downloaded') {
     statusBlock = (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
@@ -308,6 +359,10 @@ function DesktopUpdateView() {
       </div>
     );
   } else if (status === 'downloading') {
+    const speedLabel = fmtSpeed(downloadBytesPerSecond);
+    const sizeLabel = downloadTotal > 0
+      ? `${fmtBytes(downloadTransferred)} / ${fmtBytes(downloadTotal)}`
+      : '';
     statusBlock = (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
@@ -318,6 +373,12 @@ function DesktopUpdateView() {
           <span className="font-mono text-xs text-muted-foreground">{downloadPercent}%</span>
         </div>
         <Progress value={downloadPercent} className="h-2" />
+        {(speedLabel || sizeLabel) && (
+          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground/80">
+            <span>{sizeLabel}</span>
+            <span>{speedLabel}</span>
+          </div>
+        )}
       </div>
     );
   } else if (status === 'downloaded') {
