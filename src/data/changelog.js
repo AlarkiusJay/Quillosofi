@@ -17,6 +17,19 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.8',
+    date: '2026-05-14',
+    tagline: 'In-session install prompt with a 5-second countdown you can pause. Pre-alpha.8 the downloaded installer would silently close the app and apply itself with no warning — jarring even when the update actually works. Now you get a modal the moment electron-updater finishes downloading: a big countdown number, Install Now / Later / Pause buttons, the release tagline so you know what’s landing, and a soft fallback (Later defers to the existing 10s next-launch countdown). Pending-install marker is now persisted on every download-finished event, so the safety net survives even an abrupt force-quit.',
+    changes: [
+      'New install-ready modal pops the moment a downloaded update is ready to install. Shows a 5-second countdown that auto-fires Install Now when it hits zero. Three controls: Install Now (primary CTA, fires immediately), Pause (holds the countdown so you can read the tagline), Later (defers to next launch).',
+      'Release tagline is surfaced inside the modal — first non-empty line of the new version’s release notes — so you can decide whether to install now or finish your paragraph first.',
+      'Pending-install marker is now persisted on every `update-downloaded` event from electron-updater (was previously defined but never written). When you click Later or close the window mid-countdown, your next launch fires the existing 10s PendingInstallCountdown so the install still happens — nothing is lost.',
+      'New preload bridge: `window.quillosofi.updates.onInstallReady(cb)` — subscribes to the `updates:install-ready` IPC ping emitted from main’s update-downloaded handler. Mirrors the existing onPendingInstall shape.',
+      'Modal dims the countdown number + progress bar when paused, so the held state reads clearly. Resume restores full color.',
+      'Per-version dismissal: hitting Later for v0.6.95-alpha.X suppresses the dialog for that exact version until a NEW update-downloaded fires for a different version. No re-popping on every re-detect.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.7',
     date: '2026-05-14',
     tagline: 'Quillginate pagination, fixed. Activating Quillginate on an existing multi-block doc was shoving every block onto its own page with vast empty space below — the underflow pass that’s supposed to reflow blocks back together couldn’t see the empty space because the editor’s `min-height: 100%` (a UX rule so clicking the empty page area focuses the editor) was clamping `scrollHeight` UP to the page’s writable height. The pager now measures the natural span between the first and last block instead, so empty space is actually visible to the controller. Doubles as the live test for the auto-updater fix shipped in alpha.6 — if you’re reading this in-app via Settings → Update, the updater works.',

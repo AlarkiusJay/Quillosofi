@@ -32,5 +32,13 @@ contextBridge.exposeInMainWorld('quillosofi', {
       ipcRenderer.on('updates:pending-install', listener);
       return () => ipcRenderer.removeListener('updates:pending-install', listener);
     },
+    // v0.6.95-alpha.8 — main pings this the moment update-downloaded fires
+    // in-session, so the renderer can pop the install-ready modal with a
+    // 5s auto-install countdown the user can pause / dismiss.
+    onInstallReady: (cb) => {
+      const listener = (_e, payload) => cb(payload);
+      ipcRenderer.on('updates:install-ready', listener);
+      return () => ipcRenderer.removeListener('updates:install-ready', listener);
+    },
   },
 });

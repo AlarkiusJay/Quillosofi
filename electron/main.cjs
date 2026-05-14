@@ -291,10 +291,36 @@ function wireAutoUpdater() {
     updateState.downloadPercent = 100;
     logUpdaterEvent('event', `update-downloaded v${info.version}`);
     emitUpdateState();
-    // v0.5.72 — no auto-install path anymore. The downloaded installer
-    // sits on disk and the "Install & Restart" button in the Update tab
-    // (and the badge on the Settings gear) is the explicit user action
-    // that triggers quitAndInstall.
+
+    // v0.6.95-alpha.8 — In-session install prompt.
+    //
+    // Pre-alpha.8 behaviour: the downloaded installer sat silently on disk
+    // until the user either clicked "Install & Restart" in Settings→Update
+    // OR quit the app (electron-updater would then apply on next launch).
+    // Alaria's report: "silent closes and installs in the background” — the
+    // app effectively vanishes for a beat with no warning. Replaced with a
+    // visible modal in the renderer offering Install Now / Later + a 5-second
+    // auto-install countdown the user can pause.
+    //
+    // Also persist a pending-install marker so the existing 10s
+    // pending-install countdown (UpdateOverlays.jsx) still fires on the
+    // NEXT launch if the user clicked “Later”. That keeps the safety net.
+    try {
+      savePendingInstall({
+        version: info.version,
+        stagedAt: Date.now(),
+        releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes.slice(0, 1200) : null,
+      });
+    } catch (e) {
+      logUpdaterEvent('warning', `pending-install marker write failed: ${e && e.message}`);
+    }
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updates:install-ready', {
+        version: info.version,
+        releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : null,
+      });
+    }
   });
 
   autoUpdater.on('error', (err) => {
