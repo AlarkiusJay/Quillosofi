@@ -22,12 +22,13 @@ Quillosofi is an all-in-one writing & thinking studio for creators — draft, or
 
 [**Download the latest release**](https://github.com/AlarkiusJay/Quillosofi/releases/latest)
 
-If you use windows or linux, download the ".exe" file! 
+If you use windows or download the ".exe" file! 
 > If Windows SmartScreen warns you, hit **More info → Run anyway** — Quillosofi is unsigned but open source. The whole codebase is right here.
 
 Mac Users, click on the ".dmg" or ".blockmap" file to download 
 
-
+Linux users, you can click the ".appimage" or ".Deb" to download to your system. 
+> Mac and Linux will also get a warning. Click run anyways if you want to install it. 
 ---
 
 ## What Quillosofi Can Do
