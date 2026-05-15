@@ -8,8 +8,6 @@
   <meta property="og:title" content="Quillosofi" />
   <meta property="og:description" content="A free, open-source writing app for authors and worldbuilders. One document, two views, one toggle." />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="icon" type="image/png" href="../public/favicon-256.png" />
-  <link rel="apple-touch-icon" href="../public/favicon-256.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Oldenburg&family=Inter:wght@300;400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
@@ -58,7 +56,7 @@
   <div class="hero-inner">
     <div class="hero-copy reveal">
       <div class="hero-logo-lockup">
-        <img src="QuillosofiICO.png" alt="Quillosofi" class="hero-logo-png" />
+        <img src="QuillosofiICO.svg" alt="Quillosofi" class="hero-logo-img" />
       </div>
       <div class="badge"><span class="badge-dot"></span>v0.6.95-alpha &mdash; Free &amp; Open Source</div>
       <h1>Write Without<br><span class="underline-chalk">Choosing.</span></h1>
@@ -71,8 +69,7 @@
           View on GitHub
         </a>
       </div>
-      <p class="hero-fine">No accounts. No subscriptions. No paywalls. Ever. 
-        <br> This Desktop App is still in Development. Stuff may break, change, or improve over time. </br> </p>
+      <p class="hero-fine">No accounts. No subscriptions. No paywalls. Ever.<br>This Desktop App is still in Development. Stuff may break, change, or improve over time.</p>
     </div>
     <div class="hero-mockup reveal reveal-delay">
       <div class="mockup-glow" aria-hidden="true"></div>
@@ -418,7 +415,7 @@
   document.querySelectorAll('.feature-card').forEach((el, i) => { el.dataset.delay = String(i * 80); });
   document.querySelectorAll('.roadmap-col').forEach((el, i) => { el.dataset.delay = String(i * 120); });
 
-  /* GITHUB RELEASES API - dynamic version + download link */
+  /* GITHUB RELEASES API */
   async function fetchLatestRelease() {
     try {
       const res = await fetch('https://api.github.com/repos/TheAlarklynZone/Quillosofi/releases/latest', {
