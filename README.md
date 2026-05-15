@@ -4,7 +4,7 @@
 
 # Quillosofi
 
-### Your Writing & Worldbuilding Companion — Canvas, Sheets, & a Quillibrary Actually Sticks.
+### Your Writing & Worldbuilding Companion — Canvas, Sheets, & A Quillibrary Actually Sticks.
 
 `Native Desktop App` · `Privacy First` · `Chalkboard Aesthetic` · `Free & Open Source`
 
@@ -24,10 +24,6 @@ Quillosofi is an all-in-one writing & thinking studio for creators — draft, or
 
 If you use windows, click the ".exe" file to download!
 > If Windows SmartScreen warns you, hit **More info → Run anyway** — Quillosofi is unsigned but open source. The whole codebase is right here.
-
-Mac Users, click on the ".dmg" or ".blockmap" file to download 
-
-Linux users, you can click the ".appimage" or ".Deb" to download to your system. 
 > Mac and Linux will also get a warning. Click run anyways if you want to install it. 
 ---
 
