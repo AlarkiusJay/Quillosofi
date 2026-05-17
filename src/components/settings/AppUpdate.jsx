@@ -3,7 +3,7 @@
  *
  * Quillosofi is a desktop app, so this panel only ever talks to the Electron
  * auto-updater bridge (`window.quillosofi.updates`). The bridge proxies to
- * electron-updater, which checks the GitHub `AlarkiusJay/Quillosofi` releases
+ * electron-updater, which checks the GitHub `TheAlarklynZone/Quillosofi` releases
  * feed for newer tagged installers.
  *
  * v0.4.5: removed the legacy WebUpdateView (force-reload + dead network call)
@@ -29,7 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { entriesUpTo } from '@/data/changelog';
 
-const FEED_URL = 'https://github.com/AlarkiusJay/Quillosofi/releases';
+const FEED_URL = 'https://github.com/TheAlarklynZone/Quillosofi/releases';
 
 // v0.4.14: stealth twin prank button removed from the Update tab. The easter
 // egg lives elsewhere now — keeping this surface strictly functional so the
@@ -716,7 +716,11 @@ function ChangelogBlock({ currentVersion, show, onToggle, openVersions, setOpenV
         {show ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
       {show && (
-        <div className="space-y-2">
+        // v0.6.95-alpha.11 — scrollable changelog. Fixed max-height so the
+        // panel doesn't push the entire Settings modal taller as releases
+        // accumulate. Entries scroll within the container; outer card stays
+        // a consistent size.
+        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
           {entries.length === 0 && (
             <p className="text-xs text-muted-foreground">No changelog entries available.</p>
           )}

@@ -17,6 +17,37 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.11',
+    date: '2026-05-16',
+    tagline: 'Changelog is now a proper scrollable panel — no more hunting through a flat collapsed list. Added full entries for alpha.9 and alpha.10.',
+    changes: [
+      'Changelog panel is now scrollable with a fixed max-height. The entry list no longer pushes the entire Settings modal taller as more releases accumulate.',
+      'Added changelog entries for alpha.9 (Quillginate underflow fix) and alpha.10 (updater repo fix).',
+    ],
+  },
+  {
+    version: '0.6.95-alpha.10',
+    date: '2026-05-16',
+    tagline: 'Updater now points at the right repo. Feed URL, owner, and releases link were all hitting AlarkiusJay/Quillosofi (personal profile) instead of the org repo TheAlarklynZone/Quillosofi — so the auto-updater could never find a release. Manual reinstall of alpha.10 is required once; every update after this works automatically.',
+    changes: [
+      'Fixed: electron-updater feed URL corrected from AlarkiusJay/Quillosofi to TheAlarklynZone/Quillosofi. The updater was silently hitting a non-existent releases feed — Latest seen always showed (not yet seen) regardless of published tags.',
+      'Fixed: owner field in electron-builder publish config updated to TheAlarklynZone so future builds generate the correct latest.yml manifest pointing at the org repo.',
+      'Fixed: releases page openExternal link in main.cjs updated to match. View all releases on GitHub now opens the correct page.',
+      'Includes all changes from alpha.9 (Quillginate underflow fix).',
+    ],
+  },
+  {
+    version: '0.6.95-alpha.9',
+    date: '2026-05-16',
+    tagline: 'Quillginate underflow fixpoint — the alpha.8 blocker. Activating Quillginate on a multi-paragraph document no longer scatters content across empty pages. Blocks now compact upward correctly on every rebalance tick.',
+    changes: [
+      'Fixed (BLOCKER): Quillginate underflow pull-up was a no-op on freshly-seeded pages. When Quillginate activated, splitDocToBlocks seeded N pages simultaneously. Freshly-mounted PageEditor instances had not yet completed a RAF measurement loop, so heightsRef had no entries for pages 1…N-1. The old guard `if (typeof h !== \'number\') continue` skipped every candidate — the underflow loop exited doing nothing. Overflow kept pushing text forward; underflow never compacted it back. Result: empty pages then scattered content.',
+      'Fix: unmeasured pages now treated as height 0 (maximum room) instead of being skipped. A freshly-seeded page that hasn\'t reported yet IS empty — defaulting to 0 is correct and starts the fixpoint chain immediately on activation.',
+      'Fix (secondary): added guard to skip pulling from page i+1 only when it is measured AND known-full (hNext > contentHeightPx - SLACK). Unmeasured donor pages are always allowed through — prevents a bounce-back cycle on longer documents.',
+      'Hard-page-break logic, measureNaturalContentHeight, and all other pagination behavior unchanged.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.8',
     date: '2026-05-14',
     tagline: 'In-session install prompt with a 5-second countdown you can pause. Pre-alpha.8 the downloaded installer would silently close the app and apply itself with no warning — jarring even when the update actually works. Now you get a modal the moment electron-updater finishes downloading: a big countdown number, Install Now / Later / Pause buttons, the release tagline so you know what’s landing, and a soft fallback (Later defers to the existing 10s next-launch countdown). Pending-install marker is now persisted on every download-finished event, so the safety net survives even an abrupt force-quit.',
