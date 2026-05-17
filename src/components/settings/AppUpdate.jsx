@@ -16,7 +16,6 @@ import {
   RefreshCw,
   CheckCircle2,
   Sparkles,
-  Download,
   AlertTriangle,
   Loader2,
   ExternalLink,
@@ -254,30 +253,9 @@ function DesktopUpdateView() {
     }
   }, [scanning, busy, armProgressCard, state.currentVersion, runScanWith]);
 
-  const handleDownload = useCallback(async () => {
-    armProgressCard();
-    setBusy(true);
-    try { await window.quillosofi.updates.download(); } finally { setBusy(false); }
-  }, [armProgressCard]);
-
-  // v0.5.82 — Combined "Check + Download" with visible progress feedback.
-  // Phase 1: "Fetching latest release from GitHub…" (synthetic bar) while
-  // we hit the releases feed. Phase 2: hand off to electron-updater's real
-  // download-progress events, which the 'downloading' statusBlock renders
-  // with the actual byte-percent. If the check fails or there's nothing
-  // newer, the bar settles and we surface the result (up-to-date / error)
-  // via the regular status block.
-  const handleCheckAndDownload = useCallback(async () => {
-    if (scanning || busy) return;
-    armProgressCard();
-    const res = await runScanWith(
-      'Fetching latest release from GitHub\u2026',
-      () => window.quillosofi.updates.check()
-    );
-    if (res?.ok && res?.info && res.info.version && res.info.version !== state.currentVersion) {
-      try { await window.quillosofi.updates.download(); } catch (_) {}
-    }
-  }, [state.currentVersion, armProgressCard, scanning, busy, runScanWith]);
+  // v0.6.95-alpha.13 — handleDownload and handleCheckAndDownload removed.
+  // Download is now triggered exclusively from the UpdateAvailableModal
+  // (Update Now button). handleInstall remains for the Restart & Install CTA.
 
   const handleInstall = useCallback(async () => {
     setBusy(true);
@@ -453,27 +431,10 @@ function DesktopUpdateView() {
   const checking = status === 'checking' || busy || scanning;
   const downloading = status === 'downloading';
   const installable = status === 'downloaded';
-  const downloadable = status === 'available';
 
-  // Real action button is purely the legitimate Install/Download CTA —
-  // never hijacked by easter eggs. (v0.4.14: prank twin removed entirely.)
-  // v0.6.95-Alpha4 — button morphs to match MultiRP exactly:
-  //   idle        → Download Update     (kicks check + auto-download)
-  //   available   → Starting download…  (brief, autoDownload fires immediately)
-  //   downloading → Downloading X%      (disabled, spinner, percent in label)
-  //   downloaded  → Restart & Install   (primary CTA — fires quitAndInstall)
-  const action = (() => {
-    if (installable) {
-      return { label: 'Restart & Install', icon: <RefreshCw className="h-4 w-4" />, onClick: handleInstall, disabled: busy, variant: 'default' };
-    }
-    if (downloading) {
-      return { label: `Downloading ${downloadPercent}%`, icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
-    }
-    if (downloadable) {
-      return { label: 'Starting download\u2026', icon: <Loader2 className="h-4 w-4 animate-spin" />, onClick: undefined, disabled: true, variant: 'default' };
-    }
-    return { label: 'Download Update', icon: <Download className="h-4 w-4" />, onClick: handleCheckAndDownload, disabled: checking, variant: 'default' };
-  })();
+  // v0.6.95-alpha.13 — Download Update button removed. The Update Available
+  // modal (alpha.12) now owns the download decision. The only remaining
+  // secondary CTA is Restart & Install which appears once a download is done.
 
   return (
     <div className="py-4 space-y-4">
@@ -561,10 +522,11 @@ function DesktopUpdateView() {
           </div>
         )}
 
-        {/* Actions — simple two-up: Check for Updates + the morphing action
-            button (Download / Install / Downloading). v0.4.14: stealth twin
-            removed; the prank lives somewhere else in the app now. */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Actions — v0.6.95-alpha.13: single full-width Check for Updates
+            button. Download Update removed — the Update Available modal
+            (alpha.12) owns that decision now. Restart & Install surfaces
+            separately below only when a download is ready. */}
+        <div className="flex flex-col gap-2">
           <Button
             variant="outline"
             onClick={handleScanThenCheck}
@@ -580,21 +542,19 @@ function DesktopUpdateView() {
             </span>
           </Button>
 
-          {/* Persistent action button. Contents key on label so transitions
-              crossfade instead of popping (300ms). */}
-          <Button
-            onClick={action.onClick}
-            disabled={action.disabled}
-            className="w-full flex items-center gap-2"
-          >
-            <span
-              key={action.label}
-              className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in"
+          {/* Restart & Install — only shown once a download is ready. */}
+          {installable && (
+            <Button
+              onClick={handleInstall}
+              disabled={busy}
+              className="w-full flex items-center gap-2"
             >
-              {action.icon}
-              {action.label}
-            </span>
-          </Button>
+              <span className="flex items-center gap-2 transition-opacity duration-300 animate-in fade-in">
+                <RefreshCw className="h-4 w-4" />
+                Restart &amp; Install
+              </span>
+            </Button>
+          )}
         </div>
 
         {/* Open release page */}

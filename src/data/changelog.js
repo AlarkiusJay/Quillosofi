@@ -17,6 +17,17 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.13',
+    date: '2026-05-16',
+    tagline: 'Download Update button removed — the Update Available modal from alpha.12 now owns the download decision. Check for Updates is the single CTA; Restart & Install surfaces only when a download is ready.',
+    changes: [
+      'Removed the Download Update button from the Update tab. The Update Available modal (alpha.12) already handles the update decision — the button was redundant and created a second path that bypassed the modal entirely.',
+      'Check for Updates is now the sole full-width CTA in the actions row.',
+      'Restart & Install now appears as a separate full-width button only when status is downloaded (a download is ready to apply). It no longer shares a two-column grid with Check for Updates.',
+      'Cleaned up unused handleDownload and handleCheckAndDownload callbacks and the Download lucide icon import.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.12',
     date: '2026-05-16',
     tagline: 'Update Available modal — when Check for Updates finds a newer version, a proper prompt appears asking if you’d like to update now or later, instead of silently auto-downloading.',
