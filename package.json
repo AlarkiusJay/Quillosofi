@@ -214,7 +214,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "AlarkiusJay",
+        "owner": "TheAlarklynZone",
         "repo": "Quillosofi",
         "releaseType": "release"
       }

@@ -156,7 +156,7 @@ const updateState = {
   // logger AND from the event handlers so the panel surfaces both the silent
   // electron-updater chatter and the high-level state transitions.
   events: [],
-  feedUrl: 'https://github.com/AlarkiusJay/Quillosofi/releases',
+  feedUrl: 'https://github.com/TheAlarklynZone/Quillosofi/releases',
 };
 
 function logUpdaterEvent(kind, message) {
@@ -207,7 +207,7 @@ function wireAutoUpdater() {
   try {
     autoUpdater.setFeedURL({
       provider: 'github',
-      owner: 'AlarkiusJay',
+      owner: 'TheAlarklynZone',
       repo: 'Quillosofi',
       releaseType: 'release',
     });
@@ -510,7 +510,7 @@ ipcMain.handle('updates:setSettings', (_e, partial) => {
 });
 
 ipcMain.handle('updates:openReleasePage', () => {
-  shell.openExternal('https://github.com/AlarkiusJay/Quillosofi/releases');
+  shell.openExternal('https://github.com/TheAlarklynZone/Quillosofi/releases');
   return true;
 });
 
