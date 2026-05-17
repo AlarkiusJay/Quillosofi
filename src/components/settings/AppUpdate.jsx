@@ -76,7 +76,7 @@ function NoBridgeView() {
 // =============================================================
 // Desktop view — full electron-updater integration.
 // =============================================================
-function DesktopUpdateView() {
+function DesktopUpdateView({ onCloseSettings }) {
   const [state, setState] = useState({
     status: 'idle',
     currentVersion: '...',
@@ -236,19 +236,29 @@ function DesktopUpdateView() {
       'Scanning for updates\u2026',
       () => window.quillosofi.updates.check()
     );
-    // v0.6.95-alpha.12 — if a newer version is found, show the Update
-    // Available modal instead of auto-firing the download. The user
-    // chooses Later (dismiss) or Update Now (kicks download).
+    // v0.6.95-alpha.12 — if a newer version is found, close the settings
+    // modal first, then show the Update Available modal.
+    // v0.6.95-alpha.14 — close settings before popping the update modal so
+    // it floats cleanly over the main app rather than inside the panel.
     const info = result && result.ok ? result.info : null;
     if (info && info.version && info.version !== state.currentVersion) {
       // Pull tagline from bundled changelog if available, fall back to
-      // release notes from the GitHub payload, or empty string.
+      // release notes from the GitHub payload (strip HTML tags), or ''.
       const { entriesUpTo } = await import('@/data/changelog');
       const entries = entriesUpTo(info.version);
       const entry = entries.find((e) => e.version === info.version);
-      const tagline = entry?.tagline
-        || (typeof info.releaseNotes === 'string' ? info.releaseNotes.split('\n').find(Boolean) : '')
-        || '';
+      let tagline = entry?.tagline || '';
+      if (!tagline && typeof info.releaseNotes === 'string') {
+        // GitHub release notes arrive as HTML — strip tags before display.
+        tagline = info.releaseNotes
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(/[.!?]/)[0]  // first sentence only
+          .trim();
+      }
+      // Close settings modal first so the update modal floats over the app.
+      onCloseSettings?.();
       setUpdateModal({ latestVersion: info.version, tagline });
     }
   }, [scanning, busy, armProgressCard, state.currentVersion, runScanWith]);
@@ -451,8 +461,10 @@ function DesktopUpdateView() {
           onLater={() => setUpdateModal(null)}
           onUpdateNow={async () => {
             setUpdateModal(null);
-            armProgressCard();
-            try { await window.quillosofi.updates.download(); } catch (_) {}
+            // v0.6.95-alpha.14 — Update Now fires quitAndInstall directly.
+            // The download was already triggered by electron-updater's
+            // check; by the time the modal shows the asset is on disk.
+            try { await window.quillosofi.updates.install(); } catch (_) {}
           }}
         />
       )}
@@ -759,15 +771,17 @@ function UpdateAvailableModal({ latestVersion, currentVersion, tagline, onLater,
             Update App?
           </h2>
 
-          {/* Version chips */}
+          {/* Version chips — (current) → (new ← highlighted) */}
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-medium px-2.5 py-1 rounded-full border border-primary/50 text-primary"
-              style={{ background: 'hsl(var(--primary)/0.1)' }}>
-              v{latestVersion}
-            </span>
-            <span className="text-muted-foreground text-xs">←</span>
+            {/* current — plain */}
             <span className="font-mono text-[11px] font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground">
               v{currentVersion}
+            </span>
+            <span className="text-muted-foreground text-xs">→</span>
+            {/* new — highlighted */}
+            <span className="font-mono text-[11px] font-medium px-2.5 py-1 rounded-full border border-primary/50 text-primary"
+              style={{ background: 'hsl(var(--primary)/0.1)' }}>
+              v{latestVersion} ←
             </span>
           </div>
 
@@ -906,7 +920,7 @@ function ChangelogBlock({ currentVersion, show, onToggle, openVersions, setOpenV
 // =============================================================
 // Export — picks view based on whether the Electron preload bridge is live.
 // =============================================================
-export default function AppUpdate() {
+export default function AppUpdate({ updateCount, onCloseSettings }) {
   const [hasBridge, setHasBridge] = useState(
     () => typeof window !== 'undefined' && !!window.quillosofi?.updates
   );
@@ -918,5 +932,7 @@ export default function AppUpdate() {
     }
   }, [hasBridge]);
 
-  return hasBridge ? <DesktopUpdateView /> : <NoBridgeView />;
+  return hasBridge
+    ? <DesktopUpdateView onCloseSettings={onCloseSettings} />
+    : <NoBridgeView />;
 }

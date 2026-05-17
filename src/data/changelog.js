@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.14',
+    date: '2026-05-16',
+    tagline: 'Update modal polish — settings closes before the modal appears, version chips are now (current) → (new ←), HTML stripped from release notes tagline, and Update Now fires quit & install immediately.',
+    changes: [
+      'Settings modal now closes before the Update Available modal appears, so the prompt floats cleanly over the main app instead of inside the settings panel.',
+      'Version chips corrected to (current) → (new ← highlighted) — current version is the plain left chip, new version is the green highlighted right chip with a ← marker.',
+      'Fixed: GitHub release notes were rendering as raw HTML in the What\'s new tagline. Tags are now stripped and only the first sentence is shown.',
+      'Update Now now calls quitAndInstall directly (window.quillosofi.updates.install()) — the download is already on disk by the time the modal shows, so there is no separate download step.',
+      'onCloseSettings prop threaded from SettingsModal → AppUpdate → DesktopUpdateView so the modal can close the settings panel programmatically.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.13',
     date: '2026-05-16',
     tagline: 'Download Update button removed — the Update Available modal from alpha.12 now owns the download decision. Check for Updates is the single CTA; Restart & Install surfaces only when a download is ready.',

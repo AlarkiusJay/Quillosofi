@@ -252,7 +252,7 @@ export default function SettingsModal({ onClose, initialTab = 'general', onDataU
           }
 
           {activeTab === 'donate' && <DonateTab />}
-          {activeTab === 'update' && <AppUpdate updateCount={updateCount} />}
+          {activeTab === 'update' && <AppUpdate updateCount={updateCount} onCloseSettings={onClose} />}
         </div>
       </div>
     </>);
