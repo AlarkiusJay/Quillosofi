@@ -17,6 +17,18 @@
  */
 export const CHANGELOG = [
   {
+    version: '0.6.95-alpha.12',
+    date: '2026-05-16',
+    tagline: 'Update Available modal — when Check for Updates finds a newer version, a proper prompt appears asking if you’d like to update now or later, instead of silently auto-downloading.',
+    changes: [
+      'New Update Available modal: when Check for Updates finds a newer version, a fixed full-viewport overlay appears with the new and current version chips, the release tagline (from the bundled changelog or GitHub release notes), and two buttons — Update Now and Later.',
+      'Update Now kicks the download immediately and closes the modal. Later dismisses without taking any action — the status block in the Update tab still reflects the available update.',
+      'Modal renders via position: fixed at z-[9999] so it always sits above all stacking contexts including the Settings modal itself — never clipped.',
+      'Escape key and clicking the backdrop also dismiss the modal (equivalent to Later).',
+      'Tagline in the modal is sourced from the bundled changelog entry for the new version if available, otherwise falls back to the first line of GitHub release notes.',
+    ],
+  },
+  {
     version: '0.6.95-alpha.11',
     date: '2026-05-16',
     tagline: 'Changelog is now a proper scrollable panel — no more hunting through a flat collapsed list. Added full entries for alpha.9 and alpha.10.',

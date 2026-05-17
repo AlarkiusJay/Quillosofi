@@ -124,6 +124,12 @@ function DesktopUpdateView() {
   // got; older entries collapse to a single-row tag + tagline.
   const [showChangelog, setShowChangelog] = useState(false);
   const [openVersions, setOpenVersions] = useState({});
+  // v0.6.95-alpha.12 — Update Available modal. Pops when Check for Updates
+  // finds a newer version. User can choose Later (dismiss) or Update Now
+  // (kicks download). Does NOT auto-pop on launch — only from the manual
+  // Check for Updates button. Renders as a fixed full-viewport overlay so
+  // it is never clipped by the Settings modal's overflow/scroll container.
+  const [updateModal, setUpdateModal] = useState(null); // { latestVersion, tagline } | null
   // Pull initial status + subscribe to live state pushes. Also auto-fire one
   // check on mount so the panel isn't stuck on "Not checked yet" forever.
   useEffect(() => {
@@ -231,12 +237,20 @@ function DesktopUpdateView() {
       'Scanning for updates\u2026',
       () => window.quillosofi.updates.check()
     );
-    // If the check turned up a newer version, kick the download right
-    // away. The download-progress + downloaded events from main.cjs flip
-    // the status block to its 'downloading' / 'downloaded' renderings.
+    // v0.6.95-alpha.12 — if a newer version is found, show the Update
+    // Available modal instead of auto-firing the download. The user
+    // chooses Later (dismiss) or Update Now (kicks download).
     const info = result && result.ok ? result.info : null;
     if (info && info.version && info.version !== state.currentVersion) {
-      try { await window.quillosofi.updates.download(); } catch (_) {}
+      // Pull tagline from bundled changelog if available, fall back to
+      // release notes from the GitHub payload, or empty string.
+      const { entriesUpTo } = await import('@/data/changelog');
+      const entries = entriesUpTo(info.version);
+      const entry = entries.find((e) => e.version === info.version);
+      const tagline = entry?.tagline
+        || (typeof info.releaseNotes === 'string' ? info.releaseNotes.split('\n').find(Boolean) : '')
+        || '';
+      setUpdateModal({ latestVersion: info.version, tagline });
     }
   }, [scanning, busy, armProgressCard, state.currentVersion, runScanWith]);
 
@@ -463,6 +477,25 @@ function DesktopUpdateView() {
 
   return (
     <div className="py-4 space-y-4">
+
+      {/* v0.6.95-alpha.12 — Update Available modal.
+          Rendered as a fixed full-viewport overlay so it is NEVER clipped
+          by the Settings modal's overflow or scroll containers. z-[9999]
+          puts it above all other stacking contexts in the app. */}
+      {updateModal && (
+        <UpdateAvailableModal
+          latestVersion={updateModal.latestVersion}
+          currentVersion={currentVersion}
+          tagline={updateModal.tagline}
+          onLater={() => setUpdateModal(null)}
+          onUpdateNow={async () => {
+            setUpdateModal(null);
+            armProgressCard();
+            try { await window.quillosofi.updates.download(); } catch (_) {}
+          }}
+        />
+      )}
+
       <div className="bg-card rounded-xl border border-border p-5 space-y-5">
         {/* Installed */}
         <div>
@@ -693,6 +726,141 @@ Auto-check:       ${settings.autoCheck ? 'on' : 'off'}`}
 // the installed version is auto-expanded so users land on "what they just
 // got"; older versions collapse to a single-row tagline.
 // =============================================================
+// =============================================================
+// UpdateAvailableModal — v0.6.95-alpha.12
+//
+// Fixed full-viewport overlay that appears when Check for Updates
+// finds a newer version. Renders above ALL stacking contexts (z-[9999])
+// so it is never clipped by the Settings modal's overflow container.
+//
+// Props:
+//   latestVersion  — the new version string (e.g. "0.6.95-alpha.12")
+//   currentVersion — installed version string
+//   tagline        — one-liner from changelog or release notes
+//   onLater        — called on "Later" button click (dismisses)
+//   onUpdateNow    — called on "Update Now" (kicks download, dismisses)
+// =============================================================
+function UpdateAvailableModal({ latestVersion, currentVersion, tagline, onLater, onUpdateNow }) {
+  // Trap focus inside the modal and close on Escape.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onLater(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onLater]);
+
+  return (
+    // Fixed overlay — covers full viewport, sits above everything.
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{ background: 'hsla(220, 18%, 5%, 0.72)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onLater(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Update available"
+    >
+      <div
+        className="w-[340px] max-w-[92vw] rounded-[14px] border border-border overflow-hidden shadow-2xl"
+        style={{
+          background: 'hsl(var(--card))',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px hsla(152,30%,40%,0.12), inset 0 1px 0 hsla(155,20%,60%,0.05)',
+          animation: 'quillosofi-modal-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        }}
+      >
+        {/* Keyframe injected once — harmless if rendered multiple times */}
+        <style>{`
+          @keyframes quillosofi-modal-in {
+            from { opacity: 0; transform: scale(0.94) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+          }
+        `}</style>
+
+        {/* Green top stripe */}
+        <div style={{
+          height: 3,
+          background: 'linear-gradient(90deg, hsl(var(--primary)/0.5), hsl(var(--primary)), hsl(var(--primary)/0.5))',
+        }} />
+
+        {/* Body */}
+        <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center gap-3">
+
+          {/* Icon badge */}
+          <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/30"
+            style={{ background: 'hsl(var(--primary)/0.12)' }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+              className="text-primary">
+              <path d="M9 2v8M5.5 7l3.5-4 3.5 4" />
+              <path d="M3 12h12v1.5A1.5 1.5 0 0113.5 15h-9A1.5 1.5 0 013 13.5V12z" />
+            </svg>
+          </div>
+
+          {/* Heading */}
+          <h2 className="text-[17px] font-semibold text-foreground tracking-tight" style={{ fontFamily: 'Oldenburg, serif' }}>
+            Update App?
+          </h2>
+
+          {/* Version chips */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] font-medium px-2.5 py-1 rounded-full border border-primary/50 text-primary"
+              style={{ background: 'hsl(var(--primary)/0.1)' }}>
+              v{latestVersion}
+            </span>
+            <span className="text-muted-foreground text-xs">←</span>
+            <span className="font-mono text-[11px] font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+              v{currentVersion}
+            </span>
+          </div>
+
+          {/* Body copy */}
+          <p className="text-[13px] text-foreground/80 leading-relaxed max-w-[270px]">
+            A new version of Quillosofi is available!{' '}
+            <span className="font-semibold text-foreground">v{latestVersion}</span> is now released
+            {' '}— you are currently on{' '}
+            <span className="font-semibold text-foreground">v{currentVersion}</span>.
+            Would you like to update Quillosofi now?
+          </p>
+
+          {/* Tagline / what’s new */}
+          {tagline ? (
+            <div className="w-full rounded-lg border border-border px-3 py-2.5 text-left"
+              style={{ background: 'hsl(var(--muted)/0.4)' }}>
+              <p className="text-[9.5px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-1">What’s new</p>
+              <p className="text-[12px] text-foreground/75 leading-snug">{tagline}</p>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-6 pt-3 flex flex-col gap-2.5">
+          {/* Update Now — primary */}
+          <button
+            type="button"
+            onClick={onUpdateNow}
+            className="w-full flex items-center justify-center gap-2 rounded-[8px] border border-primary py-2.5 text-[13px] font-semibold text-primary transition-all hover:opacity-90 active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)/0.18), hsl(var(--primary)/0.28))', boxShadow: '0 0 18px hsl(var(--primary)/0.2)' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 1v8M4 6l3 3 3-3" />
+              <path d="M2 10h10v1.5A1.5 1.5 0 0110.5 13h-7A1.5 1.5 0 012 11.5V10z" />
+            </svg>
+            Update Now
+          </button>
+
+          {/* Later — secondary */}
+          <button
+            type="button"
+            onClick={onLater}
+            className="w-full rounded-[8px] border border-border py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/40"
+          >
+            Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChangelogBlock({ currentVersion, show, onToggle, openVersions, setOpenVersions }) {
   const entries = entriesUpTo(currentVersion);
   // The installed version is open by default once the panel is expanded;
