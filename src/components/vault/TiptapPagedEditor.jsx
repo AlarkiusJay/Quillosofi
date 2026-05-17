@@ -422,11 +422,30 @@ function usePaginationController({
     }
 
     // 2) UNDERFLOW pass — pull from next page if there's room.
+    //
+    // v0.6.95-alpha.9 — underflow fixpoint fix.
+    //
+    // Root cause of the alpha.8 blocker: when Quillginate activates,
+    // splitDocToBlocks seeds N pages (one block each). The freshly-mounted
+    // PageEditors for pages 1…N-1 have not yet completed a RAF measurement
+    // loop, so heightsRef has no entry for them. The old guard
+    // `if (typeof h !== 'number') continue` skipped every candidate page —
+    // the underflow loop visited zero pages and exited doing nothing.
+    // Meanwhile the overflow pass could still fire (page 0 is typically
+    // already measured), pushing text forward while underflow never
+    // compacted it back. Result: empty pages then scattered text.
+    //
+    // Fix: treat an unmeasured page as height 0 (maximum room). A freshly-
+    // seeded page that hasn't reported yet IS empty or tiny — defaulting to
+    // 0 is correct and conservative in the right direction.
     for (let i = 0; i < current.length - 1; i++) {
       const h = heights.get(i);
-      if (typeof h !== 'number') continue;
+      // FIX: was `if (typeof h !== 'number') continue;` — that caused the
+      // entire underflow pass to no-op on freshly-seeded pages. Now: unknown
+      // height → treat as 0 (empty page, maximum room available).
+      const hNormalized = typeof h === 'number' ? h : 0;
       // Only pull if there's substantial empty space (>20% of page height).
-      const room = contentHeightPx - h;
+      const room = contentHeightPx - hNormalized;
       if (room < contentHeightPx * 0.2) continue;
 
       // v0.6.95-Alpha3 — never pull across a hard page break. If page i
@@ -445,6 +464,11 @@ function usePaginationController({
       // is itself the hard-break marker (shouldn't happen because the
       // FORCED BREAK pass keeps the marker on page i, but guard anyway).
       if (isHardPageBreak(nextBlocks[0] || '')) continue;
+      // Don't pull from a next page that is already measured and known-full
+      // (would just bounce back on the next overflow tick). If unmeasured,
+      // allow the pull — freshly-seeded pages always have room.
+      const hNext = heights.get(i + 1);
+      if (typeof hNext === 'number' && hNext > contentHeightPx - SLACK) continue;
 
       const firstNextBlock = nextBlocks.shift();
       const next = current.slice();
